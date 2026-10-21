@@ -4,6 +4,7 @@ import api from "@/lib/axios";
 import notify from "@/lib/notify";
 import { formatDate } from "@/lib/dateUtils";
 import EvidenceLightboxModal from "@/pages/general/components/booking-modal/EvidenceLightboxModal";
+import FilterDropdown from "@/components/ui/FilterDropdown";
 
 export default function IncidentReportsTab({
   venueBookings = [],
@@ -414,29 +415,31 @@ export default function IncidentReportsTab({
           </div>
 
           {/* Target Type Filter */}
-          <select
+          <FilterDropdown
             value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-none cursor-pointer"
-          >
-            <option value="all">All Categories</option>
-            <option value="venue_booking">Venue Bookings</option>
-            <option value="equipment_borrow">Equipment Borrowings</option>
-            <option value="equipment_unit">Equipment Units</option>
-          </select>
+            onChange={setTypeFilter}
+            options={[
+              { value: "all", label: "All Categories" },
+              { value: "venue_booking", label: "Venue Bookings" },
+              { value: "equipment_borrow", label: "Equipment Borrowings" },
+              { value: "equipment_unit", label: "Equipment Units" },
+            ]}
+            title="Filter by Target Category"
+          />
 
-          {/* Condition Filter (Single Word Options) */}
-          <select
+          {/* Condition Filter */}
+          <FilterDropdown
             value={conditionFilter}
-            onChange={(e) => setConditionFilter(e.target.value)}
-            className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-none cursor-pointer"
-          >
-            <option value="all">All Conditions</option>
-            <option value="damaged">Damaged</option>
-            <option value="lost">Lost</option>
-            <option value="violation">Violation</option>
-            <option value="good">Good</option>
-          </select>
+            onChange={setConditionFilter}
+            options={[
+              { value: "all", label: "All Conditions" },
+              { value: "damaged", label: "Damaged" },
+              { value: "lost", label: "Lost" },
+              { value: "violation", label: "Violation" },
+              { value: "good", label: "Good" },
+            ]}
+            title="Filter by Condition"
+          />
         </div>
 
         {/* Primary Action Button (Flat Design, Plain Text) */}

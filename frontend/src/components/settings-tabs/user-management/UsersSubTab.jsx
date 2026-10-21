@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Users,
   Plus,
@@ -14,6 +14,7 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
+  Filter,
 } from "lucide-react";
 import api from "@/lib/axios";
 import { notify } from "@/lib/notify";
@@ -21,6 +22,7 @@ import ActionPopover from "./ActionPopover";
 import UserFormModal from "./UserFormModal";
 import IosToggle from "@/components/ui/ios-toggle";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import FilterDropdown from "@/components/ui/FilterDropdown";
 
 export default function UsersSubTab({ showMsg }) {
   const [availableRoles, setAvailableRoles] = useState([]);
@@ -295,32 +297,47 @@ export default function UsersSubTab({ showMsg }) {
             className="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors"
           />
         </div>
-        <select
+        <FilterDropdown
           value={roleFilter}
-          onChange={(e) => setRoleFilter(e.target.value)}
-          className="px-3 py-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 focus:outline-none focus:border-slate-400 bg-white cursor-pointer"
-        >
-          <option value="all">All Roles</option>
-          {availableRoles.map((r) => {
-            const roleName = r.name || r;
-            const roleLabel = roleName === "staff" ? "Staff" : roleName === "student_assistant" ? "Student Assistant" : roleName.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-            return (
-              <option key={r.id || roleName} value={roleName}>
-                {roleLabel}
-              </option>
-            );
-          })}
-        </select>
-        <select
+          onChange={(val) => {
+            setRoleFilter(val);
+            setCurrentPage(1);
+          }}
+          options={[
+            { value: "all", label: "All Roles" },
+            ...availableRoles.map((r) => {
+              const roleName = r.name || r;
+              const roleLabel =
+                roleName === "staff"
+                  ? "Staff"
+                  : roleName === "student_assistant"
+                  ? "Student Assistant"
+                  : roleName.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+              return {
+                value: roleName,
+                label: roleLabel,
+              };
+            }),
+          ]}
+          label="Role:"
+          title="Filter by Role"
+        />
+        <FilterDropdown
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-3 py-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 focus:outline-none focus:border-slate-400 bg-white cursor-pointer"
-        >
-          <option value="all">All Statuses</option>
-          <option value="active">Active</option>
-          <option value="pending">Pending</option>
-          <option value="disabled">Disabled</option>
-        </select>
+          onChange={(val) => {
+            setStatusFilter(val);
+            setCurrentPage(1);
+          }}
+          options={[
+            { value: "all", label: "All Statuses" },
+            { value: "active", label: "Active" },
+            { value: "pending", label: "Pending" },
+            { value: "disabled", label: "Disabled" },
+          ]}
+          icon={Filter}
+          label="Status:"
+          title="Filter by Account Status"
+        />
       </div>
 
       {/* Table with horizontal scroll */}

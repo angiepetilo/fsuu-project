@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
+import FilterDropdown from "@/components/ui/FilterDropdown";
 
 export default function SecurityAlertsTab() {
   const [alerts, setAlerts] = useState([]);
@@ -180,15 +181,18 @@ export default function SecurityAlertsTab() {
         </form>
 
         <div className="flex items-center gap-2">
-          <select
+          <FilterDropdown
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-700 focus:outline-none cursor-pointer"
-          >
-            <option value="all">All Statuses</option>
-            <option value="unresolved">Needs Attention</option>
-            <option value="resolved">Resolved</option>
-          </select>
+            onChange={setStatusFilter}
+            options={[
+              { value: "all", label: "All Statuses" },
+              { value: "unresolved", label: "Needs Attention" },
+              { value: "resolved", label: "Resolved" },
+            ]}
+            icon={Filter}
+            label="Status:"
+            title="Filter Security Alerts"
+          />
         </div>
       </div>
 

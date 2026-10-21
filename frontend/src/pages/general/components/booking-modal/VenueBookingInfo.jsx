@@ -98,13 +98,12 @@ export default function VenueBookingInfo({
 
   const hasHardcopyChanges = isHardcopy !== savedIsHardcopy || (isHardcopy && hardcopyNotes.trim() !== savedHardcopyNotes.trim());
 
-  if (!selected) return null;
-
   const [assigningUnit, setAssigningUnit] = useState(false);
   const canAssign = isSuperAdmin || isApproved || isOngoing;
 
   // Normalize and resolve assigned physical units details
   const assignedUnitsList = useMemo(() => {
+    if (!selected) return [];
     let raw = assignedUnitSelections || selected?.assigned_units;
     if (!raw || (typeof raw === "object" && Object.keys(raw).length === 0)) {
       if (selected?.assigned_units) raw = selected.assigned_units;
@@ -201,11 +200,11 @@ export default function VenueBookingInfo({
         unit: matchedUnit,
       };
     });
-  }, [assignedUnitSelections, selected?.assigned_units, selected?.id, physicalUnits, isOngoing]);
+  }, [assignedUnitSelections, selected, physicalUnits, isOngoing]);
 
   // Determine unassigned slots for requested categories
   const unassignedSlots = useMemo(() => {
-    if (!requestedCategories || requestedCategories.length === 0) return [];
+    if (!selected || !requestedCategories || requestedCategories.length === 0) return [];
     const assignedBarcodesSet = new Set(assignedUnitsList.map(u => u.barcode.toUpperCase()));
     
     const slots = [];
@@ -238,7 +237,9 @@ export default function VenueBookingInfo({
       }
     });
     return slots;
-  }, [requestedCategories, assignedUnitsList, assignedUnitSelections, getAvailableUnitsForCategory, physicalUnits]);
+  }, [selected, requestedCategories, assignedUnitsList, assignedUnitSelections, getAvailableUnitsForCategory, physicalUnits]);
+
+  if (!selected) return null;
 
   const handleQuickAssign = async (slotKey, barcode) => {
     if (!slotKey || !barcode || !selected?.id) return;
@@ -742,6 +743,33 @@ export default function VenueBookingInfo({
           {/* Compact Document File Card */}
           {docUrl ? (
             <div className="rounded-xl border border-slate-200 dark:border-blue-900/50 bg-slate-50/80 dark:bg-slate-950/60 p-3 space-y-2.5 transition-all">
+              {/* Direct Inline Image Preview */}
+              {!isPdf && (
+                <div
+                  onClick={() => {
+                    if (setFullImageModal) {
+                      setFullImageModal({ url: docUrl, title: fileName, isPdf: false });
+                    } else {
+                      handleOpenDocument(docUrl);
+                    }
+                  }}
+                  className="relative group w-full max-h-56 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-center cursor-pointer shadow-2xs hover:border-blue-400 dark:hover:border-blue-700 transition-colors"
+                  title="Click to view full image"
+                >
+                  <img
+                    src={docUrl}
+                    alt={fileName}
+                    className="max-h-56 w-auto object-contain group-hover:scale-[1.02] transition-transform duration-200 py-1"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/20 transition-colors flex items-center justify-center pointer-events-none">
+                    <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 dark:bg-slate-900/95 text-slate-800 dark:text-slate-100 text-[11px] font-bold px-3 py-1 rounded-full shadow-md flex items-center gap-1.5 backdrop-blur-xs">
+                      <Eye size={12} /> Click to expand
+                    </span>
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-start gap-3">
                 {/* File Icon Badge */}
                 <div className={`p-2.5 rounded-xl shrink-0 flex items-center justify-center ${

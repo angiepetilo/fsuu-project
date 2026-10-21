@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext, useLocation } from "react-router-dom";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
 import { fetchWithCache, invalidateCache } from "@/lib/apiCache";
@@ -20,6 +20,9 @@ import { PageLoader } from "@/components/ui/page-loader";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
+import ExportModal, { filterRecordsByBounds } from "@/components/ui/ExportModal";
+import ExportButton from "@/components/ui/ExportButton";
+import FilterDropdown from "@/components/ui/FilterDropdown";
 
 const getUnitSeqNumber = (item) => {
   if (item?.seq_no !== null && item?.seq_no !== undefined && String(item.seq_no).trim() !== "") {
@@ -36,13 +39,48 @@ const getUnitSeqNumber = (item) => {
 export default function ManageEquipments() {
   const { hasPermission } = usePermissions();
   const context = useOutletContext();
+  const location = useLocation();
 
   const [units, setUnits] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("all");
   const [activeStatus, setActiveStatus] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      return p.get("search") || p.get("barcode") || "";
+    } catch {
+      return "";
+    }
+  });
+
+  const [highlightBarcode, setHighlightBarcode] = useState(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      return p.get("barcode") || "";
+    } catch {
+      return "";
+    }
+  });
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const q = params.get("search") || params.get("barcode") || location.state?.search;
+    const hl = params.get("barcode") || location.state?.highlightBarcode || (params.get("search") && !params.get("search").includes(" ") ? params.get("search") : null);
+    if (q) {
+      setSearchQuery(q);
+      setActiveCategory("all");
+      setActiveStatus("all");
+    }
+    if (hl) {
+      setHighlightBarcode(String(hl).trim());
+      const timer = setTimeout(() => {
+        setHighlightBarcode(null);
+      }, 9000);
+      return () => clearTimeout(timer);
+    }
+  }, [location.search, location.state]);
   const [sortOrder, setSortOrder] = useState("seq_asc"); // "seq_asc" | "seq_desc" | "oldest" | "newest"
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -60,15 +98,24 @@ export default function ManageEquipments() {
   const ITEMS_PER_PAGE = 10;
 
   const [showImportModal, setShowImportModal] = useState(false);
-  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
-  const handleExport = async (format) => {
-    setShowExportMenu(false);
+  const handleExport = async ({ timeframe, format, bounds, customStart, customEnd }) => {
     setIsExporting(true);
     try {
-      await exportEquipmentList(units, format);
-      notify.success(`Exported ${units.length} equipment units as ${format.toUpperCase()}.`);
+      const filteredUnitsToExport = filterRecordsByBounds(
+        units,
+        bounds,
+        (u) => u.purchased_at || u.created_at || u.date_purchased
+      );
+      if (filteredUnitsToExport.length === 0) {
+        notify.warning("No Records Found", "No equipment units match the selected timeframe.");
+        return;
+      }
+      await exportEquipmentList(filteredUnitsToExport, format);
+      notify.success(`Exported ${filteredUnitsToExport.length} equipment units as ${format.toUpperCase()}.`);
+      setShowExportModal(false);
     } catch (e) {
       console.error(e);
       notify.error("Failed to export equipment units.");
@@ -513,7 +560,7 @@ export default function ManageEquipments() {
     // Duplicate check for Serial No.
     if (enteredSerial) {
       const duplicateSerial = units.find(u =>
-        u.id !== editingItem.id &&
+        String(u.id) !== String(editingItem.id) &&
         (u.serial_number || u.barcode || "").trim().toLowerCase() === enteredSerial.toLowerCase()
       );
       if (duplicateSerial) {
@@ -541,7 +588,7 @@ export default function ManageEquipments() {
       };
 
       const duplicateSeq = units.find(u =>
-        u.id !== editingItem.id &&
+        String(u.id) !== String(editingItem.id) &&
         u.seq_no !== null &&
         u.seq_no !== undefined &&
         String(u.seq_no).trim() !== "" &&
@@ -847,6 +894,20 @@ export default function ManageEquipments() {
     setCurrentPage(1);
   }, [activeCategory, searchQuery, sortOrder]);
 
+  useEffect(() => {
+    if (!highlightBarcode || filtered.length === 0) return;
+    const targetIdx = filtered.findIndex(u =>
+      (u.barcode && String(u.barcode).toLowerCase() === highlightBarcode.toLowerCase()) ||
+      (u.serial_number && String(u.serial_number).toLowerCase() === highlightBarcode.toLowerCase())
+    );
+    if (targetIdx !== -1) {
+      const targetPage = Math.floor(targetIdx / ITEMS_PER_PAGE) + 1;
+      if (targetPage !== currentPage) {
+        setCurrentPage(targetPage);
+      }
+    }
+  }, [highlightBarcode, filtered, currentPage]);
+
   const totalPages = useMemo(() => Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE)), [filtered.length]);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedUnits = useMemo(() => {
@@ -893,46 +954,13 @@ export default function ManageEquipments() {
     <div className="space-y-6">
       {/* Action Toolbar */}
       <div className="flex items-center justify-end gap-2.5">
-        {/* Export Dropdown */}
-        <div className="relative">
-          <button
-            type="button"
-            disabled={isExporting || units.length === 0}
-            onClick={() => setShowExportMenu(!showExportMenu)}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer disabled:opacity-50"
-          >
-            {isExporting ? <Loader2 size={15} className="animate-spin text-blue-600" /> : <Download size={15} />}
-            <span>Export</span>
-            <ChevronDown size={14} className="text-slate-400" />
-          </button>
-
-          {showExportMenu && (
-            <>
-              <div
-                className="fixed inset-0 z-40"
-                onClick={() => setShowExportMenu(false)}
-              />
-              <div className="absolute right-0 mt-1.5 w-44 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
-                <button
-                  type="button"
-                  onClick={() => handleExport("xlsx")}
-                  className="w-full text-left px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 cursor-pointer"
-                >
-                  <FileSpreadsheet size={15} className="text-emerald-600" />
-                  <span>Excel (.xlsx)</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleExport("csv")}
-                  className="w-full text-left px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 cursor-pointer"
-                >
-                  <Download size={15} className="text-blue-600" />
-                  <span>CSV (.csv)</span>
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+        {/* Unified Institutional Export Button */}
+        <ExportButton
+          disabled={units.length === 0}
+          loading={isExporting}
+          onClick={() => setShowExportModal(true)}
+          title="Export Equipment Inventory to Excel or CSV"
+        />
 
         {/* Import Button */}
         <button
@@ -976,57 +1004,54 @@ export default function ManageEquipments() {
       {/* Search & Category Filter */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-[#111827] p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-          {/* Category Dropdown */}
-          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 w-full sm:w-auto">
-            <Layers size={14} className="text-slate-400 shrink-0" />
-            <select
-              value={activeCategory}
-              onChange={(e) => setActiveCategory(e.target.value)}
-              className="bg-transparent font-bold text-slate-900 dark:text-white focus:outline-none cursor-pointer text-xs pr-2 w-full sm:w-auto"
-            >
-              {categoryList.map(t => (
-                <option key={t.id} value={t.id} className="dark:bg-slate-900">{t.label}</option>
-              ))}
-            </select>
-          </div>
+          {/* Category Filter Dropdown (Capped at 5 visible items with scroll) */}
+          <FilterDropdown
+            value={activeCategory}
+            onChange={setActiveCategory}
+            options={categoryList.map((t) => ({ value: t.id, label: t.label }))}
+            icon={Layers}
+            label=""
+            title="Filter by Equipment Category"
+            className="w-full sm:w-auto"
+          />
 
-          {/* Status Dropdown */}
-          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 w-full sm:w-auto">
-            <Filter size={14} className="text-slate-400 shrink-0" />
-            <span className="text-[11px] text-slate-400 font-bold whitespace-nowrap">Status:</span>
-            <select
-              value={activeStatus}
-              onChange={(e) => setActiveStatus(e.target.value)}
-              className="bg-transparent font-bold text-slate-900 dark:text-white focus:outline-none cursor-pointer text-xs pr-1"
-            >
-              <option value="all" className="dark:bg-slate-900">All Statuses</option>
-              <option value="available" className="dark:bg-slate-900">Available</option>
-              <option value="released" className="dark:bg-slate-900">Released</option>
-              <option value="reserved" className="dark:bg-slate-900">Reserved</option>
-              <option value="damaged" className="dark:bg-slate-900">Damaged</option>
-              <option value="under repair" className="dark:bg-slate-900">Under Repair</option>
-              <option value="lost" className="dark:bg-slate-900">Lost</option>
-              <option value="unavailable" className="dark:bg-slate-900">Unavailable</option>
-            </select>
-          </div>
+          {/* Status Filter Dropdown (Capped at 5 visible items with scroll) */}
+          <FilterDropdown
+            value={activeStatus}
+            onChange={setActiveStatus}
+            options={[
+              { value: "all", label: "All Statuses" },
+              { value: "available", label: "Available" },
+              { value: "released", label: "Released" },
+              { value: "reserved", label: "Reserved" },
+              { value: "damaged", label: "Damaged" },
+              { value: "under repair", label: "Under Repair" },
+              { value: "lost", label: "Lost" },
+              { value: "unavailable", label: "Unavailable" },
+            ]}
+            icon={Filter}
+            label="Status:"
+            title="Filter by Status"
+            className="w-full sm:w-auto"
+          />
         </div>
 
         <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full sm:w-auto">
-          {/* Sort Dropdown */}
-          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 w-full sm:w-auto">
-            <ArrowUpDown size={14} className="text-slate-400 shrink-0" />
-            <span className="text-[11px] text-slate-400 font-bold whitespace-nowrap">Sort:</span>
-            <select
-              value={sortOrder}
-              onChange={(e) => setSortOrder(e.target.value)}
-              className="bg-transparent font-bold text-slate-900 dark:text-white focus:outline-none cursor-pointer text-xs pr-1"
-            >
-              <option value="seq_asc" className="dark:bg-slate-900">Sequence (Ascending)</option>
-              <option value="seq_desc" className="dark:bg-slate-900">Sequence (Descending)</option>
-              <option value="oldest" className="dark:bg-slate-900">Date (Oldest First)</option>
-              <option value="newest" className="dark:bg-slate-900">Date (Newest First)</option>
-            </select>
-          </div>
+          {/* Sort Filter Dropdown */}
+          <FilterDropdown
+            value={sortOrder}
+            onChange={setSortOrder}
+            options={[
+              { value: "seq_asc", label: "Sequence (Ascending)" },
+              { value: "seq_desc", label: "Sequence (Descending)" },
+              { value: "oldest", label: "Date (Oldest First)" },
+              { value: "newest", label: "Date (Newest First)" },
+            ]}
+            icon={ArrowUpDown}
+            label="Sort:"
+            title="Sort Equipment"
+            className="w-full sm:w-auto"
+          />
 
           <div className="relative w-full sm:w-64">
             <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
@@ -1078,12 +1103,41 @@ export default function ManageEquipments() {
                   const displayIndex = startIndex + index + 1;
                   const isNearBottom = index >= Math.max(1, paginatedUnits.length - 2);
                   const isOpen = openActionId === item.id;
+                  const isHighlighted = Boolean(
+                    highlightBarcode && (
+                      (item.barcode && String(item.barcode).toLowerCase() === highlightBarcode.toLowerCase()) ||
+                      (item.serial_number && String(item.serial_number).toLowerCase() === highlightBarcode.toLowerCase())
+                    )
+                  );
 
                   return (
-                    <tr key={item.id} className={`transition-colors ${isOpen ? 'relative z-30' : ''} ${item.is_disabled ? 'opacity-50 grayscale bg-slate-50 dark:bg-slate-900/50' : 'hover:bg-slate-50/60 dark:hover:bg-slate-800/50'}`}>
+                    <tr
+                      key={item.id}
+                      ref={isHighlighted ? (el) => {
+                        if (el) {
+                          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                      } : undefined}
+                      className={`transition-all duration-300 ${
+                        isHighlighted
+                          ? 'bg-rose-50/95 dark:bg-rose-950/60 ring-2 ring-rose-500 shadow-sm relative z-20 font-bold'
+                          : isOpen
+                          ? 'relative z-30'
+                          : item.is_disabled
+                          ? 'opacity-50 grayscale bg-slate-50 dark:bg-slate-900/50'
+                          : 'hover:bg-slate-50/60 dark:hover:bg-slate-800/50'
+                      }`}
+                    >
                       <td className="px-4 py-3.5 font-bold text-slate-400 dark:text-slate-500">{displayIndex}</td>
                       <td className="px-4 py-3.5 font-mono text-xs font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
-                        {item.serial_number || item.barcode}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span>{item.serial_number || item.barcode}</span>
+                          {isHighlighted && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-extrabold uppercase bg-rose-600 text-white shadow-xs animate-pulse">
+                              <AlertTriangle size={10} /> Flagged Unit
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3.5 whitespace-nowrap text-xs font-semibold text-slate-800 dark:text-slate-200">
                         {(() => {
@@ -1325,6 +1379,9 @@ export default function ManageEquipments() {
         isSubmitting={isSubmitting}
         categories={categories.length > 0 ? categories : categoryNames}
         existingUnits={units}
+        onCategoryCreated={() => {
+          fetchEquipments(true);
+        }}
       />
 
       {/* Detail Modal */}
@@ -1332,6 +1389,24 @@ export default function ManageEquipments() {
         selectedItem={selectedItem}
         setSelectedItem={setSelectedItem}
         allUnits={units}
+        handleOpenEditModal={(item) => {
+          setSelectedItem(null);
+          setEditingItem(item);
+          setEditFormData({
+            brand: item.brand || "",
+            model: item.model || "",
+            seq_no: item.seq_no || "",
+            serial_number: item.serial_number || item.barcode || "",
+            category: item.category || "",
+            status: item.status ? String(item.status).toLowerCase() : "available",
+            condition: item.condition || "Good",
+            date_purchased: item.date_purchased || "",
+            lifespan_years: item.lifespan_years || 5,
+            built_in_units: Array.isArray(item.built_in_units) ? item.built_in_units : [],
+            built_in_models: item.built_in_models || {},
+            description: item.description || "",
+          });
+        }}
       />
 
       {/* Disable Unit Confirmation Modal */}
@@ -1365,6 +1440,20 @@ export default function ManageEquipments() {
         isOpen={showImportModal}
         onClose={() => setShowImportModal(false)}
         onSuccess={() => fetchEquipments(true)}
+      />
+
+      {/* Reusable Export Modal */}
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        title="Export Equipment Inventory"
+        subtitle="Choose timeframe and format to export physical equipment units."
+        formats={["xlsx", "csv"]}
+        defaultFormat="xlsx"
+        records={units}
+        dateAccessor={(u) => u.purchased_at || u.created_at || u.date_purchased}
+        onExport={handleExport}
+        isExporting={isExporting}
       />
     </div>
   );

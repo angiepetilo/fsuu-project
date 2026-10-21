@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { PageLoader } from "@/components/ui/page-loader";
 import { StatusBadge, OverdueBadge } from "@/components/ui/status-badge";
+import FilterDropdown from "@/components/ui/FilterDropdown";
 import { formatDate, formatTime, formatTimeRange, formatDateRange } from "@/lib/dateUtils";
 import { getOverdueMinutes } from "@/lib/dateTimeUtils";
 
@@ -452,22 +453,22 @@ export default function VenueBookings() {
             )}
           </div>
 
-          {/* Status Dropdown Filter */}
+          {/* Status Dropdown Filter (Capped at 5 visible items with scroll) */}
           <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-              <Filter size={13} /> Status:
-            </span>
-            <select
+            <FilterDropdown
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500 cursor-pointer shadow-2xs"
-            >
-              <option value="all">All Statuses</option>
-              <option value="pending">Pending Review</option>
-              <option value="incomplete">Incomplete</option>
-              <option value="approved">Approved</option>
-              <option value="ongoing">Ongoing</option>
-            </select>
+              onChange={setStatusFilter}
+              options={[
+                { value: "all", label: "All Statuses" },
+                { value: "pending", label: "Pending Review" },
+                { value: "incomplete", label: "Incomplete" },
+                { value: "approved", label: "Approved" },
+                { value: "ongoing", label: "Ongoing" },
+              ]}
+              icon={Filter}
+              label="Status:"
+              title="Filter by Booking Status"
+            />
             {(statusFilter !== "all" || searchQuery) && (
               <button
                 type="button"

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Pencil, Ban, Power, CheckCircle2, X, Package, Loader2, Image as ImageIcon, ChevronLeft, ChevronRight, Camera, MoreVertical, Send, HelpCircle, AlertCircle, Eye, EyeOff, Trash2 } from "lucide-react";
+import { Plus, Pencil, Ban, Power, CheckCircle2, X, Package, Loader2, Image as ImageIcon, ChevronLeft, ChevronRight, Camera, MoreVertical, Send, HelpCircle, AlertCircle, Eye, EyeOff, Trash2, Layers } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import api, { clearApiCache } from "@/lib/axios";
@@ -8,6 +8,7 @@ import notify from "@/lib/notify";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import ActionPopover from "@/components/ui/action-popover";
 import IosToggle from "@/components/ui/ios-toggle";
+import CategoryChecklistSelector from "@/components/ui/CategoryChecklistSelector";
 
 export default function EquipmentCategoriesTab({ showMsg }) {
   const { isSuperAdmin, hasPermission, isStudentAssistant } = usePermissions();
@@ -608,247 +609,250 @@ export default function EquipmentCategoriesTab({ showMsg }) {
 
       {/* Equipment Category Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 z-[1500] flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl p-5 max-w-4xl w-full shadow-sm border border-slate-200 max-h-[90vh] flex flex-col my-auto space-y-4">
-            <div className="flex justify-between items-center pb-2.5 border-b border-slate-100 shrink-0">
-              <div>
-                <h3 className="font-semibold text-slate-900 text-sm">
-                  {editItem ? "Edit Equipment Category" : "Add Equipment Category"}
-                </h3>
-                <p className="text-xs text-slate-500 font-normal mt-0.5">
-                  Configure equipment category specifications, photo representation, and built-in links.
-                </p>
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-[1500] flex items-center justify-center p-3 sm:p-5 overflow-y-auto scrollbar-hover animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-[#111827] rounded-2xl p-5 sm:p-6 max-w-4xl w-full shadow-2xl border border-slate-200 dark:border-slate-800 max-h-[92vh] flex flex-col my-auto space-y-4">
+            {/* Header (styled matching Reference Screenshot 3) */}
+            <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200/80 dark:border-blue-800/80 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
+                  <Package size={20} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-slate-900 dark:text-white text-sm sm:text-base">
+                      {editItem ? "Edit Equipment Category" : "Add Equipment Category"}
+                    </h3>
+                    {editItem && (
+                      <span className="px-2 py-0.5 rounded-md text-[10.5px] font-mono font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                        {editItem.eq_name || editItem.name || "Category"}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-normal mt-0.5">
+                    Configure equipment category specifications, photo representation, and built-in links.
+                  </p>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={handleRequestClose}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
-                <X size={16} />
+                <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="flex-1 overflow-y-auto pr-1 space-y-4 text-xs flex flex-col">
+            <form onSubmit={handleSave} className="flex-1 overflow-y-auto scrollbar-hover pr-1 space-y-4 text-xs flex flex-col">
               {formError && (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-semibold flex items-center gap-2">
-                  <AlertCircle size={15} className="shrink-0 text-rose-600" />
+                <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-xl text-xs text-rose-700 dark:text-rose-400 font-semibold flex items-center gap-2">
+                  <AlertCircle size={15} className="shrink-0 text-rose-600 dark:text-rose-400" />
                   <span>{formError}</span>
                 </div>
               )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
-                {/* Left Column: Form Details & Built-in Linkage */}
-                <div className="space-y-3">
+                {/* ── Left Column: Form Details & Built-in Linkage ── */}
+                <div className="space-y-3.5">
                   <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">Category Name *</label>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Category Name *
+                    </label>
                     <input
                       type="text"
                       required
                       placeholder="e.g. Projector, Wireless Microphone, Sound System"
                       value={form.eq_name}
                       onChange={(e) => updateForm({ ...form, eq_name: e.target.value })}
-                      className="w-full p-2 bg-white border border-slate-300 rounded-lg font-normal text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
+                      className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-medium text-slate-900 dark:text-white focus:outline-none focus:border-blue-600 text-xs shadow-2xs transition-all"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">Description / Notes</label>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Description / Notes
+                    </label>
                     <textarea
                       rows={3}
                       placeholder="Optional details or specifications for this equipment category..."
                       value={form.description}
                       onChange={(e) => updateForm({ ...form, description: e.target.value })}
-                      className="w-full p-2 bg-white border border-slate-300 rounded-lg font-normal text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
+                      className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-normal text-slate-900 dark:text-white focus:outline-none focus:border-blue-600 text-xs shadow-2xs transition-all resize-none"
                     />
                   </div>
 
-                  {/* Built-in Equipment Categories */}
+                  {/* Built-in Equipment Categories (Using Shared Component with Whitespace & Hover Scroll) */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <label className="block text-xs font-medium text-slate-700">Built-in</label>
+                      <div className="flex items-center gap-1.5">
+                        <Layers size={13} className="text-blue-600 dark:text-blue-400" />
+                        <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">
+                          Built-in Categories
+                        </label>
+                      </div>
                       {form.built_in_units?.length > 0 && (
-                        <span className="text-[10px] font-medium text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
-                          {form.built_in_units.length} {form.built_in_units.length === 1 ? 'Linked' : 'Linked'}
+                        <span className="text-[10px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 px-2 py-0.5 rounded-full">
+                          {form.built_in_units.length} linked
                         </span>
                       )}
                     </div>
-                    <p className="text-[11px] text-slate-500 mb-1.5 font-normal">
-                      Select equipment categories built-in for this equipment category.
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-2 font-normal">
+                      Select equipment categories bundled or built-in for this equipment category.
                     </p>
-                    <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg max-h-44 overflow-y-auto space-y-1.5">
-                      {categories
-                        .filter((cat) => !editItem || String(cat.id) !== String(editItem.id))
-                        .map((cat) => {
-                          const catName = cat.eq_name || cat.name;
-                          const catIdStr = String(cat.id);
-                          const isChecked = (form.built_in_units || []).some(
-                            (item) => String(item) === catIdStr || String(item).toLowerCase() === String(catName).toLowerCase()
-                          );
 
-                          return (
-                            <div
-                              key={cat.id}
-                              className="flex items-center justify-between p-1.5 rounded-md bg-white border border-slate-200 hover:border-slate-300 transition-colors"
-                            >
-                              <label className="flex items-center gap-2 cursor-pointer flex-1 min-w-0 select-none">
-                                <input
-                                  type="checkbox"
-                                  className="accent-blue-600 w-3.5 h-3.5 shrink-0 rounded cursor-pointer"
-                                  checked={isChecked}
-                                  onChange={() => {
-                                    const next = isChecked
-                                      ? (form.built_in_units || []).filter(
-                                          (item) => String(item) !== catIdStr && String(item).toLowerCase() !== String(catName).toLowerCase()
-                                        )
-                                      : [...(form.built_in_units || []), cat.id];
-                                    updateForm({ ...form, built_in_units: next });
-                                  }}
-                                />
-                                <span className="text-xs font-normal text-slate-800 truncate">
-                                  {catName}
-                                </span>
-                              </label>
-                            </div>
-                          );
-                        })}
-                      {categories.filter((cat) => !editItem || String(cat.id) !== String(editItem.id)).length === 0 && (
-                        <span className="text-xs text-slate-400 italic font-normal">No other equipment categories found.</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Public View Visibility Setting */}
-                  <div className="pt-2 border-t border-slate-200">
-                    <label className="flex items-start gap-2.5 p-2.5 rounded-lg border border-slate-200 bg-slate-50/60 hover:bg-slate-50 cursor-pointer transition-colors">
-                      <input
-                        type="checkbox"
-                        checked={Boolean(form.is_public)}
-                        onChange={(e) => updateForm({ ...form, is_public: e.target.checked })}
-                        className="accent-blue-600 w-4 h-4 mt-0.5 rounded cursor-pointer shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 font-bold text-slate-800 text-xs">
-                          {form.is_public ? <Eye size={13} className="text-blue-600" /> : <EyeOff size={13} className="text-slate-400" />}
-                          <span>Allow in Public Equipment Borrowing</span>
-                        </div>
-                        <p className="text-[11px] text-slate-500 font-normal mt-0.5 leading-snug">
-                          When checked, this category appears in the public equipment borrowing catalog. When unchecked, it is hidden from walk-in requisition.
-                        </p>
-                      </div>
-                    </label>
+                    <CategoryChecklistSelector
+                      items={categories.filter((cat) => !editItem || String(cat.id) !== String(editItem.id))}
+                      selectedIds={form.built_in_units || []}
+                      withMaxQty={false}
+                      onToggle={(cat) => {
+                        const catId = cat.id;
+                        const catIdStr = String(cat.id);
+                        const catName = cat.eq_name || cat.name;
+                        const isChecked = (form.built_in_units || []).some(
+                          (item) => String(item) === catIdStr || String(item).toLowerCase() === String(catName).toLowerCase()
+                        );
+                        const next = isChecked
+                          ? (form.built_in_units || []).filter(
+                              (item) => String(item) !== catIdStr && String(item).toLowerCase() !== String(catName).toLowerCase()
+                            )
+                          : [...(form.built_in_units || []), catId];
+                        updateForm({ ...form, built_in_units: next });
+                      }}
+                      emptyMessage="No other equipment categories found."
+                      maxHeight="max-h-48"
+                    />
                   </div>
                 </div>
 
-                {/* Right Column: Photo Upload & Card Preview */}
+                {/* ── Right Column: Side-by-side Photo & Visibility + Card Preview ── */}
                 <div className="space-y-3">
-                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-14 h-14 rounded-lg bg-white border border-slate-200 overflow-hidden flex items-center justify-center shrink-0">
+                  {/* Side-by-side: Allow in Public Borrowing & Category Photo */}
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+                    {/* Left Side: Category Photo */}
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-12 h-12 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 overflow-hidden flex items-center justify-center shrink-0 shadow-2xs">
                         {(form.photo || form.avatar) ? (
                           <img src={form.photo || form.avatar} alt="Preview" className="w-full h-full object-contain p-1" />
                         ) : (
-                          <Package size={20} className="text-slate-400" />
+                          <Package size={18} className="text-slate-400" />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <label className="block font-medium text-slate-700 text-xs mb-1">Category Photo</label>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <label className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-normal text-xs cursor-pointer transition-all">
-                            <Camera size={12} />
-                            <span>{(form.photo || form.avatar) ? "Change Photo" : "Upload Photo"}</span>
+                        <label className="block font-bold text-slate-800 dark:text-slate-200 text-xs mb-1">
+                          Category Photo
+                        </label>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <label className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-[11px] cursor-pointer transition-all shadow-2xs">
+                            <Camera size={11} />
+                            <span>{(form.photo || form.avatar) ? "Change" : "Upload"}</span>
                             <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
                           </label>
                           {(form.photo || form.avatar) && (
                             <button
                               type="button"
                               onClick={() => updateForm({ ...form, photo: "", avatar: "" })}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-red-200 bg-white hover:bg-red-50 text-red-600 font-normal text-xs cursor-pointer transition-all"
+                              className="inline-flex items-center gap-0.5 px-2 py-1 rounded-lg border border-red-200 dark:border-red-900/60 bg-white dark:bg-slate-800 hover:bg-red-50 text-red-600 dark:text-red-400 font-medium text-[11px] cursor-pointer transition-all"
                             >
-                              <X size={12} />
-                              Remove
+                              <X size={11} />
                             </button>
                           )}
                         </div>
                       </div>
                     </div>
 
-                    {/* Live Public View Preview */}
-                    <div className="pt-2 border-t border-slate-200">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-[11px] font-medium text-slate-500">
-                          Public View Card Preview
+                    {/* Right Side: Allow Public View (Clean & compact) */}
+                    <div className="border-t sm:border-t-0 sm:border-l border-slate-200 dark:border-slate-700 pt-2.5 sm:pt-0 sm:pl-3">
+                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(form.is_public)}
+                          onChange={(e) => updateForm({ ...form, is_public: e.target.checked })}
+                          className="accent-blue-600 w-3.5 h-3.5 rounded cursor-pointer shrink-0"
+                        />
+                        <span className="font-bold text-slate-800 dark:text-slate-100 text-xs">
+                          Allow Public View
                         </span>
-                        {/* Photo Resize & Fit Controls */}
-                        {(form.photo || form.avatar) && (
-                          <div className="flex items-center gap-1.5 bg-white p-0.5 rounded border border-slate-200">
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Live Public View Preview Card */}
+                  <div className="bg-slate-50 dark:bg-slate-800/40 p-3 rounded-xl border border-slate-200 dark:border-slate-700/80 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                        Public View Card Preview
+                      </span>
+                      {/* Photo Resize & Fit Controls */}
+                      {(form.photo || form.avatar) && (
+                        <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                          <button
+                            type="button"
+                            onClick={() => setPreviewFit((f) => (f === "contain" ? "cover" : "contain"))}
+                            className="px-1.5 py-0.5 text-[10px] font-semibold rounded text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                            title="Toggle Fit (Contain / Cover)"
+                          >
+                            {previewFit === "contain" ? "Contain" : "Cover"}
+                          </button>
+                          <div className="flex items-center gap-1 border-l border-slate-200 dark:border-slate-700 pl-1">
                             <button
                               type="button"
-                              onClick={() => setPreviewFit((f) => (f === "contain" ? "cover" : "contain"))}
-                              className="px-1.5 py-0.5 text-[10px] font-normal rounded text-slate-700 hover:bg-slate-100 cursor-pointer"
-                              title="Toggle Fit (Contain / Cover)"
+                              onClick={() => setPreviewScale((s) => Math.max(50, s - 10))}
+                              className="w-4 h-4 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded cursor-pointer"
+                              title="Zoom out"
                             >
-                              {previewFit === "contain" ? "Contain" : "Cover"}
+                              -
                             </button>
-                            <div className="flex items-center gap-1 border-l border-slate-200 pl-1">
-                              <button
-                                type="button"
-                                onClick={() => setPreviewScale((s) => Math.max(50, s - 10))}
-                                className="w-4 h-4 flex items-center justify-center text-xs font-bold text-slate-600 hover:bg-slate-100 rounded cursor-pointer"
-                                title="Zoom out"
-                              >
-                                -
-                              </button>
-                              <span className="text-[10px] font-mono text-slate-600 w-6 text-center">
-                                {previewScale}%
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => setPreviewScale((s) => Math.min(150, s + 10))}
-                                className="w-4 h-4 flex items-center justify-center text-xs font-bold text-slate-600 hover:bg-slate-100 rounded cursor-pointer"
-                                title="Zoom in"
-                              >
-                                +
-                              </button>
-                            </div>
+                            <span className="text-[10px] font-mono text-slate-600 dark:text-slate-300 w-6 text-center">
+                              {previewScale}%
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setPreviewScale((s) => Math.min(150, s + 10))}
+                              className="w-4 h-4 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded cursor-pointer"
+                              title="Zoom in"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="w-full border border-slate-200 dark:border-slate-700 rounded-xl p-3 bg-white dark:bg-slate-900 shadow-2xs">
+                      <div className="w-full aspect-video bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 rounded-lg overflow-hidden flex items-center justify-center p-1">
+                        {(form.photo || form.avatar) ? (
+                          <div className="w-full h-full overflow-hidden flex items-center justify-center">
+                            <img
+                              src={form.photo || form.avatar}
+                              alt="Public Preview"
+                              className={`w-full h-full transition-transform duration-200 ${previewFit === "cover" ? "object-cover" : "object-contain"}`}
+                              style={{ transform: `scale(${previewScale / 100})` }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center text-center p-2">
+                            <Package size={24} className="text-slate-300 dark:text-slate-600 mb-1" />
+                            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                              {form.eq_name || "EQUIPMENT NAME"}
+                            </span>
                           </div>
                         )}
                       </div>
-                      <div className="w-full border border-slate-200 rounded-xl p-3 bg-white shadow-xs">
-                        <div className="w-full aspect-video bg-slate-50 border border-slate-100 rounded-lg overflow-hidden flex items-center justify-center p-1">
-                          {(form.photo || form.avatar) ? (
-                            <div className="w-full h-full overflow-hidden flex items-center justify-center">
-                              <img
-                                src={form.photo || form.avatar}
-                                alt="Public Preview"
-                                className={`w-full h-full transition-transform duration-200 ${previewFit === "cover" ? "object-cover" : "object-contain"}`}
-                                style={{ transform: `scale(${previewScale / 100})` }}
-                              />
-                            </div>
+                      <div className="mt-2.5 space-y-1">
+                        <p className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
+                          {form.eq_name || "Equipment Name"}
+                        </p>
+                        <div>
+                          {form.is_public ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              Public View Active
+                            </span>
                           ) : (
-                            <div className="flex flex-col items-center justify-center text-center p-2">
-                              <Package size={24} className="text-slate-300 mb-1" />
-                              <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
-                                {form.eq_name || "EQUIPMENT NAME"}
-                              </span>
-                            </div>
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                              <EyeOff size={10} className="text-slate-400" />
+                              Hidden in Public
+                            </span>
                           )}
-                        </div>
-                        <div className="mt-2.5 space-y-1">
-                          <p className="font-bold text-xs sm:text-sm text-slate-900 truncate">
-                            {form.eq_name || "Equipment Name"}
-                          </p>
-                          <div>
-                            {form.is_public ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                Public View Active
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold text-slate-500 bg-slate-100 border border-slate-200">
-                                <EyeOff size={10} className="text-slate-400" />
-                                Hidden in Public
-                              </span>
-                            )}
-                          </div>
                         </div>
                       </div>
                     </div>
@@ -856,21 +860,22 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 shrink-0">
+              {/* Footer Actions (matching Reference Screenshot 3) */}
+              <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800 shrink-0">
                 <button
                   type="button"
                   onClick={handleRequestClose}
-                  className="px-3.5 py-1.5 rounded-lg border border-slate-200 text-xs font-normal text-slate-600 hover:bg-slate-50 cursor-pointer"
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={formLoading}
-                  className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs flex items-center gap-1.5 cursor-pointer transition-all"
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all disabled:opacity-50"
                 >
                   {formLoading && <Loader2 size={13} className="animate-spin" />}
-                  <span>{editItem ? "Save Changes" : "Save"}</span>
+                  <span>{editItem ? "Update Category" : "Create Category"}</span>
                 </button>
               </div>
             </form>

@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Search, Clock, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatTime12, formatDate } from "@/lib/dateUtils";
 import { getOverdueMinutes } from "@/lib/dateTimeUtils";
+import FilterDropdown from "@/components/ui/FilterDropdown";
 
 export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUnits = [], loading = false }) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -304,28 +305,28 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUni
 
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
           {/* Status Filter Dropdown */}
-          <select
+          <FilterDropdown
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-600 cursor-pointer"
-          >
-            <option value="all">All Statuses ({validBorrowings.length})</option>
-            <option value="out_on_loan">Out on Loan ({statusCounts.outCount})</option>
-            <option value="returned">Returned ({statusCounts.retCount})</option>
-            <option value="overdue">Overdue ({statusCounts.overdueCount})</option>
-          </select>
+            onChange={setStatusFilter}
+            options={[
+              { value: "all", label: `All Statuses (${validBorrowings.length})` },
+              { value: "out_on_loan", label: `Out on Loan (${statusCounts.outCount})` },
+              { value: "returned", label: `Returned (${statusCounts.retCount})` },
+              { value: "overdue", label: `Overdue (${statusCounts.overdueCount})` },
+            ]}
+            title="Filter by Status"
+          />
 
-          {/* Department Filter Dropdown */}
-          <select
+          {/* Department Filter Dropdown (Capped at 5 visible items with scroll) */}
+          <FilterDropdown
             value={deptFilter}
-            onChange={(e) => setDeptFilter(e.target.value)}
-            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-600 cursor-pointer"
-          >
-            <option value="all">All Departments ({departments.length})</option>
-            {departments.map((d) => (
-              <option key={d} value={d}>{d}</option>
-            ))}
-          </select>
+            onChange={setDeptFilter}
+            options={[
+              { value: "all", label: `All Departments (${departments.length})` },
+              ...departments.map((d) => ({ value: d, label: d })),
+            ]}
+            title="Filter by Department"
+          />
         </div>
       </div>
 

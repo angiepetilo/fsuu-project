@@ -1,7 +1,10 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { X, Loader2, Sparkles, Layers, Barcode as BarcodeIcon, Search, ChevronDown, Check } from "lucide-react";
+import { X, Loader2, Sparkles, Layers, Barcode as BarcodeIcon, Search, ChevronDown, Check, Plus, Laptop } from "lucide-react";
 import api from "@/lib/axios";
+import notify from "@/lib/notify";
+import { invalidateCache } from "@/lib/apiCache";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import CustomSelect from "@/components/ui/CustomSelect";
 
 export function generateSingleSerialNumber() {
   const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
@@ -529,8 +532,118 @@ export default function EquipmentModal({
   isSubmitting,
   categories = ["Projector", "Sound System", "Camera", "Microphone", "Lighting", "Switchers/Mixers", "AV Equipment"],
   existingUnits = [],
+  onCategoryCreated,
 }) {
   const [brands, setBrands] = useState([]);
+  const [localCategories, setLocalCategories] = useState(categories || []);
+
+  useEffect(() => {
+    if (categories && categories.length > 0) {
+      setLocalCategories(categories);
+    }
+  }, [categories]);
+
+  const effectiveCategories = localCategories.length > 0 ? localCategories : categories;
+
+  // Quick Add Brand states
+  const [showQuickAddBrand, setShowQuickAddBrand] = useState(false);
+  const [quickBrandName, setQuickBrandName] = useState("");
+  const [quickBrandCatId, setQuickBrandCatId] = useState("");
+  const [quickBrandLoading, setQuickBrandLoading] = useState(false);
+  const [quickBrandError, setQuickBrandError] = useState("");
+
+  // Quick Add Category states
+  const [showQuickAddCategory, setShowQuickAddCategory] = useState(false);
+  const [quickCategoryName, setQuickCategoryName] = useState("");
+  const [quickCategoryDesc, setQuickCategoryDesc] = useState("");
+  const [quickCategoryLoading, setQuickCategoryLoading] = useState(false);
+  const [quickCategoryError, setQuickCategoryError] = useState("");
+
+  const handleSaveQuickBrand = async () => {
+    const trimmed = quickBrandName.trim();
+    if (!trimmed) return;
+    setQuickBrandLoading(true);
+    setQuickBrandError("");
+    try {
+      const payload = {
+        name: trimmed.toUpperCase(),
+        equipment_type_id: quickBrandCatId || selectedCatObj?.id || null,
+        status: "active",
+      };
+      const res = await api.post("/general/brands", payload);
+      const newBrand = res.data?.brand || { id: Date.now(), name: trimmed.toUpperCase(), ...payload };
+
+      setBrands(prev => [newBrand, ...prev]);
+      if (showAddModal) {
+        setFormData(prev => ({ ...prev, brand: newBrand.name }));
+      } else if (editingItem) {
+        setEditFormData(prev => ({ ...prev, brand: newBrand.name }));
+      }
+
+      notify.success("Brand Added", `Brand "${newBrand.name}" registered and selected.`);
+      window.dispatchEvent(new Event("brands_updated"));
+      try {
+        localStorage.setItem("fsuu_brand_updated_ping", Date.now().toString());
+      } catch {}
+
+      setShowQuickAddBrand(false);
+      setQuickBrandName("");
+      setQuickBrandCatId("");
+    } catch (err) {
+      const msg = err.response?.data?.errors?.name?.[0] || err.response?.data?.message || "Failed to create brand.";
+      setQuickBrandError(msg);
+    } finally {
+      setQuickBrandLoading(false);
+    }
+  };
+
+  const handleSaveQuickCategory = async () => {
+    const trimmed = quickCategoryName.trim();
+    if (!trimmed) return;
+    setQuickCategoryLoading(true);
+    setQuickCategoryError("");
+    try {
+      const payload = {
+        eq_name: trimmed,
+        name: trimmed,
+        equipment_types_name: trimmed,
+        description: quickCategoryDesc.trim() || undefined,
+        status: "available",
+        is_public: true,
+      };
+      const res = await api.post("/general/equipment-types", payload);
+      const actualCat = res.data?.equipment_type || res.data || { id: Date.now(), eq_name: trimmed, name: trimmed };
+
+      setLocalCategories(prev => [actualCat, ...prev]);
+      if (showAddModal) {
+        setFormData(prev => ({ ...prev, category: trimmed }));
+      } else if (editingItem) {
+        setEditFormData(prev => ({ ...prev, category: trimmed }));
+      }
+
+      invalidateCache("equipment_types_list");
+      window.dispatchEvent(new Event("equipment_updated"));
+      window.dispatchEvent(new Event("equipment_categories_updated"));
+      try {
+        localStorage.setItem("fsuu_equipment_updated_ping", Date.now().toString());
+        localStorage.setItem("fsuu_category_updated_ping", Date.now().toString());
+      } catch {}
+
+      if (onCategoryCreated) {
+        onCategoryCreated(actualCat);
+      }
+
+      notify.success("Category Created", `Category "${trimmed}" registered and selected.`);
+      setShowQuickAddCategory(false);
+      setQuickCategoryName("");
+      setQuickCategoryDesc("");
+    } catch (err) {
+      const msg = err.response?.data?.errors?.eq_name?.[0] || err.response?.data?.message || "Failed to create category.";
+      setQuickCategoryError(msg);
+    } finally {
+      setQuickCategoryLoading(false);
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -566,11 +679,11 @@ export default function EquipmentModal({
   const selectedCatObj = useMemo(() => {
     if (!activeCategoryName) return null;
     const norm = String(activeCategoryName).trim().toLowerCase();
-    return (categories || []).find((c) => {
+    return (effectiveCategories || []).find((c) => {
       const name = (typeof c === "string" ? c : (c.eq_name || c.name || "")).trim().toLowerCase();
       return name === norm;
     });
-  }, [activeCategoryName, categories]);
+  }, [activeCategoryName, effectiveCategories]);
 
   const availableBrands = useMemo(() => {
     if (!selectedCatObj) return brands;
@@ -588,10 +701,10 @@ export default function EquipmentModal({
     return matched.length > 0 ? matched : brands;
   }, [brands, selectedCatObj]);
 
-  // Duplicate checks for Serial No.
+  // Duplicate checks for Serial No. (never collides with itself when editing)
   const editSerialClean = (editFormData?.serial_number || "").trim().toLowerCase();
   const editSerialDuplicate = editingItem && editSerialClean ? existingUnits.find(u =>
-    u.id !== editingItem.id &&
+    String(u.id) !== String(editingItem.id) &&
     ((u.serial_number || "").trim().toLowerCase() === editSerialClean ||
      (u.barcode || "").trim().toLowerCase() === editSerialClean)
   ) : null;
@@ -608,7 +721,7 @@ export default function EquipmentModal({
     const targetNorm = String(targetCatName).trim().toLowerCase();
     const uCat = String(unit.category || unit.equipment_type?.eq_name || unit.equipment_type?.name || "").trim().toLowerCase();
     if (uCat && uCat === targetNorm) return true;
-    const catObj = (categories || []).find(c => {
+    const catObj = (effectiveCategories || []).find(c => {
       const cName = (typeof c === "string" ? c : (c.eq_name || c.name || "")).trim().toLowerCase();
       return cName === targetNorm;
     });
@@ -616,6 +729,28 @@ export default function EquipmentModal({
       return true;
     }
     return false;
+  };
+
+  // Compute next available sequence number for a given category (scoped per category)
+  const getNextAvailableSeqNo = (categoryName, excludeUnitId = null) => {
+    if (!categoryName) return "#001";
+    const sameCatUnits = (existingUnits || []).filter(u =>
+      (excludeUnitId ? String(u.id) !== String(excludeUnitId) : true) &&
+      isUnitInSameCategory(u, categoryName) &&
+      u.seq_no !== null &&
+      u.seq_no !== undefined &&
+      String(u.seq_no).trim() !== ""
+    );
+    let maxNum = 0;
+    sameCatUnits.forEach(u => {
+      const match = String(u.seq_no).replace(/[^0-9]/g, "");
+      if (match) {
+        const n = parseInt(match, 10);
+        if (!isNaN(n) && n > maxNum) maxNum = n;
+      }
+    });
+    const nextNum = maxNum + 1;
+    return `#${String(nextNum).padStart(3, "0")}`;
   };
 
   const addSeqClean = String(formData?.seq_no || "").trim().toLowerCase();
@@ -629,13 +764,52 @@ export default function EquipmentModal({
 
   const editSeqClean = String(editFormData?.seq_no || "").trim().toLowerCase();
   const editSeqDuplicate = editingItem && editSeqClean ? existingUnits.find(u =>
-    u.id !== editingItem.id &&
+    String(u.id) !== String(editingItem.id) &&
     u.seq_no !== null &&
     u.seq_no !== undefined &&
     String(u.seq_no).trim() !== "" &&
     String(u.seq_no).trim().toLowerCase() === editSeqClean &&
     isUnitInSameCategory(u, editFormData?.category)
   ) : null;
+
+  // Determine if the selected category actually has built-in equipment accessories configured
+  const editCatHasBuiltIns = useMemo(() => {
+    if (!editFormData?.category) return false;
+    const norm = String(editFormData.category).trim().toLowerCase();
+    const catObj = (categories || []).find((c) => {
+      const name = (typeof c === "string" ? c : (c.eq_name || c.name || "")).trim().toLowerCase();
+      return name === norm;
+    });
+    if (!catObj) return false;
+    let rawList = catObj.built_in_names;
+    if (!Array.isArray(rawList) || rawList.length === 0) {
+      let raw = catObj.built_in_units;
+      if (typeof raw === "string") {
+        try { raw = JSON.parse(raw); } catch { raw = []; }
+      }
+      rawList = Array.isArray(raw) ? raw : [];
+    }
+    return Array.isArray(rawList) && rawList.length > 0;
+  }, [editFormData?.category, categories]);
+
+  const addCatHasBuiltIns = useMemo(() => {
+    if (!formData?.category) return false;
+    const norm = String(formData.category).trim().toLowerCase();
+    const catObj = (categories || []).find((c) => {
+      const name = (typeof c === "string" ? c : (c.eq_name || c.name || "")).trim().toLowerCase();
+      return name === norm;
+    });
+    if (!catObj) return false;
+    let rawList = catObj.built_in_names;
+    if (!Array.isArray(rawList) || rawList.length === 0) {
+      let raw = catObj.built_in_units;
+      if (typeof raw === "string") {
+        try { raw = JSON.parse(raw); } catch { raw = []; }
+      }
+      rawList = Array.isArray(raw) ? raw : [];
+    }
+    return Array.isArray(rawList) && rawList.length > 0;
+  }, [formData?.category, categories]);
 
   const isEditingUnitChild = useMemo(() => {
     if (!editingItem) return false;
@@ -711,7 +885,7 @@ export default function EquipmentModal({
   const getBrandForCategory = (catName) => {
     if (!catName) return "";
     const norm = String(catName).trim().toLowerCase();
-    const foundCat = (categories || []).find((c) => {
+    const foundCat = (effectiveCategories || []).find((c) => {
       const name = (typeof c === "string" ? c : (c.eq_name || c.name || "")).trim().toLowerCase();
       return name === norm;
     });
@@ -735,13 +909,23 @@ export default function EquipmentModal({
     <>
       {/* ── Edit Equipment Physical Unit Modal ── */}
       {editingItem && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm w-full max-w-3xl overflow-hidden">
-            {/* Header */}
-            <div className="px-6 py-4 bg-white dark:bg-[#111827] border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
-                Edit Physical Unit: {editingItem.serial_number || editingItem.barcode || [editingItem.brand, editingItem.model].filter(Boolean).join(' ') || 'Unit'}
-              </h3>
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto scrollbar-hover animate-in fade-in duration-150">
+          <div className={`bg-white dark:bg-[#111827] rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full ${editCatHasBuiltIns ? 'max-w-5xl' : 'max-w-3xl'} overflow-hidden flex flex-col my-auto max-h-[92vh]`}>
+            {/* ── Modal Header (Matching EquipmentDetailModal) ── */}
+            <div className="px-6 py-4 bg-white dark:bg-[#111827] border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200/80 dark:border-blue-800/80 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
+                  <Laptop size={20} />
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+                    Edit Physical Unit
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-normal">
+                    Update the physical specifications and operational details for this unit.
+                  </p>
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={handleCloseEdit}
@@ -751,254 +935,350 @@ export default function EquipmentModal({
               </button>
             </div>
 
-            <form onSubmit={handleEditEquipmentSubmit}>
-              {/* Side-by-side layout: form fields left, built-in selector right */}
-              <div className="flex flex-col md:flex-row">
-                {/* ── Left Panel: Main Form Fields ── */}
-                <div className="flex-1 p-6 space-y-4 text-xs">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className={labelClasses}>Equipment Category *</label>
-                      <select
-                        required
-                        value={editFormData.category}
-                        onChange={e => {
-                          const newCat = e.target.value;
-                          const newBrand = getBrandForCategory(newCat);
-                          setEditFormData({
-                            ...editFormData,
-                            category: newCat,
-                            brand: newBrand || editFormData.brand,
-                          });
-                        }}
-                        className={`${inputClasses} cursor-pointer`}
-                      >
-                        {categories && categories.length > 0 ? (
-                          categories.map((cat, idx) => {
-                            const nameStr = typeof cat === "string" ? cat : (cat.eq_name || cat.name);
-                            return <option key={cat.id || idx} value={nameStr}>{nameStr}</option>;
-                          })
-                        ) : (
-                          <option value="">No categories created</option>
-                        )}
-                      </select>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <label className={labelClasses}>Serial No.</label>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const code = generateSingleSerialNumber();
-                            setEditFormData({
-                              ...editFormData,
-                              serial_number: code,
-                              barcode: code,
-                            });
-                          }}
-                          className="text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 cursor-pointer"
-                          title="Auto-generate Serial Number"
-                        >
-                          <Sparkles size={12} className="text-amber-500" />
-                          <span>Auto-generate</span>
-                        </button>
-                      </div>
-                      <input
-                        type="text"
-                        placeholder="e.g. SN-2026-001"
-                        value={editFormData.serial_number ?? editFormData.barcode ?? ""}
-                        onKeyDown={handleBarcodeKeyDown}
-                        onChange={e => setEditFormData({
-                          ...editFormData,
-                          serial_number: e.target.value,
-                          barcode: e.target.value,
-                        })}
-                        className={`${inputClasses} ${editSerialDuplicate ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-200 bg-rose-50/20' : ''}`}
-                      />
-                      {editSerialDuplicate && (
-                        <p className="mt-1 text-[11px] font-medium text-rose-600 leading-tight">
-                          ⚠️ Assigned to: <strong>{editSerialDuplicate.name || editSerialDuplicate.model || 'another unit'}</strong>. Each unit requires a unique Serial No.
-                        </p>
-                      )}
+            <form onSubmit={handleEditEquipmentSubmit} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              {/* ── Scrollable Body with .scrollbar-hover ── */}
+              <div className="flex-1 overflow-y-auto scrollbar-hover p-6 space-y-5 text-xs min-h-0">
+                
+                {/* Top Info Strip: Clean plain text summary matching View modal */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                      Equipment Model &amp; Name
+                    </span>
+                    <div className="flex items-center gap-2.5 mt-0.5 flex-wrap">
+                      <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">
+                        {[editFormData.brand, editFormData.model].filter(Boolean).join(" ") || "Unit"}
+                      </h2>
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 font-bold text-[11px]">
+                        <Laptop size={12} className="shrink-0" />
+                        <span>{editFormData.category || "Standard Equipment"}</span>
+                      </span>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className={labelClasses}>Brand</label>
-                      <select
-                        value={editFormData.brand || ""}
-                        onChange={e => setEditFormData({ ...editFormData, brand: e.target.value })}
-                        className={inputClasses}
+                  <div className="sm:text-right shrink-0">
+                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                      Serial Number
+                    </span>
+                    <div className="flex items-center sm:justify-end gap-2 mt-0.5 flex-wrap">
+                      <span className="font-mono font-bold text-sm sm:text-base text-slate-900 dark:text-white">
+                        {editFormData.serial_number || editFormData.barcode || "—"}
+                      </span>
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10.5px] font-bold ${
+                          editFormData.status === "available"
+                            ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60"
+                            : editFormData.status === "built-in"
+                            ? "bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-400 border border-violet-200 dark:border-violet-800/60"
+                            : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700"
+                        }`}
                       >
-                        <option value="">-- Select Brand --</option>
-                        {availableBrands.map(b => (
-                          <option key={b.id || b.name} value={b.name}>{b.name}</option>
-                        ))}
-                        {editFormData.brand && !availableBrands.some(b => b.name?.toUpperCase() === editFormData.brand?.toUpperCase()) && (
-                          <option value={editFormData.brand}>{editFormData.brand}</option>
-                        )}
-                      </select>
+                        {editFormData.status === "available" ? "Active" : editFormData.status || "Unavailable"}
+                      </span>
                     </div>
-
-                    <div>
-                      <label className={labelClasses}>Model Name</label>
-                      <input
-                        type="text"
-                        placeholder="Model No."
-                        value={editFormData.model || ""}
-                        onChange={e => setEditFormData({ ...editFormData, model: e.target.value })}
-                        className={inputClasses}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className={labelClasses}>Seq. No.</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. 01"
-                        value={editFormData.seq_no || ""}
-                        onChange={e => setEditFormData({ ...editFormData, seq_no: e.target.value })}
-                        className={`${inputClasses} ${editSeqDuplicate ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-200 bg-rose-50/20' : ''}`}
-                      />
-                      {editSeqDuplicate && (
-                        <p className="mt-1 text-[11px] font-medium text-rose-600 leading-tight">
-                          ⚠️ Seq. No. "{editFormData.seq_no}" already exists in "{editFormData.category || 'this category'}". Seq. No. must be unique within the same category.
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className={labelClasses}>Date Purchased</label>
-                      <input
-                        type="date"
-                        min="1900-01-01"
-                        max="9999-12-31"
-                        value={editFormData.date_purchased || ""}
-                        onChange={e => {
-                          let val = e.target.value;
-                          if (val) {
-                            const parts = val.split("-");
-                            if (parts[0] && parts[0].length > 4) {
-                              parts[0] = parts[0].slice(0, 4);
-                              val = parts.join("-");
-                            }
-                          }
-                          setEditFormData({ ...editFormData, date_purchased: val });
-                        }}
-                        className={inputClasses}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                      <label className={labelClasses}>Lifespan (Yrs) *</label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={50}
-                        step={1}
-                        required
-                        placeholder="5"
-                        value={editFormData.lifespan_years || 5}
-                        onChange={e => setEditFormData({ ...editFormData, lifespan_years: e.target.value })}
-                        className={inputClasses}
-                      />
-                    </div>
-
-                    <div>
-                      <label className={labelClasses}>Status *</label>
-                      <select
-                        value={(editFormData.status || (isEditingUnitChild ? "built-in" : "available")).toLowerCase()}
-                        onChange={e => setEditFormData({ ...editFormData, status: e.target.value.toLowerCase() })}
-                        disabled={editFormData.condition === "Damaged" || editFormData.condition === "Lost" || isEditingUnitChild}
-                        className={`${inputClasses} cursor-pointer disabled:opacity-75`}
-                      >
-                        {isEditingUnitChild ? (
-                          <option value="built-in">Built-in (Linked Component)</option>
-                        ) : (
-                          <>
-                            <option value="available">Available</option>
-                            <option value="released">Released</option>
-                            <option value="unavailable">Unavailable</option>
-                            <option value="built-in">Built-in</option>
-                          </>
-                        )}
-                      </select>
-                      {isEditingUnitChild && (
-                        <p className="mt-1 text-[10.5px] font-semibold text-violet-600 dark:text-violet-400">
-                          ⚡ Status automatically set to Built-in because this unit is bundled in a parent equipment kit.
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className={labelClasses}>Condition *</label>
-                      <select
-                        value={editFormData.condition || "Good"}
-                        onChange={e => {
-                          const val = e.target.value;
-                          const newStatus = val === "Good" ? (isEditingUnitChild ? "built-in" : "available") : "unavailable";
-                          setEditFormData({
-                            ...editFormData,
-                            condition: val,
-                            status: newStatus,
-                          });
-                        }}
-                        className={`${inputClasses} cursor-pointer`}
-                      >
-                        <option value="Good">Good</option>
-                        <option value="Damaged">Damaged</option>
-                        <option value="Lost">Lost</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className={labelClasses}>Reason / Trigger Note (Optional)</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Broken lens, Repaired and functional, Routine inspection..."
-                      value={editFormData.reason || ""}
-                      onChange={e => setEditFormData({ ...editFormData, reason: e.target.value })}
-                      className={inputClasses}
-                    />
-                    <p className="mt-1 text-[10.5px] text-slate-400 dark:text-slate-500 font-medium">
-                      Recorded in the Dashboard audit feed to document what triggered this inventory stat change.
-                    </p>
                   </div>
                 </div>
 
-                {/* ── Right Panel: Linked Built-in Equipment ── */}
-                <div className="w-full md:w-72 shrink-0 border-t border-slate-100 dark:border-slate-800 md:border-t-0 md:border-l p-6">
-                  <CategoryBuiltInUnitSelector
-                    categoryName={editFormData.category}
-                    categories={categories}
-                    existingUnits={existingUnits}
-                    selectedUnitIds={editFormData.built_in_units || []}
-                    onUnitChange={(newUnitIds) => setEditFormData({ ...editFormData, built_in_units: newUnitIds })}
-                    excludeId={editingItem?.id}
-                  />
+                {/* Main Section: Responsive grid based on built-in requirements */}
+                <div className={editCatHasBuiltIns ? "grid grid-cols-1 lg:grid-cols-12 gap-6 items-start" : "space-y-4"}>
+                  {/* ── Left Column: Form Controls ── */}
+                  <div className={editCatHasBuiltIns ? "lg:col-span-7 space-y-4" : "space-y-4"}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className={labelClasses}>Equipment Category *</label>
+                          <button
+                            type="button"
+                            onClick={() => setShowQuickAddCategory(true)}
+                            className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline flex items-center gap-1 cursor-pointer"
+                            title="Quick add a new equipment category"
+                          >
+                            <Plus size={12} />
+                            <span>New Category</span>
+                          </button>
+                        </div>
+                        <CustomSelect
+                          value={editFormData.category}
+                          onChange={(newCat) => {
+                            const newBrand = getBrandForCategory(newCat);
+                            setEditFormData({
+                              ...editFormData,
+                              category: newCat,
+                              brand: newBrand || editFormData.brand,
+                            });
+                          }}
+                          options={effectiveCategories.map((cat, idx) => {
+                            const nameStr = typeof cat === "string" ? cat : (cat.eq_name || cat.name);
+                            return { value: nameStr, label: nameStr };
+                          })}
+                          placeholder="Select Category..."
+                          actionButton={{
+                            label: "Add New Category",
+                            onClick: () => setShowQuickAddCategory(true),
+                          }}
+                        />
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className={labelClasses}>Serial No.</label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const code = generateSingleSerialNumber();
+                              setEditFormData({
+                                ...editFormData,
+                                serial_number: code,
+                                barcode: code,
+                              });
+                            }}
+                            className="text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 cursor-pointer"
+                            title="Auto-generate Serial Number"
+                          >
+                            <Sparkles size={12} className="text-amber-500" />
+                            <span>Auto-generate</span>
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="e.g. SN-2026-001"
+                          value={editFormData.serial_number ?? editFormData.barcode ?? ""}
+                          onKeyDown={handleBarcodeKeyDown}
+                          onChange={e => setEditFormData({
+                            ...editFormData,
+                            serial_number: e.target.value,
+                            barcode: e.target.value,
+                          })}
+                          className={`${inputClasses} ${editSerialDuplicate ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-200 bg-rose-50/20' : ''}`}
+                        />
+                        {editSerialDuplicate && (
+                          <p className="mt-1 text-[11px] font-medium text-rose-600 leading-tight">
+                            ⚠️ Assigned to {editSerialDuplicate.name || editSerialDuplicate.model || 'another unit'}.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className={labelClasses}>Brand</label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setQuickBrandCatId(selectedCatObj?.id || "");
+                              setShowQuickAddBrand(true);
+                            }}
+                            className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline flex items-center gap-1 cursor-pointer"
+                            title="Quick add a new brand"
+                          >
+                            <Plus size={12} />
+                            <span>New Brand</span>
+                          </button>
+                        </div>
+                        <CustomSelect
+                          value={editFormData.brand || ""}
+                          onChange={(newBrand) => {
+                            setEditFormData({ ...editFormData, brand: newBrand });
+                          }}
+                          options={[
+                            ...availableBrands.map((b) => ({ value: b.name, label: b.name })),
+                            ...(editFormData.brand && !availableBrands.some(b => b.name?.toUpperCase() === editFormData.brand?.toUpperCase())
+                              ? [{ value: editFormData.brand, label: editFormData.brand }]
+                              : [])
+                        ]}
+                          placeholder="-- Select Brand --"
+                          actionButton={{
+                            label: "Add New Brand",
+                            onClick: () => {
+                              setQuickBrandCatId(selectedCatObj?.id || "");
+                              setShowQuickAddBrand(true);
+                            },
+                          }}
+                        />
+                      </div>
+
+                      <div>
+                        <label className={labelClasses}>Model Name</label>
+                        <input
+                          type="text"
+                          placeholder="Model No."
+                          value={editFormData.model || ""}
+                          onChange={e => setEditFormData({ ...editFormData, model: e.target.value })}
+                          className={inputClasses}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className={labelClasses}>Seq. No.</label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = getNextAvailableSeqNo(editFormData.category, editingItem?.id);
+                              setEditFormData({ ...editFormData, seq_no: next });
+                            }}
+                            className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline flex items-center gap-1 cursor-pointer"
+                            title="Auto-assign next sequential number for this category"
+                          >
+                            <Sparkles size={12} className="text-blue-500" />
+                            <span>Auto-next</span>
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="e.g. 01"
+                          value={editFormData.seq_no || ""}
+                          onChange={e => setEditFormData({ ...editFormData, seq_no: e.target.value })}
+                          className={`${inputClasses} ${editSeqDuplicate ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-200 bg-rose-50/20' : ''}`}
+                        />
+                        {editSeqDuplicate && (
+                          <div className="mt-1 flex items-center justify-between gap-1 text-[11px] font-medium text-rose-600">
+                            <span>⚠️ #{editFormData.seq_no} is already taken in this category.</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const next = getNextAvailableSeqNo(editFormData.category, editingItem?.id);
+                                setEditFormData({ ...editFormData, seq_no: next });
+                              }}
+                              className="font-bold underline text-blue-600 hover:text-blue-700 cursor-pointer shrink-0"
+                            >
+                              Use next
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className={labelClasses}>Date Purchased</label>
+                        <input
+                          type="date"
+                          min="1900-01-01"
+                          max="9999-12-31"
+                          value={editFormData.date_purchased || ""}
+                          onChange={e => {
+                            let val = e.target.value;
+                            if (val) {
+                              const parts = val.split("-");
+                              if (parts[0] && parts[0].length > 4) {
+                                parts[0] = parts[0].slice(0, 4);
+                                val = parts.join("-");
+                              }
+                            }
+                            setEditFormData({ ...editFormData, date_purchased: val });
+                          }}
+                          className={inputClasses}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className={labelClasses}>Lifespan (Yrs) *</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={50}
+                          step={1}
+                          required
+                          placeholder="5"
+                          value={editFormData.lifespan_years || 5}
+                          onChange={e => setEditFormData({ ...editFormData, lifespan_years: e.target.value })}
+                          className={inputClasses}
+                        />
+                      </div>
+
+                      <div>
+                        <label className={labelClasses}>Status *</label>
+                        <CustomSelect
+                          value={(editFormData.status || (isEditingUnitChild ? "built-in" : "available")).toLowerCase()}
+                          onChange={(val) => setEditFormData({ ...editFormData, status: val.toLowerCase() })}
+                          disabled={editFormData.condition === "Damaged" || editFormData.condition === "Lost" || isEditingUnitChild}
+                          options={isEditingUnitChild ? [
+                            { value: "built-in", label: "Built-in (Linked Component)" }
+                          ] : [
+                            { value: "available", label: "Available" },
+                            { value: "released", label: "Released" },
+                            { value: "unavailable", label: "Unavailable" },
+                            { value: "built-in", label: "Built-in" },
+                          ]}
+                          placeholder="Select Status..."
+                        />
+                        {isEditingUnitChild && (
+                          <p className="mt-1 text-[10.5px] font-semibold text-violet-600 dark:text-violet-400">
+                            ⚡ Set to Built-in (linked to parent kit)
+                          </p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className={labelClasses}>Condition *</label>
+                        <CustomSelect
+                          value={editFormData.condition || "Good"}
+                          onChange={(val) => {
+                            const newStatus = val === "Good" ? (isEditingUnitChild ? "built-in" : "available") : "unavailable";
+                            setEditFormData({
+                              ...editFormData,
+                              condition: val,
+                              status: newStatus,
+                            });
+                          }}
+                          options={[
+                            { value: "Good", label: "Good" },
+                            { value: "Damaged", label: "Damaged" },
+                            { value: "Lost", label: "Lost" },
+                          ]}
+                          placeholder="Select Condition..."
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className={labelClasses}>Reason / Trigger Note (Optional)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Repaired and functional, Routine inspection..."
+                        value={editFormData.reason || ""}
+                        onChange={e => setEditFormData({ ...editFormData, reason: e.target.value })}
+                        className={inputClasses}
+                      />
+                      <p className="mt-1 text-[10.5px] text-slate-400 dark:text-slate-500 font-medium">
+                        Audit note for inventory activity log.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* ── Right Column: Linked Built-in Equipment (Rendered only when category has built-in requirements) ── */}
+                  {editCatHasBuiltIns && (
+                    <div className="lg:col-span-5 border-t border-slate-100 dark:border-slate-800 lg:border-t-0 lg:border-l lg:pl-6 pt-4 lg:pt-0">
+                      <CategoryBuiltInUnitSelector
+                        categoryName={editFormData.category}
+                        categories={categories}
+                        existingUnits={existingUnits}
+                        selectedUnitIds={editFormData.built_in_units || []}
+                        onUnitChange={(newUnitIds) => setEditFormData({ ...editFormData, built_in_units: newUnitIds })}
+                        excludeId={editingItem?.id}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Footer Actions */}
-              <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/40">
+              {/* ── Footer Actions (Pinned & Styled matching View modal) ── */}
+              <div className="px-6 py-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2.5 shrink-0 bg-white dark:bg-[#111827]">
                 <button
                   type="button"
                   onClick={handleCloseEdit}
-                  className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting || !!editSerialDuplicate || !!editSeqDuplicate}
-                  className="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors shadow-xs flex items-center justify-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-all shadow-xs flex items-center justify-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? (
                     <span className="flex items-center gap-1.5">
@@ -1017,13 +1297,23 @@ export default function EquipmentModal({
 
       {/* ── Add Equipment Physical Unit Modal ── */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm w-full max-w-3xl overflow-hidden">
-            {/* Header */}
-            <div className="px-6 py-4 bg-white dark:bg-[#111827] border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
-                Add Physical Equipment Unit
-              </h3>
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto scrollbar-hover animate-in fade-in duration-150">
+          <div className={`bg-white dark:bg-[#111827] rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full ${addCatHasBuiltIns ? 'max-w-5xl' : 'max-w-3xl'} overflow-hidden flex flex-col my-auto max-h-[92vh]`}>
+            {/* ── Modal Header (Matching EquipmentDetailModal & Edit Modal) ── */}
+            <div className="px-6 py-4 bg-white dark:bg-[#111827] border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200/80 dark:border-blue-800/80 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
+                  <Laptop size={20} />
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+                    Add Physical Equipment Unit
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-normal">
+                    Register a new physical unit and link associated built-in accessories.
+                  </p>
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={handleCloseAdd}
@@ -1033,214 +1323,274 @@ export default function EquipmentModal({
               </button>
             </div>
 
-            <form onSubmit={handleAddEquipment}>
-              {/* Side-by-side layout: form fields left, built-in selector right */}
-              <div className="flex flex-col md:flex-row">
-                {/* ── Left Panel: Main Form Fields ── */}
-                <div className="flex-1 p-6 space-y-4 text-xs">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className={labelClasses}>Equipment Category *</label>
-                      <select
-                        required
-                        value={formData.category}
-                        onChange={e => {
-                          const newCat = e.target.value;
-                          const newBrand = getBrandForCategory(newCat);
-                          setFormData({
-                            ...formData,
-                            category: newCat,
-                            brand: newBrand || formData.brand,
-                          });
-                        }}
-                        className={`${inputClasses} cursor-pointer`}
-                      >
-                        {categories && categories.length > 0 ? (
-                          categories.map((cat, idx) => {
-                            const nameStr = typeof cat === "string" ? cat : (cat.eq_name || cat.name);
-                            return <option key={cat.id || idx} value={nameStr}>{nameStr}</option>;
-                          })
-                        ) : (
-                          <option value="">Create Category in Settings First</option>
-                        )}
-                      </select>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <label className={labelClasses}>Serial No.</label>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const code = generateSingleSerialNumber();
-                            setFormData({
-                              ...formData,
-                              serial_number: code,
-                              barcode: code,
-                            });
+            <form onSubmit={handleAddEquipment} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              {/* ── Scrollable Body with .scrollbar-hover ── */}
+              <div className="flex-1 overflow-y-auto scrollbar-hover p-6 space-y-5 text-xs min-h-0">
+                <div className={addCatHasBuiltIns ? "grid grid-cols-1 lg:grid-cols-12 gap-6 items-start" : "space-y-4"}>
+                  {/* ── Left Column: Form Controls ── */}
+                  <div className={addCatHasBuiltIns ? "lg:col-span-7 space-y-4" : "space-y-4"}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className={labelClasses}>Equipment Category *</label>
+                          <button
+                            type="button"
+                            onClick={() => setShowQuickAddCategory(true)}
+                            className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline flex items-center gap-1 cursor-pointer"
+                            title="Quick add a new equipment category"
+                          >
+                            <Plus size={12} />
+                            <span>New Category</span>
+                          </button>
+                        </div>
+                        <CustomSelect
+                          value={formData.category}
+                          onChange={(newCat) => {
+                            const newBrand = getBrandForCategory(newCat);
+                            setFormData((prev) => ({
+                              ...prev,
+                              category: newCat,
+                              brand: newBrand || prev.brand,
+                              seq_no: prev.seq_no ? prev.seq_no : getNextAvailableSeqNo(newCat),
+                            }));
                           }}
-                          className="text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 cursor-pointer"
-                          title="Auto-generate Serial Number"
-                        >
-                          <Sparkles size={12} className="text-amber-500" />
-                          <span>Auto-generate</span>
-                        </button>
+                          options={effectiveCategories.map((cat, idx) => {
+                            const nameStr = typeof cat === "string" ? cat : (cat.eq_name || cat.name);
+                            return { value: nameStr, label: nameStr };
+                          })}
+                          placeholder="Select Category..."
+                          actionButton={{
+                            label: "Add New Category",
+                            onClick: () => setShowQuickAddCategory(true),
+                          }}
+                        />
                       </div>
-                      <input
-                        type="text"
-                        placeholder="e.g. SN-2026-001"
-                        value={formData.serial_number || ""}
-                        onKeyDown={handleBarcodeKeyDown}
-                        onChange={e => setFormData({ ...formData, serial_number: e.target.value, barcode: e.target.value })}
-                        className={`${inputClasses} ${addSerialDuplicate ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-200 bg-rose-50/20' : ''}`}
-                      />
-                      {addSerialDuplicate && (
-                        <p className="mt-1 text-[11px] font-medium text-rose-600 leading-tight">
-                          ⚠️ Assigned to: <strong>{addSerialDuplicate.name || addSerialDuplicate.model || 'another unit'}</strong>. Each unit requires a unique Serial No.
-                        </p>
-                      )}
-                    </div>
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className={labelClasses}>Brand</label>
-                      <select
-                        value={formData.brand || ""}
-                        onChange={e => setFormData({ ...formData, brand: e.target.value })}
-                        className={inputClasses}
-                      >
-                        <option value="">-- Select Brand --</option>
-                        {availableBrands.map(b => (
-                          <option key={b.id || b.name} value={b.name}>{b.name}</option>
-                        ))}
-                        {formData.brand && !availableBrands.some(b => b.name?.toUpperCase() === formData.brand?.toUpperCase()) && (
-                          <option value={formData.brand}>{formData.brand}</option>
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className={labelClasses}>Serial No.</label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const code = generateSingleSerialNumber();
+                              setFormData({
+                                ...formData,
+                                serial_number: code,
+                                barcode: code,
+                              });
+                            }}
+                            className="text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 cursor-pointer"
+                            title="Auto-generate Serial Number"
+                          >
+                            <Sparkles size={12} className="text-amber-500" />
+                            <span>Auto-generate</span>
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="e.g. SN-2026-001"
+                          value={formData.serial_number || ""}
+                          onKeyDown={handleBarcodeKeyDown}
+                          onChange={e => setFormData({ ...formData, serial_number: e.target.value, barcode: e.target.value })}
+                          className={`${inputClasses} ${addSerialDuplicate ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-200 bg-rose-50/20' : ''}`}
+                        />
+                        {addSerialDuplicate && (
+                          <p className="mt-1 text-[11px] font-medium text-rose-600 leading-tight">
+                            ⚠️ Assigned to {addSerialDuplicate.name || addSerialDuplicate.model || 'another unit'}.
+                          </p>
                         )}
-                      </select>
+                      </div>
                     </div>
 
-                    <div>
-                      <label className={labelClasses}>Model Name</label>
-                      <input
-                        type="text"
-                        placeholder="Model No."
-                        value={formData.model || ""}
-                        onChange={e => setFormData({ ...formData, model: e.target.value })}
-                        className={inputClasses}
-                      />
-                    </div>
-                  </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className={labelClasses}>Brand</label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setQuickBrandCatId(selectedCatObj?.id || "");
+                              setShowQuickAddBrand(true);
+                            }}
+                            className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline flex items-center gap-1 cursor-pointer"
+                            title="Quick add a new brand"
+                          >
+                            <Plus size={12} />
+                            <span>New Brand</span>
+                          </button>
+                        </div>
+                        <CustomSelect
+                          value={formData.brand || ""}
+                          onChange={(newBrand) => {
+                            setFormData({ ...formData, brand: newBrand });
+                          }}
+                          options={[
+                            ...availableBrands.map((b) => ({ value: b.name, label: b.name })),
+                            ...(formData.brand && !availableBrands.some(b => b.name?.toUpperCase() === formData.brand?.toUpperCase())
+                              ? [{ value: formData.brand, label: formData.brand }]
+                              : [])
+                          ]}
+                          placeholder="-- Select Brand --"
+                          actionButton={{
+                            label: "Add New Brand",
+                            onClick: () => {
+                              setQuickBrandCatId(selectedCatObj?.id || "");
+                              setShowQuickAddBrand(true);
+                            },
+                          }}
+                        />
+                      </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className={labelClasses}>Seq. No.</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. 01"
-                        value={formData.seq_no || ""}
-                        onChange={e => setFormData({ ...formData, seq_no: e.target.value })}
-                        className={`${inputClasses} ${addSeqDuplicate ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-200 bg-rose-50/20' : ''}`}
-                      />
-                      {addSeqDuplicate && (
-                        <p className="mt-1 text-[11px] font-medium text-rose-600 leading-tight">
-                          ⚠️ Seq. No. "{formData.seq_no}" already exists in "{formData.category || 'this category'}". Seq. No. must be unique within the same category.
-                        </p>
-                      )}
+                      <div>
+                        <label className={labelClasses}>Model Name</label>
+                        <input
+                          type="text"
+                          placeholder="Model No."
+                          value={formData.model || ""}
+                          onChange={e => setFormData({ ...formData, model: e.target.value })}
+                          className={inputClasses}
+                        />
+                      </div>
                     </div>
 
-                    <div>
-                      <label className={labelClasses}>Date Purchased</label>
-                      <input
-                        type="date"
-                        min="1900-01-01"
-                        max="9999-12-31"
-                        value={formData.date_purchased || ""}
-                        onChange={e => {
-                          let val = e.target.value;
-                          if (val) {
-                            const parts = val.split("-");
-                            if (parts[0] && parts[0].length > 4) {
-                              parts[0] = parts[0].slice(0, 4);
-                              val = parts.join("-");
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className={labelClasses}>Seq. No.</label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = getNextAvailableSeqNo(formData.category);
+                              setFormData({ ...formData, seq_no: next });
+                            }}
+                            className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline flex items-center gap-1 cursor-pointer"
+                            title="Auto-assign next sequential number for this category"
+                          >
+                            <Sparkles size={12} className="text-blue-500" />
+                            <span>Auto-next</span>
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="e.g. 01"
+                          value={formData.seq_no || ""}
+                          onChange={e => setFormData({ ...formData, seq_no: e.target.value })}
+                          className={`${inputClasses} ${addSeqDuplicate ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-200 bg-rose-50/20' : ''}`}
+                        />
+                        {addSeqDuplicate && (
+                          <div className="mt-1 flex items-center justify-between gap-1 text-[11px] font-medium text-rose-600">
+                            <span>⚠️ #{formData.seq_no} is already taken in this category.</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const next = getNextAvailableSeqNo(formData.category);
+                                setFormData({ ...formData, seq_no: next });
+                              }}
+                              className="font-bold underline text-blue-600 hover:text-blue-700 cursor-pointer shrink-0"
+                            >
+                              Use next
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className={labelClasses}>Date Purchased</label>
+                        <input
+                          type="date"
+                          min="1900-01-01"
+                          max="9999-12-31"
+                          value={formData.date_purchased || ""}
+                          onChange={e => {
+                            let val = e.target.value;
+                            if (val) {
+                              const parts = val.split("-");
+                              if (parts[0] && parts[0].length > 4) {
+                                parts[0] = parts[0].slice(0, 4);
+                                val = parts.join("-");
+                              }
                             }
-                          }
-                          setFormData({ ...formData, date_purchased: val });
-                        }}
-                        className={inputClasses}
-                      />
+                            setFormData({ ...formData, date_purchased: val });
+                          }}
+                          className={inputClasses}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className={labelClasses}>Lifespan (Yrs) *</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={50}
+                          step={1}
+                          required
+                          placeholder="5"
+                          value={formData.lifespan_years || 5}
+                          onChange={e => setFormData({ ...formData, lifespan_years: e.target.value })}
+                          className={inputClasses}
+                        />
+                      </div>
+
+                      <div>
+                        <label className={labelClasses}>Status *</label>
+                        <CustomSelect
+                          value={formData.status}
+                          onChange={(val) => setFormData({ ...formData, status: val })}
+                          options={[
+                            { value: "available", label: "Available" },
+                            { value: "unavailable", label: "Unavailable" },
+                          ]}
+                          placeholder="Select Status..."
+                        />
+                      </div>
+
+                      <div>
+                        <label className={labelClasses}>Condition *</label>
+                        <CustomSelect
+                          value={formData.condition || "Good"}
+                          onChange={(val) => setFormData({ ...formData, condition: val })}
+                          options={[
+                            { value: "Good", label: "Good" },
+                            { value: "Under Repair", label: "Under Repair" },
+                            { value: "Damaged", label: "Damaged" },
+                            { value: "Lost", label: "Lost" },
+                          ]}
+                          placeholder="Select Condition..."
+                        />
+                      </div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                      <label className={labelClasses}>Lifespan (Yrs) *</label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={50}
-                        step={1}
-                        required
-                        placeholder="5"
-                        value={formData.lifespan_years || 5}
-                        onChange={e => setFormData({ ...formData, lifespan_years: e.target.value })}
-                        className={inputClasses}
+                  {/* ── Right Column: Linked Built-in Equipment (Rendered only when category has built-in requirements) ── */}
+                  {addCatHasBuiltIns && (
+                    <div className="lg:col-span-5 border-t border-slate-100 dark:border-slate-800 lg:border-t-0 lg:border-l lg:pl-6 pt-4 lg:pt-0">
+                      <CategoryBuiltInUnitSelector
+                        categoryName={formData.category}
+                        categories={categories}
+                        existingUnits={existingUnits}
+                        selectedUnitIds={formData.built_in_units || []}
+                        onUnitChange={(newUnitIds) => setFormData({ ...formData, built_in_units: newUnitIds })}
                       />
                     </div>
-
-                    <div>
-                      <label className={labelClasses}>Status *</label>
-                      <select
-                        value={formData.status}
-                        onChange={e => setFormData({ ...formData, status: e.target.value })}
-                        className={`${inputClasses} cursor-pointer`}
-                      >
-                        <option value="available">Available</option>
-                        <option value="unavailable">Unavailable</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className={labelClasses}>Condition *</label>
-                      <select
-                        value={formData.condition || "Good"}
-                        onChange={e => setFormData({ ...formData, condition: e.target.value })}
-                        className={`${inputClasses} cursor-pointer`}
-                      >
-                        <option value="Good">Good</option>
-                        <option value="Under Repair">Under Repair</option>
-                        <option value="Damaged">Damaged</option>
-                        <option value="Lost">Lost</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* ── Right Panel: Linked Built-in Equipment ── */}
-                <div className="w-full md:w-72 shrink-0 border-t border-slate-100 dark:border-slate-800 md:border-t-0 md:border-l p-6">
-                  <CategoryBuiltInUnitSelector
-                    categoryName={formData.category}
-                    categories={categories}
-                    existingUnits={existingUnits}
-                    selectedUnitIds={formData.built_in_units || []}
-                    onUnitChange={(newUnitIds) => setFormData({ ...formData, built_in_units: newUnitIds })}
-                  />
+                  )}
                 </div>
               </div>
 
-              {/* Footer Actions */}
-              <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/40">
+              {/* ── Footer Actions (Pinned & Styled matching Edit/View modal) ── */}
+              <div className="px-6 py-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2.5 shrink-0 bg-white dark:bg-[#111827]">
                 <button
                   type="button"
                   onClick={handleCloseAdd}
-                  className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting || !!addSerialDuplicate || !!addSeqDuplicate}
-                  className="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors shadow-xs flex items-center justify-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-all shadow-xs flex items-center justify-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? (
                     <span className="flex items-center gap-1.5">
@@ -1253,6 +1603,194 @@ export default function EquipmentModal({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Quick Add Brand Modal ── */}
+      {showQuickAddBrand && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[3000] flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-sm w-full shadow-2xl border border-slate-200 dark:border-slate-800 p-6 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
+                  <Plus size={16} />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-slate-900 dark:text-white text-sm">Add New Brand</h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">Quickly register brand in catalog</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowQuickAddBrand(false);
+                  setQuickBrandError("");
+                }}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-3.5 text-xs">
+              <div>
+                <label className={labelClasses}>Brand Name *</label>
+                <input
+                  type="text"
+                  placeholder="e.g. EPSON, LOGITECH, ANKER"
+                  value={quickBrandName}
+                  onChange={(e) => {
+                    setQuickBrandName(e.target.value);
+                    if (quickBrandError) setQuickBrandError("");
+                  }}
+                  className={inputClasses}
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleSaveQuickBrand();
+                    }
+                  }}
+                />
+              </div>
+
+              <div>
+                <label className={labelClasses}>Link to Category (Optional)</label>
+                <CustomSelect
+                  value={quickBrandCatId}
+                  onChange={(val) => setQuickBrandCatId(val)}
+                  options={[
+                    { value: "", label: "General (All Categories)" },
+                    ...effectiveCategories.map((c, i) => {
+                      const name = typeof c === "string" ? c : (c.eq_name || c.name);
+                      const id = typeof c === "object" ? c.id : name;
+                      return { value: id, label: name };
+                    })
+                  ]}
+                  placeholder="Select Category..."
+                />
+              </div>
+
+              {quickBrandError && (
+                <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 p-2.5 rounded-xl border border-rose-200 dark:border-rose-900/60">
+                  ⚠️ {quickBrandError}
+                </p>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowQuickAddBrand(false);
+                  setQuickBrandError("");
+                }}
+                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-2xs cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={quickBrandLoading || !quickBrandName.trim()}
+                onClick={handleSaveQuickBrand}
+                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+              >
+                {quickBrandLoading && <Loader2 size={13} className="animate-spin" />}
+                <span>Add & Select</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Quick Add Category Modal ── */}
+      {showQuickAddCategory && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[3000] flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-sm w-full shadow-2xl border border-slate-200 dark:border-slate-800 p-6 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
+                  <Plus size={16} />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-slate-900 dark:text-white text-sm">Add Equipment Category</h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">Instantly create a new catalog category</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowQuickAddCategory(false);
+                  setQuickCategoryError("");
+                }}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-3.5 text-xs">
+              <div>
+                <label className={labelClasses}>Category Name *</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Wireless Presenter, HDMI Cable"
+                  value={quickCategoryName}
+                  onChange={(e) => {
+                    setQuickCategoryName(e.target.value);
+                    if (quickCategoryError) setQuickCategoryError("");
+                  }}
+                  className={inputClasses}
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleSaveQuickCategory();
+                    }
+                  }}
+                />
+              </div>
+
+              <div>
+                <label className={labelClasses}>Description (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="Short description or accessory note"
+                  value={quickCategoryDesc}
+                  onChange={(e) => setQuickCategoryDesc(e.target.value)}
+                  className={inputClasses}
+                />
+              </div>
+
+              {quickCategoryError && (
+                <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 p-2.5 rounded-xl border border-rose-200 dark:border-rose-900/60">
+                  ⚠️ {quickCategoryError}
+                </p>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowQuickAddCategory(false);
+                  setQuickCategoryError("");
+                }}
+                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-2xs cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={quickCategoryLoading || !quickCategoryName.trim()}
+                onClick={handleSaveQuickCategory}
+                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+              >
+                {quickCategoryLoading && <Loader2 size={13} className="animate-spin" />}
+                <span>Create & Select</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

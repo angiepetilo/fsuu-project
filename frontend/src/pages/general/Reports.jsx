@@ -17,6 +17,8 @@ import {
   Building2, Printer, X, Loader2, FileSpreadsheet, ChevronDown, Layers
 } from "lucide-react";
 import AcademicTermSelect from "@/components/ui/AcademicTermSelect";
+import ExportModal, { filterRecordsByBounds } from "@/components/ui/ExportModal";
+import ExportButton from "@/components/ui/ExportButton";
 
 export default function Reports() {
   const { user, isStaff, isSuperAdmin, isStudentAssistant, hasPermission } = usePermissions();
@@ -380,22 +382,10 @@ export default function Reports() {
   const currentEquipNotes = localStorage.getItem("fsuu_report_equipment_notes") || "";
   const currentBreachesNotes = localStorage.getItem("fsuu_report_breaches_notes") || "";
 
-  // ── EXCEL EXPORT (.xlsx) ──
+  // ── EXPORT STATE & HANDLERS ──
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportDateBounds, setExportDateBounds] = useState({ start: null, end: null });
   const [isExportingExcel, setIsExportingExcel] = useState(false);
-  const [showExcelMenu, setShowExcelMenu] = useState(false);
-  const excelMenuRef = useRef(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (excelMenuRef.current && !excelMenuRef.current.contains(e.target)) {
-        setShowExcelMenu(false);
-      }
-    };
-    if (showExcelMenu) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
-    }
-  }, [showExcelMenu]);
 
   const selectedTermLabel = useMemo(() => {
     if (!selectedTermId) return "All Academic Terms";
@@ -403,29 +393,51 @@ export default function Reports() {
     return found?.name || "All Academic Terms";
   }, [selectedTermId, academicTerms]);
 
-  const handleExportExcel = async (mode = "all") => {
+  const handleExecuteExport = async ({ timeframe, format, scope, bounds, customStart, customEnd }) => {
+    if (format === "pdf") {
+      setExportDateBounds(bounds || { start: null, end: null });
+      setShowExportModal(false);
+      setShowPdfModal(true);
+      return;
+    }
+
+    // Excel Export (.xlsx)
     setIsExportingExcel(true);
     try {
+      // Filter records according to the selected timeframe bounds
+      const dateFilteredVb = filterRecordsByBounds(filteredVenueBookings, bounds);
+      const dateFilteredEb = filterRecordsByBounds(filteredEquipmentBorrowings, bounds);
+      const dateFilteredActiveEb = filterRecordsByBounds(filteredActiveEquipmentBorrowings, bounds);
+      const dateFilteredViolations = filterRecordsByBounds(filteredRuleViolations, bounds);
+
+      let timeframeSuffix = "";
+      if (timeframe === "today") timeframeSuffix = " (Today)";
+      else if (timeframe === "month") timeframeSuffix = ` (${new Date().toLocaleString("default", { month: "long" })} ${new Date().getFullYear()})`;
+      else if (timeframe === "year") timeframeSuffix = ` (${new Date().getFullYear()})`;
+      else if (timeframe === "custom") timeframeSuffix = ` (${customStart} to ${customEnd})`;
+
       await exportReportsToExcel({
-        venueBookings: filteredVenueBookings,
-        equipmentBorrowings: filteredEquipmentBorrowings,
-        activeEquipmentBorrowings: filteredActiveEquipmentBorrowings,
-        ruleViolations: filteredRuleViolations,
+        venueBookings: dateFilteredVb,
+        equipmentBorrowings: dateFilteredEb,
+        activeEquipmentBorrowings: dateFilteredActiveEb,
+        ruleViolations: dateFilteredViolations,
         inventoryItems: filteredInventoryItems,
         equipmentUnits: filteredUnits,
-        termLabel: selectedTermLabel,
+        termLabel: `${selectedTermLabel}${timeframeSuffix}`,
         officeScope: selectedOfficeName || officeScope,
-        activeTab: mode === "active" ? activeTab : "all",
+        activeTab: scope === "active" ? activeTab : "all",
       });
-      setFeedback(`✅ ${mode === "active" ? tabLabels[activeTab] : "Master Reports Workbook"} exported to Excel (.xlsx).`);
+
+      const scopeName = scope === "active" ? tabLabels[activeTab] : "Master Reports Workbook";
+      setFeedback(`✅ ${scopeName} exported to Excel (.xlsx) for ${timeframe === "all" ? "all records" : timeframe}.`);
       setTimeout(() => setFeedback(null), 4000);
+      setShowExportModal(false);
     } catch (err) {
       console.error("Excel export error in Reports:", err);
       setFeedback(`❌ Excel export failed: ${err?.message || "Unknown error"}`);
       setTimeout(() => setFeedback(null), 5000);
     } finally {
       setIsExportingExcel(false);
-      setShowExcelMenu(false);
     }
   };
 
@@ -447,76 +459,14 @@ export default function Reports() {
     <div className="space-y-6">
       {/* Action Toolbar */}
       <div className="flex items-center justify-end gap-2.5 flex-wrap">
-        {/* Export Excel (.xlsx) Split Button & Dropdown */}
+        {/* Unified Institutional Export Button */}
         {(isSuperAdmin || hasPermission("reports.export_pdf") || hasPermission("reports")) && (
-          <div className="relative inline-flex items-center" ref={excelMenuRef}>
-            <button
-              type="button"
-              onClick={() => handleExportExcel("all")}
-              disabled={isExportingExcel}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-l-xl transition-all shadow-2xs cursor-pointer disabled:opacity-60"
-              title="Export All Report Tabs to Formatted Master Excel (.xlsx)"
-            >
-              {isExportingExcel ? (
-                <Loader2 size={13} className="shrink-0 animate-spin" />
-              ) : (
-                <FileSpreadsheet size={13} className="shrink-0" />
-              )}
-              <span>Export Excel</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowExcelMenu((prev) => !prev)}
-              className="px-2 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-r-xl border-l border-emerald-500/40 transition-all shadow-2xs cursor-pointer"
-              title="More Excel Export Options"
-              aria-label="Excel export options"
-            >
-              <ChevronDown size={13} className={`transition-transform duration-150 ${showExcelMenu ? "rotate-180" : ""}`} />
-            </button>
-
-            {showExcelMenu && (
-              <div className="absolute right-0 top-full mt-1.5 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-2 z-50 text-xs font-semibold text-slate-700 dark:text-slate-200 space-y-1 animate-in fade-in zoom-in-95">
-                <div className="px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                  <span>Workbook Format: Excel (.xlsx)</span>
-                  <span className="text-emerald-600 font-bold">Multi-Tab</span>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => handleExportExcel("all")}
-                  className="w-full text-left px-2.5 py-2 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 hover:bg-emerald-100/70 flex items-center justify-between transition-colors cursor-pointer group border border-emerald-200/50"
-                >
-                  <span className="flex items-center gap-2 text-emerald-900 dark:text-emerald-300 font-extrabold">
-                    <Layers size={13} className="text-emerald-600" />
-                    <span>Master Report Workbook <span className="text-[10px] text-emerald-600 font-normal">(All 5 Tabs)</span></span>
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleExportExcel("active")}
-                  className="w-full text-left px-2.5 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center justify-between transition-colors cursor-pointer group"
-                >
-                  <span className="flex items-center gap-2 text-slate-800 dark:text-slate-200 font-bold group-hover:text-emerald-700">
-                    <FileSpreadsheet size={13} className="text-slate-400 group-hover:text-emerald-600" />
-                    <span>Active Tab Only <span className="text-[10px] text-slate-400 font-normal">({tabLabels[activeTab]})</span></span>
-                  </span>
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Export PDF Button */}
-        {(isSuperAdmin || hasPermission("reports.export_pdf") || hasPermission("reports")) && (
-          <button
-            type="button"
-            onClick={() => setShowPdfModal(true)}
-            className="px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition-colors cursor-pointer"
-            title={`Preview / Export ${tabLabels[activeTab]} as PDF`}
-          >
-            Export PDF
-          </button>
+          <ExportButton
+            label="Export"
+            onClick={() => setShowExportModal(true)}
+            loading={isExportingExcel || isExportingPdf}
+            title="Export Reports to Excel or PDF"
+          />
         )}
       </div>
 
@@ -617,10 +567,43 @@ export default function Reports() {
         </div>
       )}
 
+      {/* ── EXPORT MODAL ── */}
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        title="Export Reports & Analytics"
+        subtitle="Select your preferred timeframe, format, and report scope."
+        formats={["xlsx", "pdf"]}
+        defaultFormat="xlsx"
+        activeTabLabel={tabLabels[activeTab]}
+        records={{
+          venues: filteredVenueBookings,
+          equipments: filteredEquipmentBorrowings,
+          violations: filteredRuleViolations,
+        }}
+        scopeOptions={[
+          {
+            id: "all",
+            label: "Master Workbook (All 5 Tabs)",
+            description: "Export full workbook including Bookings, Violations, Inventory, and Incidents",
+          },
+          {
+            id: "active",
+            label: `Active Tab Only (${tabLabels[activeTab]})`,
+            description: `Only export records from the current ${tabLabels[activeTab]} view`,
+          },
+        ]}
+        onExport={handleExecuteExport}
+        isExporting={isExportingExcel || isExportingPdf}
+      />
+
       {/* ── PDF PRINT PREVIEW MODAL ── */}
       <PdfPreviewModal
         open={showPdfModal}
-        onClose={() => setShowPdfModal(false)}
+        onClose={() => {
+          setShowPdfModal(false);
+          setExportDateBounds({ start: null, end: null });
+        }}
         tabLabels={tabLabels}
         activeTab={activeTab}
         officeScope={officeScope}
@@ -628,10 +611,10 @@ export default function Reports() {
         isExportingPdf={isExportingPdf}
         onDownloadPDF={handleDownloadPDF}
         onPrintPDF={handlePrintPDF}
-        filteredVenueBookings={filteredVenueBookings}
-        filteredEquipmentBorrowings={filteredEquipmentBorrowings}
-        filteredActiveEquipmentBorrowings={filteredActiveEquipmentBorrowings}
-        filteredRuleViolations={filteredRuleViolations}
+        filteredVenueBookings={filterRecordsByBounds(filteredVenueBookings, exportDateBounds)}
+        filteredEquipmentBorrowings={filterRecordsByBounds(filteredEquipmentBorrowings, exportDateBounds)}
+        filteredActiveEquipmentBorrowings={filterRecordsByBounds(filteredActiveEquipmentBorrowings, exportDateBounds)}
+        filteredRuleViolations={filterRecordsByBounds(filteredRuleViolations, exportDateBounds)}
         filteredInventoryItems={filteredInventoryItems}
         filteredUnits={filteredUnits}
         currentVenueNotes={currentVenueNotes}

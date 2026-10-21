@@ -243,6 +243,50 @@ html.dark ::-webkit-scrollbar-thumb { background: var(--border-strong); border-r
 html.dark ::-webkit-scrollbar-thumb:hover { background: #3B4A5E; }
 html.dark ::selection { background: rgba(59,130,246,0.35); color: var(--text-primary); }
 
+/* Scrollbar that ONLY shows when hovered, scrolling, or active */
+.scrollbar-hover {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.2s ease;
+}
+.scrollbar-hover:hover,
+.scrollbar-hover:focus-within,
+.scrollbar-hover:active {
+  scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+}
+html.dark .scrollbar-hover:hover,
+html.dark .scrollbar-hover:focus-within,
+html.dark .scrollbar-hover:active {
+  scrollbar-color: rgba(100, 116, 139, 0.6) transparent;
+}
+.scrollbar-hover::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.scrollbar-hover::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+.scrollbar-hover::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-hover::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 9999px;
+  transition: background-color 0.2s ease;
+}
+.scrollbar-hover:hover::-webkit-scrollbar-thumb,
+.scrollbar-hover:focus-within::-webkit-scrollbar-thumb,
+.scrollbar-hover:active::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.55);
+}
+html.dark .scrollbar-hover:hover::-webkit-scrollbar-thumb,
+html.dark .scrollbar-hover:focus-within::-webkit-scrollbar-thumb,
+html.dark .scrollbar-hover:active::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.65);
+}
+
 @media (max-width: 640px) {
   button:not(.btn-inline):not([role="switch"]):not(.ios-toggle-btn), .touch-target-control { min-height: 44px; }
 }

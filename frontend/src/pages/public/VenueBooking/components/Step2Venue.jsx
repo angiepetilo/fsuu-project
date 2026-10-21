@@ -5,6 +5,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import api from "@/lib/axios";
 import { getTodayISO, isPastDate, isPastTimeToday, isPastDateTime } from "@/lib/dateTimeUtils";
 import IosToggle from "@/components/ui/ios-toggle";
+import { Building, MapPin, Users, Check, Clock } from "lucide-react";
 
 const BLOCKING_STATUSES = ["approved", "ongoing", "on-going", "reserved"];
 
@@ -85,7 +86,7 @@ export default function Step2Venue({
               list.push(lo);
             }
           });
-        } catch {}
+        } catch { }
         setDbOverrides(list);
       })
       .catch(() => {
@@ -100,7 +101,7 @@ export default function Step2Venue({
             start_time: ov.startTime || ov.start_time || "07:30",
             end_time: ov.endTime || ov.end_time || "17:00",
           })));
-        } catch {}
+        } catch { }
       });
   }, []);
 
@@ -529,12 +530,12 @@ export default function Step2Venue({
 
   const selectedDateOverride = (selectedVenue && selectedDate)
     ? dbOverrides.find(o => {
-        const oVenueId = o.venue_id || o.venue?.id;
-        const oDate = o.override_date ? o.override_date.substring(0, 10) : null;
-        if (oVenueId && oVenueId !== 'all' && String(oVenueId) !== String(selectedVenue.id)) return false;
-        const tEnd = targetEndDate || selectedDate;
-        return oDate && oDate >= selectedDate && oDate <= tEnd && (o.status === "maintenance" || o.status === "closed");
-      })
+      const oVenueId = o.venue_id || o.venue?.id;
+      const oDate = o.override_date ? o.override_date.substring(0, 10) : null;
+      if (oVenueId && oVenueId !== 'all' && String(oVenueId) !== String(selectedVenue.id)) return false;
+      const tEnd = targetEndDate || selectedDate;
+      return oDate && oDate >= selectedDate && oDate <= tEnd && (o.status === "maintenance" || o.status === "closed");
+    })
     : null;
 
   const isInvalidEndDate = Boolean(selectedEndDate && selectedEndDate < selectedDate);
@@ -575,7 +576,7 @@ export default function Step2Venue({
         <div className="w-full sm:w-80 md:w-96">
           <input
             type="text"
-            placeholder="Search"
+            placeholder="Search venue"
             value={venueSearch}
             onChange={(e) => {
               setVenueSearch(e.target.value);
@@ -650,28 +651,28 @@ export default function Step2Venue({
                     onClick={() => {
                       if (!isCardBlocked) onSelectVenue(v);
                     }}
-                    className={`border rounded-lg p-4 transition-colors flex flex-col justify-between overflow-hidden ${
-                      isClosed
-                        ? "border-rose-300 bg-rose-50/20 opacity-90 cursor-not-allowed"
+                    className={`border rounded-2xl p-3.5 transition-all flex flex-col justify-between overflow-hidden shadow-xs ${isClosed
+                        ? "border-rose-200 dark:border-rose-900/60 bg-rose-50/30 dark:bg-rose-950/20 opacity-85 cursor-not-allowed"
                         : isMaintenance
-                          ? "border-amber-300 bg-amber-50/20 opacity-90 cursor-not-allowed"
+                          ? "border-amber-200 dark:border-amber-900/60 bg-amber-50/30 dark:bg-amber-950/20 opacity-85 cursor-not-allowed"
                           : isSelected
-                            ? "border-blue-600 bg-white dark:bg-slate-800 cursor-pointer"
-                            : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-blue-500 cursor-pointer"
-                    }`}
+                            ? "border-blue-600 dark:border-blue-500 bg-white dark:bg-slate-900 ring-2 ring-blue-500 shadow-md cursor-pointer"
+                            : "border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-400 hover:shadow-md cursor-pointer"
+                      }`}
                   >
                     <div>
-                      {/* Venue Image */}
-                      <div className="w-full aspect-video bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg overflow-hidden flex flex-col items-center justify-center text-center relative group p-1">
+                      {/* Venue Image Container (aspect 16/9, subtle padding, cover fit) */}
+                      <div className="w-full aspect-[16/9] bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800/80 rounded-xl overflow-hidden flex flex-col items-center justify-center text-center relative group p-1">
                         {venueInfo.photo ? (
                           <img
                             src={venueInfo.photo}
                             alt={v.name}
-                            className="w-full h-full object-contain"
+                            className="w-full h-full object-cover rounded-lg"
                           />
                         ) : (
-                          <div className="p-4 flex flex-col items-center justify-center h-full w-full bg-slate-50 dark:bg-slate-700">
-                            <span className="text-slate-900 dark:text-white font-extrabold text-xs sm:text-sm leading-snug line-clamp-2 uppercase tracking-wide">
+                          <div className="p-4 flex flex-col items-center justify-center h-full w-full bg-slate-50 dark:bg-slate-800/40">
+                            <Building size={28} className="text-slate-300 dark:text-slate-600 mb-1" />
+                            <span className="text-slate-700 dark:text-slate-300 font-extrabold text-xs sm:text-sm leading-snug line-clamp-2 uppercase tracking-wide">
                               {v.name}
                             </span>
                           </div>
@@ -681,41 +682,42 @@ export default function Step2Venue({
                       {/* Venue Metadata */}
                       <div className="mt-3 space-y-1">
                         <div className="flex items-center justify-between gap-2">
-                          <h4 className="font-bold text-slate-900 dark:text-white text-xs leading-tight line-clamp-1">
+                          <h4 className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm leading-tight line-clamp-1">
                             {v.name}
                           </h4>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                            isClosed
-                              ? "bg-rose-100 dark:bg-rose-950/40 text-rose-800 dark:text-rose-400"
-                              : isMaintenance 
-                              ? "bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-400"
-                              : "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-400"
-                          }`}>
+                          <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full shrink-0 ${isClosed
+                              ? "bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400"
+                              : isMaintenance
+                                ? "bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400"
+                                : "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300"
+                            }`}>
                             {isClosed ? "Closed" : isMaintenance ? "Maintenance" : "Available"}
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium line-clamp-1">
-                          {formatVenueLocation(v)}
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium line-clamp-1 flex items-center gap-1.5">
+                          <MapPin size={11} className="shrink-0 text-slate-400" />
+                          <span>{formatVenueLocation(v)}</span>
                         </p>
-                        <p className="text-[11px] text-slate-600 dark:text-slate-400 font-semibold">
-                          Min {v.min_capacity || 1} • Max {v.max_capacity || v.capacity || venueInfo.capacity || 80}
+                        <p className="text-[11px] text-slate-600 dark:text-slate-300 font-semibold flex items-center gap-1.5">
+                          <Users size={11} className="shrink-0 text-slate-400" />
+                          <span>Min {v.min_capacity || 1} • Max {v.max_capacity || v.capacity || venueInfo.capacity || 80} guests</span>
                         </p>
                       </div>
                     </div>
 
-                    {/* Primary Action Button */}
-                    <div className="mt-3.5">
+                    {/* Primary Action Button (Level with Preview Card) */}
+                    <div className="mt-3.5 pt-2 border-t border-slate-100 dark:border-slate-800">
                       {isClosed ? (
                         <button
                           disabled
-                          className="w-full h-9 rounded-lg border border-rose-300 bg-rose-50 text-rose-800 text-xs font-semibold flex items-center justify-center opacity-90 cursor-not-allowed"
+                          className="w-full h-8 rounded-lg border border-rose-300 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 text-xs font-semibold flex items-center justify-center opacity-85 cursor-not-allowed"
                         >
                           Closed
                         </button>
                       ) : isMaintenance ? (
                         <button
                           disabled
-                          className="w-full h-9 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-xs font-semibold flex items-center justify-center opacity-90 cursor-not-allowed"
+                          className="w-full h-8 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 text-xs font-semibold flex items-center justify-center opacity-85 cursor-not-allowed"
                         >
                           Maintenance
                         </button>
@@ -723,17 +725,18 @@ export default function Step2Venue({
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); onSelectVenue(v); }}
-                          className="w-full h-9 rounded-lg bg-blue-600 text-white text-xs font-semibold flex items-center justify-center transition-colors cursor-pointer"
+                          className="w-full h-8 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer"
                         >
-                          Selected
+                          <Check size={14} className="stroke-[2.5]" />
+                          <span>Selected</span>
                         </button>
                       ) : (
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); onSelectVenue(v); }}
-                          className="w-full h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-blue-600 hover:text-white hover:border-blue-600 text-slate-800 dark:text-white text-xs font-semibold transition-colors cursor-pointer"
+                          className="w-full h-8 rounded-lg border border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400 bg-transparent hover:bg-blue-50 dark:hover:bg-blue-950/40 text-xs font-semibold flex items-center justify-center transition-all shadow-xs cursor-pointer"
                         >
-                          Select
+                          Select Venue
                         </button>
                       )}
                     </div>
@@ -773,11 +776,6 @@ export default function Step2Venue({
 
         {/* Right Column: Date & Time Selection Panel */}
         <div className="lg:col-span-5 sm:col-span-12 space-y-2 relative z-10 mt-4 lg:mt-0">
-          {/* Operating Schedule Notice */}
-          <p className="text-center text-xs font-semibold text-emerald-600 dark:text-emerald-400 mb-2">
-            Schedule: {dynamicSchedule}
-          </p>
-
           <div className="bg-white dark:bg-slate-800 p-5 rounded-lg border border-slate-200 dark:border-slate-700 space-y-4 static lg:sticky lg:top-24 z-10">
 
             {/* Panel Header */}
@@ -874,27 +872,26 @@ export default function Step2Venue({
                   const isClosed = info.status === "closed";
                   const areAllVenuesBlocked = !selectedVenue
                     ? (filteredVenues.length > 0 && filteredVenues.every(v => {
-                        return dbOverrides.some(o => {
-                          const oVenueId = o.venue_id || o.venue?.id;
-                          const oDate = o.override_date ? o.override_date.substring(0, 10) : null;
-                          return oDate === dateStr && (!oVenueId || oVenueId === 'all' || String(oVenueId) === String(v.id)) && (o.status === 'maintenance' || o.status === 'closed');
-                        });
-                      }))
+                      return dbOverrides.some(o => {
+                        const oVenueId = o.venue_id || o.venue?.id;
+                        const oDate = o.override_date ? o.override_date.substring(0, 10) : null;
+                        return oDate === dateStr && (!oVenueId || oVenueId === 'all' || String(oVenueId) === String(v.id)) && (o.status === 'maintenance' || o.status === 'closed');
+                      });
+                    }))
                     : (isMaintenance || isClosed);
                   const isDisabled = isPast || isPublicBlockedNotice || isBooked || (selectedVenue ? (isMaintenance || isClosed) : areAllVenuesBlocked);
 
                   return (
                     <div
                       key={day}
-                      className={`relative h-9 flex items-center justify-center ${
-                        hasRange && isInBetween
+                      className={`relative h-9 flex items-center justify-center ${hasRange && isInBetween
                           ? "bg-blue-100 dark:bg-blue-950/70"
                           : hasRange && isStart
                             ? "bg-blue-100 dark:bg-blue-950/70 rounded-l-xl"
                             : hasRange && isEnd
                               ? "bg-blue-100 dark:bg-blue-950/70 rounded-r-xl"
                               : ""
-                      }`}
+                        }`}
                     >
                       <button
                         type="button"
@@ -937,15 +934,18 @@ export default function Step2Venue({
                           }
 
                           if (isPortal && isShortNotice && !isPinVerified) {
-                            setPinModalMeta && setPinModalMeta({
-                              title: "Verification Pin",
-                              description: `Early date [${dateStr}] need authorized admin verification pin.`,
-                            });
-                            setShowPinModal && setShowPinModal(true);
+                            if (setPinModalMeta) {
+                              setPinModalMeta({
+                                title: "Verification Pin",
+                                description: `Early date [${dateStr}] need authorized admin verification pin.`,
+                              });
+                            }
+                            if (setShowPinModal) {
+                              setShowPinModal(true);
+                            }
                           }
                         }}
-                        className={`w-9 h-9 text-xs font-semibold flex items-center justify-center mx-auto transition-all relative z-10 ${
-                          isStart && hasRange
+                        className={`w-9 h-9 text-xs font-semibold flex items-center justify-center mx-auto transition-all relative z-10 ${isStart && hasRange
                             ? "bg-blue-600 text-white font-black rounded-l-xl shadow-md ring-2 ring-blue-600/40 z-20 cursor-pointer"
                             : isEnd && hasRange
                               ? "bg-blue-600 text-white font-black rounded-r-xl shadow-md ring-2 ring-blue-600/40 z-20 cursor-pointer"
@@ -966,7 +966,7 @@ export default function Step2Venue({
                                             : isPast
                                               ? "text-slate-300 dark:text-slate-600 font-normal rounded-lg cursor-not-allowed select-none"
                                               : "border border-emerald-300/80 dark:border-emerald-700/60 bg-emerald-50/20 dark:bg-emerald-950/20 text-slate-700 dark:text-slate-200 font-medium hover:bg-emerald-100/50 rounded-lg cursor-pointer"
-                        }`}
+                          }`}
                       >
                         <span className="relative">
                           {day}
@@ -1045,11 +1045,10 @@ export default function Step2Venue({
             {selectedDate && timeStart && timeEnd && (
               <div className="space-y-2 pt-1">
                 {selectedDateOverride ? (
-                  <div className={`p-3.5 border rounded-lg text-xs font-bold space-y-1.5 ${
-                    selectedDateOverride.status === "maintenance"
+                  <div className={`p-3.5 border rounded-lg text-xs font-bold space-y-1.5 ${selectedDateOverride.status === "maintenance"
                       ? "bg-amber-50 border-amber-300 text-amber-900"
                       : "bg-rose-50 border-rose-300 text-rose-900"
-                  }`}>
+                    }`}>
                     <div className="font-extrabold">
                       <span>{selectedDateOverride.status === "maintenance" ? "Maintenance" : "Closed"}</span>
                     </div>
@@ -1129,7 +1128,9 @@ export default function Step2Venue({
                                       description: `Selected booking time (${formatTime12(timeStart)} - ${formatTime12(timeEnd)}) is outside official campus hours. Verification PIN is required.`,
                                     });
                                   }
-                                  setShowPinModal && setShowPinModal(true);
+                                  if (setShowPinModal) {
+                                    setShowPinModal(true);
+                                  }
                                 }}
                                 className="w-full py-2 px-3 rounded-lg border border-blue-600 bg-blue-50/70 hover:bg-blue-600 text-blue-700 hover:text-white font-semibold text-xs transition-colors cursor-pointer text-center"
                               >

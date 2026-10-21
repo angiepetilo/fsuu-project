@@ -1,7 +1,57 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { AlertCircle, Info, Search, Building2, PackageOpen } from "lucide-react";
+import { AlertCircle, Info, Search, Building2, PackageOpen, Clock } from "lucide-react";
+import api from "@/lib/axios";
+
+const CACHE_KEY = "fsuu_operating_hours_cache";
 
 export default function FeatureCards() {
+  const [schedules, setSchedules] = useState(() => {
+    try {
+      const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || "null");
+      if (cached && cached.venue && cached.equipment) {
+        return cached;
+      }
+    } catch {}
+    return { venue: null, equipment: null };
+  });
+
+  useEffect(() => {
+    api.get("/public/operating-hours")
+      .then((res) => {
+        const d = res?.data;
+        if (!d) return;
+
+        const format12 = (tStr) => {
+          if (!tStr) return "";
+          const [h, m] = tStr.split(":").map(Number);
+          const ampm = h >= 12 ? "PM" : "AM";
+          const h12 = h % 12 || 12;
+          return `${h12}:${String(m || 0).padStart(2, "0")} ${ampm}`;
+        };
+
+        const vSched = (d.venue_open_12 && d.venue_close_12)
+          ? `${d.venue_open_12} – ${d.venue_close_12}`
+          : (d.venue_open && d.venue_close ? `${format12(d.venue_open)} – ${format12(d.venue_close)}` : "7:30 AM – 5:00 PM");
+
+        const eqSched = (d.equipment_open_12 && d.equipment_close_12)
+          ? `${d.equipment_open_12} – ${d.equipment_close_12}`
+          : (d.equipment_open && d.equipment_close ? `${format12(d.equipment_open)} – ${format12(d.equipment_close)}` : "7:30 AM – 5:00 PM");
+
+        const updated = { venue: vSched, equipment: eqSched };
+        setSchedules(updated);
+        try {
+          localStorage.setItem(CACHE_KEY, JSON.stringify(updated));
+        } catch {}
+      })
+      .catch(() => {
+        setSchedules((prev) => ({
+          venue: prev.venue || "7:30 AM – 5:00 PM",
+          equipment: prev.equipment || "7:30 AM – 5:00 PM",
+        }));
+      });
+  }, []);
+
   return (
     <div className="mb-14 sm:mb-16">
       {/* Choice Cards Grid */}
@@ -31,6 +81,18 @@ export default function FeatureCards() {
             <p className="text-sm font-medium text-slate-600 dark:text-slate-300 leading-relaxed text-center mx-auto max-w-sm w-full">
               Reserve campus auditoriums for university events and academic activities.
             </p>
+
+            {/* Operating Schedule Notice */}
+            {schedules.venue ? (
+              <div className="mt-4 inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30 px-3.5 py-1 rounded-full">
+                <Clock size={13} className="shrink-0" />
+                <span>Schedule: {schedules.venue}</span>
+              </div>
+            ) : (
+              <div className="mt-4 inline-flex items-center justify-center gap-1.5 text-xs bg-slate-100 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 px-4 py-1.5 rounded-full animate-pulse">
+                <span className="w-32 h-3 bg-slate-300 dark:bg-slate-700 rounded-sm block" />
+              </div>
+            )}
           </div>
         </Link>
 
@@ -58,6 +120,18 @@ export default function FeatureCards() {
             <p className="text-sm font-medium text-slate-600 dark:text-slate-300 leading-relaxed text-center mx-auto max-w-sm w-full">
               Borrow audio-visual equipment and presentation accessories.
             </p>
+
+            {/* Operating Schedule Notice */}
+            {schedules.equipment ? (
+              <div className="mt-4 inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30 px-3.5 py-1 rounded-full">
+                <Clock size={13} className="shrink-0" />
+                <span>Schedule: {schedules.equipment}</span>
+              </div>
+            ) : (
+              <div className="mt-4 inline-flex items-center justify-center gap-1.5 text-xs bg-slate-100 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 px-4 py-1.5 rounded-full animate-pulse">
+                <span className="w-32 h-3 bg-slate-300 dark:bg-slate-700 rounded-sm block" />
+              </div>
+            )}
           </div>
         </Link>
 

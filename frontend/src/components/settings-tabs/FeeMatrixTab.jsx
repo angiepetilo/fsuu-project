@@ -3,6 +3,7 @@ import { Printer, Save, PlusCircle, Trash2, Loader2, Power, Ban, CheckCircle2 } 
 import api from "@/lib/axios";
 import { downloadReportAsPdf } from "@/pages/general/reports/exportPdfHelper";
 import IosToggle from "@/components/ui/ios-toggle";
+import CustomSelect from "@/components/ui/CustomSelect";
 
 export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
   const [venues, setVenues] = useState([]);
@@ -130,10 +131,10 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
     );
   }, [initialSnapshot, title, showSignatures, showRateItems, notesEnabled, notes, signatories, rateItems]);
 
-  const handleVenueChange = (e) => {
-    const vId = e.target.value;
-    setSelectedVenueId(vId);
-    loadFeeMatrix(vId);
+  const handleVenueChange = (valOrEvent) => {
+    const vId = valOrEvent?.target ? valOrEvent.target.value : valOrEvent;
+    setSelectedVenueId(String(vId));
+    loadFeeMatrix(String(vId));
   };
 
   // 3. Save changes end-to-end to database
@@ -293,22 +294,17 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
         <div className="lg:col-span-6 space-y-5 text-xs">
           {/* 1. Select Venue */}
           <div>
-            <label className="text-xs font-bold text-slate-800 block mb-1.5">Select Venue</label>
-            <select
+            <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1.5">Select Venue</label>
+            <CustomSelect
               value={selectedVenueId}
               onChange={handleVenueChange}
-              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all shadow-2xs cursor-pointer"
-            >
-              {venues.length === 0 ? (
-                <option value="">No venues available</option>
-              ) : (
-                venues.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.name}
-                  </option>
-                ))
-              )}
-            </select>
+              options={venues.map((v) => ({
+                value: String(v.id),
+                label: v.name,
+                description: v.location || null,
+              }))}
+              placeholder="Select Venue..."
+            />
           </div>
 
           {/* 2. Title */}

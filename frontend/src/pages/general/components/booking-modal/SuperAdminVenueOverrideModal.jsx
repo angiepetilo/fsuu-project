@@ -3,6 +3,7 @@ import { Shield, ShieldAlert, ShieldCheck, X, Calendar, Clock, MapPin, Loader2, 
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
 import { formatTime12, formatDateRange } from "@/lib/dateUtils";
+import CustomSelect from "@/components/ui/CustomSelect";
 
 export default function SuperAdminVenueOverrideModal({
   isOpen,
@@ -262,28 +263,31 @@ export default function SuperAdminVenueOverrideModal({
                 </span>
               ) : null}
             </div>
-            <select
+            <CustomSelect
               value={targetVenueId}
-              onChange={(e) => setTargetVenueId(e.target.value)}
+              onChange={(val) => setTargetVenueId(val)}
               disabled={loadingVenues || isSubmitting}
-              className={`w-full p-2.5 bg-slate-50 dark:bg-slate-800/80 border rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none cursor-pointer ${
-                selectedVenue && venueConflicts[selectedVenue.id]
-                  ? "border-rose-400 dark:border-rose-700 bg-rose-50/30"
-                  : "border-slate-200 dark:border-slate-700 focus:border-amber-500"
-              }`}
-            >
-              <option value="">Select Target Venue...</option>
-              {venues.map((v) => {
+              options={venues.map((v) => {
                 const conf = venueConflicts[v.id];
                 const confRef = conf ? (conf.tracking_number?.reference_code || conf.reference_code || `TRK-${conf.id}`) : "";
                 const prefix = conf ? `⚠️ [OCCUPIED: ${confRef}] ` : `✓ [AVAILABLE] `;
-                return (
-                  <option key={v.id} value={v.id} className={conf ? "text-rose-600 font-bold" : "text-slate-900 font-semibold"}>
-                    {prefix}{v.name} {v.capacity ? `(Cap: ${v.capacity_min ? `${v.capacity_min}-${v.capacity_max}` : v.capacity})` : ""} {v.location ? `• ${v.location}` : ""}
-                  </option>
-                );
+                const details = [
+                  v.capacity ? `Cap: ${v.capacity_min ? `${v.capacity_min}-${v.capacity_max}` : v.capacity}` : "",
+                  v.location,
+                ].filter(Boolean).join(" • ");
+                return {
+                  value: String(v.id),
+                  label: `${prefix}${v.name}`,
+                  description: details || null,
+                };
               })}
-            </select>
+              placeholder="Select Target Venue..."
+              buttonClassName={
+                selectedVenue && venueConflicts[selectedVenue.id]
+                  ? "border-rose-400 dark:border-rose-700 bg-rose-50/30"
+                  : ""
+              }
+            />
             {selectedVenue && venueConflicts[selectedVenue.id] && (
               <div className="p-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/80 rounded-xl text-rose-800 dark:text-rose-300 text-[11px] leading-relaxed flex items-start gap-2 animate-in fade-in">
                 <AlertCircle size={14} className="text-rose-600 shrink-0 mt-0.5" />

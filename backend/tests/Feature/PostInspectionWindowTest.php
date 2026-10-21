@@ -57,8 +57,9 @@ class PostInspectionWindowTest extends TestCase
         ]);
 
         // Event ends 2 hours from now
-        $endDate = now()->toDateString();
-        $endTime = now()->addHours(2)->format('H:i:s');
+        $endCarbon = now()->addHours(2);
+        $endDate = $endCarbon->toDateString();
+        $endTime = $endCarbon->format('H:i:s');
 
         $booking = VenueBooking::create([
             'venue_id' => $venue->id,
@@ -104,8 +105,9 @@ class PostInspectionWindowTest extends TestCase
         ]);
 
         // Event ends in 15 minutes (within 30 mins window)
-        $endDate = now()->toDateString();
-        $endTime = now()->addMinutes(15)->format('H:i:s');
+        $endCarbon = now()->addMinutes(15);
+        $endDate = $endCarbon->toDateString();
+        $endTime = $endCarbon->format('H:i:s');
 
         $booking = VenueBooking::create([
             'venue_id' => $venue->id,
@@ -150,8 +152,9 @@ class PostInspectionWindowTest extends TestCase
         ]);
 
         // Event ends 3 hours from now
-        $endDate = now()->toDateString();
-        $endTime = now()->addHours(3)->format('H:i:s');
+        $endCarbon = now()->addHours(3);
+        $endDate = $endCarbon->toDateString();
+        $endTime = $endCarbon->format('H:i:s');
 
         $booking = VenueBooking::create([
             'venue_id' => $venue->id,
@@ -189,8 +192,9 @@ class PostInspectionWindowTest extends TestCase
         ]);
 
         // Return time is 2 hours from now
-        $endDate = now()->toDateString();
-        $endTime = now()->addHours(2)->format('H:i:s');
+        $endCarbon = now()->addHours(2);
+        $endDate = $endCarbon->toDateString();
+        $endTime = $endCarbon->format('H:i:s');
 
         $borrowing = EquipmentBorrow::create([
             'tracking_number_id' => $tracking->id,
@@ -271,8 +275,9 @@ class PostInspectionWindowTest extends TestCase
         ]);
 
         // Event ends 4 hours from now
-        $endDate = now()->toDateString();
-        $endTime = now()->addHours(4)->format('H:i:s');
+        $endCarbon = now()->addHours(4);
+        $endDate = $endCarbon->toDateString();
+        $endTime = $endCarbon->format('H:i:s');
 
         $booking = VenueBooking::create([
             'venue_id' => $venue->id,
@@ -312,8 +317,9 @@ class PostInspectionWindowTest extends TestCase
         ]);
 
         // Return scheduled 3 hours from now
-        $endDate = now()->toDateString();
-        $endTime = now()->addHours(3)->format('H:i:s');
+        $endCarbon = now()->addHours(3);
+        $endDate = $endCarbon->toDateString();
+        $endTime = $endCarbon->format('H:i:s');
 
         $borrowing = EquipmentBorrow::create([
             'tracking_number_id' => $tracking->id,

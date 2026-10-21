@@ -77,7 +77,7 @@ export default function Step2Equipment({
     try {
       const saved = localStorage.getItem("fsuu_system_settings");
       if (saved) return JSON.parse(saved);
-    } catch {}
+    } catch { }
     return { max_items_per_borrow: 5, allow_advance_equipment_booking: true };
   });
 
@@ -86,7 +86,7 @@ export default function Step2Equipment({
       .then((res) => {
         if (res.data) setSysSettings(res.data);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   useEffect(() => {
@@ -158,10 +158,10 @@ export default function Step2Equipment({
           setEquipmentOverrides(map);
           try {
             localStorage.setItem("fsuu_equipment_overrides", JSON.stringify(map));
-          } catch {}
+          } catch { }
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   useEffect(() => {
@@ -299,11 +299,10 @@ export default function Step2Equipment({
     return (
       <div className="p-4 sm:p-6 md:p-8 animate-in fade-in duration-300 max-w-4xl mx-auto space-y-6">
         {/* Primary Blocking Notice Card */}
-        <div className={`relative overflow-hidden rounded-[32px] border-2 p-6 sm:p-10 text-center shadow-xl backdrop-blur-xs transition-all ${
-          isActiveMaintenance
+        <div className={`relative overflow-hidden rounded-[32px] border-2 p-6 sm:p-10 text-center shadow-xl backdrop-blur-xs transition-all ${isActiveMaintenance
             ? "border-amber-400/80 bg-gradient-to-b from-amber-50/90 via-amber-50/30 to-white dark:from-amber-950/40 dark:via-[#111827] dark:to-[#111827] shadow-amber-500/10"
             : "border-rose-400/80 bg-gradient-to-b from-rose-50/90 via-rose-50/30 to-white dark:from-rose-950/40 dark:via-[#111827] dark:to-[#111827] shadow-rose-500/10"
-        }`}>
+          }`}>
           {/* Status Badge */}
           <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full text-[11px] font-black uppercase tracking-wider mb-6 shadow-2xs border">
             {isActiveMaintenance ? (
@@ -321,11 +320,10 @@ export default function Step2Equipment({
 
           {/* Icon Hero Graphic */}
           <div className="mb-6 flex justify-center">
-            <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-3xl flex items-center justify-center shadow-lg transition-transform hover:scale-105 ${
-              isActiveMaintenance
+            <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-3xl flex items-center justify-center shadow-lg transition-transform hover:scale-105 ${isActiveMaintenance
                 ? "bg-amber-500 text-white shadow-amber-500/30 ring-8 ring-amber-100 dark:ring-amber-950/60"
                 : "bg-rose-600 text-white shadow-rose-600/30 ring-8 ring-rose-100 dark:ring-rose-950/60"
-            }`}>
+              }`}>
               {isActiveMaintenance ? <Wrench size={42} className="stroke-[2.2]" /> : <ShieldAlert size={42} className="stroke-[2.2]" />}
             </div>
           </div>
@@ -420,7 +418,7 @@ export default function Step2Equipment({
           <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
           <input
             type="text"
-            placeholder="Search equipment item, category, brand..."
+            placeholder="Search equipment"
             value={equipSearch}
             onChange={(e) => {
               setEquipSearch(e.target.value);
@@ -453,128 +451,126 @@ export default function Step2Equipment({
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            {currentGridItems.map((item) => {
-              const isChecked = selectedItems.includes(item.id);
-              const isMaintenance = item.status === "maintenance" || item.status === "under_maintenance" || item.is_maintenance === true;
-              const isDamagedOrLost = item.status === "damaged" || item.status === "lost";
-              const availableTotal = getLiveStockCount(item);
-              const selectedQty = isChecked ? (itemQuantities[item.id] || 1) : 0;
-              const remainingAvailable = isChecked ? Math.max(0, availableTotal - selectedQty) : availableTotal;
+              {currentGridItems.map((item) => {
+                const isChecked = selectedItems.includes(item.id);
+                const isMaintenance = item.status === "maintenance" || item.status === "under_maintenance" || item.is_maintenance === true;
+                const isDamagedOrLost = item.status === "damaged" || item.status === "lost";
+                const availableTotal = getLiveStockCount(item);
+                const selectedQty = isChecked ? (itemQuantities[item.id] || 1) : 0;
+                const remainingAvailable = isChecked ? Math.max(0, availableTotal - selectedQty) : availableTotal;
 
-              const isAvailable = !isMaintenance && !isDamagedOrLost && item.is_available !== false && availableTotal > 0;
+                const isAvailable = !isMaintenance && !isDamagedOrLost && item.is_available !== false && availableTotal > 0;
 
-              return (
-                <div
-                  key={item.id}
-                  onClick={() => {
-                    if (isAvailable && !isActiveBlocked) handleEquipmentToggle(item.id);
-                  }}
-                  className={`relative border rounded-2xl p-4 transition-all duration-200 flex flex-col justify-between overflow-hidden ${
-                    isActiveBlocked
-                      ? "border-slate-200 bg-slate-50/50 dark:bg-card/50 opacity-60 cursor-not-allowed shadow-none"
-                      : isMaintenance
-                      ? "border-amber-300/80 bg-amber-50/20 opacity-90 cursor-not-allowed shadow-2xs"
-                      : !isAvailable
-                      ? "border-slate-200 bg-white dark:bg-card opacity-90 cursor-pointer"
-                      : isChecked
-                      ? "border-blue-600 bg-white dark:bg-card shadow-md ring-2 ring-blue-500/20 cursor-pointer"
-                      : "border-slate-200 dark:border-border bg-white dark:bg-card hover:border-blue-500/60 hover:shadow-xs cursor-pointer"
-                  }`}
-                >
-                  <div>
-                    {/* Top Image Box: Full view, never cropped or cut off */}
-                    <div className="w-full aspect-video bg-white dark:bg-[#1E293B] border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden flex flex-col items-center justify-center text-center relative group p-2">
-                      {item.avatar || item.photo || item.image || item.photo_url ? (
-                        <img
-                          src={item.avatar || item.photo || item.image || item.photo_url}
-                          alt={item.name}
-                          className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
-                        />
-                      ) : (
-                        <div className="p-4 flex flex-col items-center justify-center h-full w-full bg-slate-50 dark:bg-[#0F172A]/70">
-                          <span className="text-slate-900 dark:text-white font-extrabold text-xs sm:text-sm leading-snug line-clamp-2 uppercase tracking-wide" title={item.name}>
-                            {item.name}
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() => {
+                      if (isAvailable && !isActiveBlocked) handleEquipmentToggle(item.id);
+                    }}
+                    className={`relative border rounded-2xl p-4 transition-all duration-200 flex flex-col justify-between overflow-hidden ${isActiveBlocked
+                        ? "border-slate-200 bg-slate-50/50 dark:bg-card/50 opacity-60 cursor-not-allowed shadow-none"
+                        : isMaintenance
+                          ? "border-amber-300/80 bg-amber-50/20 opacity-90 cursor-not-allowed shadow-2xs"
+                          : !isAvailable
+                            ? "border-slate-200 bg-white dark:bg-card opacity-90 cursor-pointer"
+                            : isChecked
+                              ? "border-blue-600 bg-white dark:bg-card shadow-md ring-2 ring-blue-500/20 cursor-pointer"
+                              : "border-slate-200 dark:border-border bg-white dark:bg-card hover:border-blue-500/60 hover:shadow-xs cursor-pointer"
+                      }`}
+                  >
+                    <div>
+                      {/* Top Image Box: Full view, never cropped or cut off */}
+                      <div className="w-full aspect-video bg-white dark:bg-[#1E293B] border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden flex flex-col items-center justify-center text-center relative group p-2">
+                        {item.avatar || item.photo || item.image || item.photo_url ? (
+                          <img
+                            src={item.avatar || item.photo || item.image || item.photo_url}
+                            alt={item.name}
+                            className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                          />
+                        ) : (
+                          <div className="p-4 flex flex-col items-center justify-center h-full w-full bg-slate-50 dark:bg-[#0F172A]/70">
+                            <span className="text-slate-900 dark:text-white font-extrabold text-xs sm:text-sm leading-snug line-clamp-2 uppercase tracking-wide" title={item.name}>
+                              {item.name}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Equipment Metadata */}
+                      <div className="mt-3.5 space-y-1">
+                        <h4 className="font-bold text-slate-900 dark:text-[#F8FAFC] text-sm leading-tight truncate" title={item.name}>{item.name}</h4>
+                        <div className="pt-1">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold ${remainingAvailable === 0
+                              ? "bg-amber-500/15 border border-amber-400/30 text-amber-700 dark:text-[#FCD34D]"
+                              : "bg-emerald-500/15 border border-emerald-400/30 text-emerald-700 dark:text-[#6EE7B7]"
+                            }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${remainingAvailable === 0 ? "bg-amber-400" : "bg-emerald-400 animate-pulse"}`} />
+                            {remainingAvailable} Available Now
                           </span>
                         </div>
-                      )}
-                    </div>
-
-                    {/* Equipment Metadata */}
-                    <div className="mt-3.5 space-y-1">
-                      <h4 className="font-bold text-slate-900 dark:text-[#F8FAFC] text-sm leading-tight truncate" title={item.name}>{item.name}</h4>
-                      <div className="pt-1">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                          remainingAvailable === 0
-                            ? "bg-amber-500/15 border border-amber-400/30 text-amber-700 dark:text-[#FCD34D]"
-                            : "bg-emerald-500/15 border border-emerald-400/30 text-emerald-700 dark:text-[#6EE7B7]"
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${remainingAvailable === 0 ? "bg-amber-400" : "bg-emerald-400 animate-pulse"}`} />
-                          {remainingAvailable} Available Now
-                        </span>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Bottom Action Pill Button */}
-                  <div className="mt-5">
-                    {isMaintenance ? (
-                      <button
-                        disabled
-                        className="w-full py-3 rounded-full border border-amber-300 bg-amber-50 text-amber-800 text-xs font-extrabold flex items-center justify-center gap-1.5 opacity-90 cursor-not-allowed"
-                      >
-                        <AlertTriangle size={14} className="text-amber-600" />
-                        <span>Maintenance Block</span>
-                      </button>
-                    ) : !isAvailable ? (
-                      <button
-                        disabled
-                        className="w-full py-3 rounded-full border border-slate-200 bg-slate-50 text-slate-500 text-xs font-extrabold flex items-center justify-center gap-1.5 opacity-80 cursor-not-allowed"
-                      >
-                        <XCircle size={14} className="text-slate-400" />
-                        <span>No Stock Available</span>
-                      </button>
-                    ) : isChecked ? (
-                      <div className="flex items-center gap-2">
+                    {/* Bottom Action Pill Button */}
+                    <div className="mt-5">
+                      {isMaintenance ? (
+                        <button
+                          disabled
+                          className="w-full py-3 rounded-full border border-amber-300 bg-amber-50 text-amber-800 text-xs font-extrabold flex items-center justify-center gap-1.5 opacity-90 cursor-not-allowed"
+                        >
+                          <AlertTriangle size={14} className="text-amber-600" />
+                          <span>Maintenance Block</span>
+                        </button>
+                      ) : !isAvailable ? (
+                        <button
+                          disabled
+                          className="w-full py-3 rounded-full border border-slate-200 bg-slate-50 text-slate-500 text-xs font-extrabold flex items-center justify-center gap-1.5 opacity-80 cursor-not-allowed"
+                        >
+                          <XCircle size={14} className="text-slate-400" />
+                          <span>No Stock Available</span>
+                        </button>
+                      ) : isChecked ? (
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleEquipmentToggle(item.id); }}
+                            className="flex-1 py-3 rounded-full bg-blue-600 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-colors cursor-pointer"
+                          >
+                            <Check size={14} />
+                            <span>Selected</span>
+                          </button>
+                          <div className="flex items-center border border-blue-200 rounded-full px-2 py-1 bg-blue-50">
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); handleQuantityChange && handleQuantityChange(item.id, Math.max(1, (itemQuantities[item.id] || 1) - 1), availableTotal); }}
+                              className="w-7 h-7 sm:w-6 sm:h-6 rounded-full bg-white text-blue-700 font-bold text-xs flex items-center justify-center hover:bg-blue-100 shadow-2xs cursor-pointer"
+                            >
+                              -
+                            </button>
+                            <span className="font-extrabold text-xs px-2 text-blue-900">{itemQuantities[item.id] || 1}</span>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); handleQuantityChange && handleQuantityChange(item.id, (itemQuantities[item.id] || 1) + 1, availableTotal); }}
+                              disabled={(itemQuantities[item.id] || 1) >= availableTotal}
+                              className="w-7 h-7 sm:w-6 sm:h-6 rounded-full bg-blue-600 disabled:bg-slate-200 text-white disabled:text-slate-400 font-bold text-xs flex items-center justify-center shadow-2xs cursor-pointer"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); handleEquipmentToggle(item.id); }}
-                          className="flex-1 py-3 rounded-full bg-blue-600 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-colors cursor-pointer"
+                          className="w-full py-3 rounded-full border border-slate-200 bg-white hover:bg-blue-600 hover:text-white hover:border-blue-600 text-slate-800 text-xs font-black transition-all cursor-pointer shadow-2xs"
                         >
-                          <Check size={14} />
-                          <span>Selected</span>
+                          Select Item
                         </button>
-                        <div className="flex items-center border border-blue-200 rounded-full px-2 py-1 bg-blue-50">
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); handleQuantityChange && handleQuantityChange(item.id, Math.max(1, (itemQuantities[item.id] || 1) - 1), availableTotal); }}
-                            className="w-7 h-7 sm:w-6 sm:h-6 rounded-full bg-white text-blue-700 font-bold text-xs flex items-center justify-center hover:bg-blue-100 shadow-2xs cursor-pointer"
-                          >
-                            -
-                          </button>
-                          <span className="font-extrabold text-xs px-2 text-blue-900">{itemQuantities[item.id] || 1}</span>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); handleQuantityChange && handleQuantityChange(item.id, (itemQuantities[item.id] || 1) + 1, availableTotal); }}
-                            disabled={(itemQuantities[item.id] || 1) >= availableTotal}
-                            className="w-7 h-7 sm:w-6 sm:h-6 rounded-full bg-blue-600 disabled:bg-slate-200 text-white disabled:text-slate-400 font-bold text-xs flex items-center justify-center shadow-2xs cursor-pointer"
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); handleEquipmentToggle(item.id); }}
-                        className="w-full py-3 rounded-full border border-slate-200 bg-white hover:bg-blue-600 hover:text-white hover:border-blue-600 text-slate-800 text-xs font-black transition-all cursor-pointer shadow-2xs"
-                      >
-                        Select Item
-                      </button>
-                    )}
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
             </div>
           )}
 
@@ -627,8 +623,8 @@ export default function Step2Equipment({
                   disabled={isPastClosingToday || (isTodayBlocked && !isTomorrowBlocked && borrowDateMode === "tomorrow")}
                   className={`flex-1 py-1.5 rounded-lg text-xs font-extrabold transition-all ${borrowDateMode === "today"
                     ? (isTodayMaintenance
-                        ? "bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 shadow-2xs"
-                        : isTodayClosed
+                      ? "bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 shadow-2xs"
+                      : isTodayClosed
                         ? "bg-rose-100 dark:bg-rose-900/60 text-rose-800 dark:text-rose-200 shadow-2xs"
                         : "bg-white dark:bg-[#18264B] text-blue-600 dark:text-[#93C5FD] shadow-2xs")
                     : (isPastClosingToday)
@@ -647,8 +643,8 @@ export default function Step2Equipment({
                   disabled={((!isPortal && !isPastClosingToday && !isTodayBlocked) || isTomorrowBlocked)}
                   className={`flex-1 py-1.5 rounded-lg text-xs font-extrabold transition-all ${borrowDateMode === "tomorrow"
                     ? (isTomorrowMaintenance
-                        ? "bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 shadow-2xs"
-                        : isTomorrowClosed
+                      ? "bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 shadow-2xs"
+                      : isTomorrowClosed
                         ? "bg-rose-100 dark:bg-rose-900/60 text-rose-800 dark:text-rose-200 shadow-2xs"
                         : "bg-white dark:bg-[#18264B] text-blue-600 dark:text-[#93C5FD] shadow-2xs")
                     : ((!isPortal && !isPastClosingToday && !isTodayBlocked) || isTomorrowBlocked)
@@ -659,10 +655,10 @@ export default function Step2Equipment({
                     isTomorrowMaintenance
                       ? "Tomorrow is under maintenance for equipment borrowing"
                       : isTomorrowClosed
-                      ? "Tomorrow is closed for equipment borrowing"
-                      : (!isPortal && !isPastClosingToday && !isTodayBlocked)
-                        ? `Tomorrow's borrowing is only available after operating hours end (${formatTime12(kioskClose)})`
-                        : "Next-Day Borrowing"
+                        ? "Tomorrow is closed for equipment borrowing"
+                        : (!isPortal && !isPastClosingToday && !isTodayBlocked)
+                          ? `Tomorrow's borrowing is only available after operating hours end (${formatTime12(kioskClose)})`
+                          : "Next-Day Borrowing"
                   }
                 >
                   Tomorrow {isTomorrowMaintenance ? "(Maintenance)" : isTomorrowClosed ? "(Closed)" : ""}

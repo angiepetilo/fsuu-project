@@ -33,7 +33,10 @@ export default function AcademicTermSelect({ terms = [], selectedId, onSelect, c
       </button>
 
       {open && (
-        <div className="absolute right-0 sm:left-0 mt-1.5 w-64 max-h-60 overflow-y-auto overscroll-contain bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 p-1 divide-y divide-slate-100 dark:divide-slate-800/50">
+        <div
+          className="absolute right-0 sm:left-0 mt-1.5 w-64 max-h-[196px] overflow-y-auto overscroll-contain bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 p-1 divide-y divide-slate-100 dark:divide-slate-800/50"
+          style={{ scrollbarWidth: "thin" }}
+        >
           <button
             type="button"
             onClick={() => { onSelect(""); setOpen(false); }}

@@ -27,11 +27,11 @@ const getNotificationColorConfig = (n) => {
   if (incType.includes("damage") || title.includes("damage") || msg.includes("damaged")) {
     return {
       border: "border-l-4 border-l-rose-500",
-      bgUnread: "bg-rose-50/40 hover:bg-rose-50/70",
-      badgeBg: "bg-rose-100 text-rose-700 border-rose-200",
+      bgUnread: "bg-rose-50/40 hover:bg-rose-50/70 dark:bg-rose-950/20 dark:hover:bg-rose-950/35",
+      badgeBg: "bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800",
       badgeText: "DAMAGED",
-      iconBg: "bg-rose-100 text-rose-600",
-      dot: "bg-rose-600",
+      iconBg: "bg-rose-100 dark:bg-rose-950/70 text-rose-600 dark:text-rose-400",
+      dot: "bg-rose-600 dark:bg-rose-500",
       Icon: AlertTriangle,
     };
   }
@@ -40,11 +40,11 @@ const getNotificationColorConfig = (n) => {
   if (incType.includes("lost") || title.includes("lost") || msg.includes("lost") || title.includes("missing")) {
     return {
       border: "border-l-4 border-l-amber-500",
-      bgUnread: "bg-amber-50/40 hover:bg-amber-50/70",
-      badgeBg: "bg-amber-100 text-amber-800 border-amber-200",
+      bgUnread: "bg-amber-50/40 hover:bg-amber-50/70 dark:bg-amber-950/20 dark:hover:bg-amber-950/35",
+      badgeBg: "bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800",
       badgeText: "LOST",
-      iconBg: "bg-amber-100 text-amber-600",
-      dot: "bg-amber-600",
+      iconBg: "bg-amber-100 dark:bg-amber-950/70 text-amber-600 dark:text-amber-400",
+      dot: "bg-amber-600 dark:bg-amber-500",
       Icon: AlertCircle,
     };
   }
@@ -53,11 +53,11 @@ const getNotificationColorConfig = (n) => {
   if (incType.includes("violation") || title.includes("violation") || msg.includes("violation") || title.includes("breach")) {
     return {
       border: "border-l-4 border-l-purple-500",
-      bgUnread: "bg-purple-50/40 hover:bg-purple-50/70",
-      badgeBg: "bg-purple-100 text-purple-700 border-purple-200",
+      bgUnread: "bg-purple-50/40 hover:bg-purple-50/70 dark:bg-purple-950/20 dark:hover:bg-purple-950/35",
+      badgeBg: "bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800",
       badgeText: "VIOLATION",
-      iconBg: "bg-purple-100 text-purple-600",
-      dot: "bg-purple-600",
+      iconBg: "bg-purple-100 dark:bg-purple-950/70 text-purple-600 dark:text-purple-400",
+      dot: "bg-purple-600 dark:bg-purple-500",
       Icon: ShieldAlert,
     };
   }
@@ -66,11 +66,11 @@ const getNotificationColorConfig = (n) => {
   if (incType.includes("late") || title.includes("late") || msg.includes("late") || title.includes("overdue") || msg.includes("overdue")) {
     return {
       border: "border-l-4 border-l-orange-500",
-      bgUnread: "bg-orange-50/40 hover:bg-orange-50/70",
-      badgeBg: "bg-orange-100 text-orange-800 border-orange-200",
+      bgUnread: "bg-orange-50/40 hover:bg-orange-50/70 dark:bg-orange-950/20 dark:hover:bg-orange-950/35",
+      badgeBg: "bg-orange-100 dark:bg-orange-950/70 text-orange-800 dark:text-orange-300 border-orange-200 dark:border-orange-800",
       badgeText: "OVERDUE",
-      iconBg: "bg-orange-100 text-orange-600",
-      dot: "bg-orange-600",
+      iconBg: "bg-orange-100 dark:bg-orange-950/70 text-orange-600 dark:text-orange-400",
+      dot: "bg-orange-600 dark:bg-orange-500",
       Icon: Clock,
     };
   }
@@ -79,11 +79,11 @@ const getNotificationColorConfig = (n) => {
   if (title.includes("approved") || msg.includes("approved") || title.includes("complete") || msg.includes("complete")) {
     return {
       border: "border-l-4 border-l-emerald-500",
-      bgUnread: "bg-emerald-50/40 hover:bg-emerald-50/70",
-      badgeBg: "bg-emerald-100 text-emerald-700 border-emerald-200",
+      bgUnread: "bg-emerald-50/40 hover:bg-emerald-50/70 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/35",
+      badgeBg: "bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
       badgeText: "APPROVED",
-      iconBg: "bg-emerald-100 text-emerald-600",
-      dot: "bg-emerald-600",
+      iconBg: "bg-emerald-100 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400",
+      dot: "bg-emerald-600 dark:bg-emerald-500",
       Icon: CheckCircle2,
     };
   }
@@ -92,11 +92,11 @@ const getNotificationColorConfig = (n) => {
   if (title.includes("reject") || msg.includes("reject") || title.includes("cancel") || msg.includes("cancel")) {
     return {
       border: "border-l-4 border-l-rose-500",
-      bgUnread: "bg-rose-50/40 hover:bg-rose-50/70",
-      badgeBg: "bg-rose-100 text-rose-700 border-rose-200",
+      bgUnread: "bg-rose-50/40 hover:bg-rose-50/70 dark:bg-rose-950/20 dark:hover:bg-rose-950/35",
+      badgeBg: "bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800",
       badgeText: "REJECTED",
-      iconBg: "bg-rose-100 text-rose-600",
-      dot: "bg-rose-600",
+      iconBg: "bg-rose-100 dark:bg-rose-950/70 text-rose-600 dark:text-rose-400",
+      dot: "bg-rose-600 dark:bg-rose-500",
       Icon: XCircle,
     };
   }
@@ -104,11 +104,11 @@ const getNotificationColorConfig = (n) => {
   // Default: Pending / Info
   return {
     border: "border-l-4 border-l-blue-500",
-    bgUnread: "bg-blue-50/30 hover:bg-blue-50/60",
-    badgeBg: "bg-blue-100 text-blue-700 border-blue-200",
+    bgUnread: "bg-blue-50/30 hover:bg-blue-50/60 dark:bg-blue-950/20 dark:hover:bg-blue-950/35",
+    badgeBg: "bg-blue-100 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800",
     badgeText: "PENDING",
-    iconBg: "bg-blue-100 text-blue-600",
-    dot: "bg-blue-600",
+    iconBg: "bg-blue-100 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400",
+    dot: "bg-blue-600 dark:bg-blue-500",
     Icon: Bell,
   };
 };
@@ -172,6 +172,47 @@ export default function NotificationDropdown({
 
   // Unread badge count strictly calculates unread items inside Inbox
   const unreadCount = inboxItems.filter((n) => !readNotifIds.has(n.id) && !n.is_read).length;
+
+  const handleDirectView = (e, n) => {
+    e.stopPropagation();
+    if (markAsRead) markAsRead(n.id);
+    setIsOpen(false);
+
+    const basePath = isSuperAdmin ? "/sysad" : "/general";
+    const ref = (n.ref || "").trim();
+    const barcode = (n.barcode || n.unit_code || "").trim();
+
+    const isHardwareIncident = n.incident_type === "damaged" || n.incident_type === "lost";
+    const targetHighlightBarcode = isHardwareIncident ? barcode : null;
+
+    if (n.url) {
+      navigate(n.url, { state: { selectedId: n.target_id, targetType: n.target_type, trk: ref, search: barcode || ref, highlightBarcode: targetHighlightBarcode } });
+      return;
+    }
+
+    if (isHardwareIncident && barcode && barcode !== "N/A") {
+      navigate(`${basePath}/manage-equipments?search=${encodeURIComponent(barcode)}&barcode=${encodeURIComponent(barcode)}`, {
+        state: { search: barcode, highlightBarcode: targetHighlightBarcode },
+      });
+      return;
+    }
+
+    if (ref.startsWith("EQ-")) {
+      navigate(`${basePath}/equipment-borrowing?ref=${encodeURIComponent(ref)}`, {
+        state: { targetRef: ref, search: ref, selectedId: n.target_id },
+      });
+    } else if (ref.startsWith("VB-")) {
+      navigate(`${basePath}/venue-bookings?ref=${encodeURIComponent(ref)}`, {
+        state: { targetRef: ref, search: ref, selectedId: n.target_id },
+      });
+    } else if (isHardwareIncident && barcode && barcode !== "N/A") {
+      navigate(`${basePath}/manage-equipments?search=${encodeURIComponent(barcode)}&barcode=${encodeURIComponent(barcode)}`, {
+        state: { search: barcode, highlightBarcode: targetHighlightBarcode },
+      });
+    } else {
+      navigate(`${basePath}/reports?tab=incidents&search=${encodeURIComponent(ref || barcode || "")}`);
+    }
+  };
 
   const handleItemClick = (n) => {
     if (markAsRead) markAsRead(n.id);
@@ -242,22 +283,22 @@ export default function NotificationDropdown({
 
       {/* Notification Dropdown Panel */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-88 sm:w-[400px] bg-white rounded-2xl border border-slate-200/90 shadow-2xl z-50 overflow-hidden animate-in zoom-in-95 flex flex-col max-h-[520px]">
+        <div className="absolute right-0 mt-2 w-88 sm:w-[400px] bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-2xl z-50 overflow-hidden animate-in zoom-in-95 flex flex-col max-h-[520px]">
           {/* Header Tabs: Inbox | Archive */}
-          <div className="flex items-center justify-between px-5 pt-4 pb-2 border-b border-slate-100 bg-white">
+          <div className="flex items-center justify-between px-5 pt-4 pb-2 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
             <div className="flex items-center gap-5 text-xs font-semibold">
               <button
                 type="button"
                 onClick={() => setActiveTab("inbox")}
                 className={`flex items-center gap-1.5 pb-2.5 transition-colors cursor-pointer border-b-2 ${
                   activeTab === "inbox"
-                    ? "border-blue-600 text-blue-600 font-extrabold"
-                    : "border-transparent text-slate-400 hover:text-slate-700"
+                    ? "border-blue-600 text-blue-600 dark:text-blue-400 font-extrabold"
+                    : "border-transparent text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
                 }`}
               >
                 <span>Inbox</span>
                 {unreadCount > 0 && (
-                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-blue-100 text-blue-700">
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300">
                     {unreadCount}
                   </span>
                 )}
@@ -268,13 +309,13 @@ export default function NotificationDropdown({
                 onClick={() => setActiveTab("archive")}
                 className={`flex items-center gap-1.5 pb-2.5 transition-colors cursor-pointer border-b-2 ${
                   activeTab === "archive"
-                    ? "border-blue-600 text-blue-600 font-extrabold"
-                    : "border-transparent text-slate-400 hover:text-slate-700"
+                    ? "border-blue-600 text-blue-600 dark:text-blue-400 font-extrabold"
+                    : "border-transparent text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
                 }`}
               >
                 <span>Archive</span>
                 {archiveItems.length > 0 && (
-                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-slate-100 text-slate-600">
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
                     {archiveItems.length}
                   </span>
                 )}
@@ -284,20 +325,20 @@ export default function NotificationDropdown({
             <button
               type="button"
               onClick={() => setIsOpen(false)}
-              className="text-xs font-bold text-slate-400 hover:text-slate-700 cursor-pointer p-1"
+              className="text-xs font-bold text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer p-1"
             >
               <X size={14} />
             </button>
           </div>
 
-          {/* List Content */}
-          <div className="overflow-y-auto divide-y divide-slate-100 flex-1 max-h-[380px]">
+          {/* List Content with sleek .scrollbar-hover */}
+          <div className="overflow-y-auto scrollbar-hover divide-y divide-slate-100 dark:divide-slate-800/60 flex-1 max-h-[380px]">
             {displayedItems.length === 0 ? (
               <div className="py-12 px-5 text-center">
-                <p className="text-xs font-extrabold text-slate-700">
+                <p className="text-xs font-extrabold text-slate-700 dark:text-slate-300">
                   {activeTab === "inbox" ? "No notifications in inbox" : "No archived notifications"}
                 </p>
-                <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">
                   {activeTab === "inbox"
                     ? isSuperAdmin
                       ? "Damaged, lost units, and policy violation alerts will appear here."
@@ -315,10 +356,10 @@ export default function NotificationDropdown({
                   <div
                     key={n.id}
                     onClick={() => handleItemClick(n)}
-                    className={`group flex items-start gap-3 p-3.5 transition-all cursor-pointer relative text-left border-b border-slate-100 last:border-b-0 ${cfg.border} ${
+                    className={`group flex items-start gap-3 p-3.5 transition-all cursor-pointer relative text-left border-b border-slate-100 dark:border-slate-800/60 last:border-b-0 ${cfg.border} ${
                       activeTab === "inbox" && !isRead
                         ? cfg.bgUnread
-                        : "hover:bg-slate-50/80 bg-white"
+                        : "hover:bg-slate-50/80 dark:hover:bg-slate-800/50 bg-white dark:bg-slate-900"
                     }`}
                   >
                     {/* Color-coded Icon Box */}
@@ -335,12 +376,12 @@ export default function NotificationDropdown({
                           <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border shrink-0 ${cfg.badgeBg}`}>
                             {cfg.badgeText}
                           </span>
-                          <h5 className={`text-xs leading-snug truncate ${!isRead ? "font-extrabold text-slate-900" : "font-semibold text-slate-800"}`}>
+                          <h5 className={`text-xs leading-snug truncate ${!isRead ? "font-extrabold text-slate-900 dark:text-white" : "font-semibold text-slate-800 dark:text-slate-200"}`}>
                             {n.title}
                           </h5>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
-                          <span className="text-[10.5px] font-medium text-slate-400 whitespace-nowrap">
+                          <span className="text-[10.5px] font-medium text-slate-400 dark:text-slate-500 whitespace-nowrap">
                             {n.time}
                           </span>
                           {activeTab === "inbox" && !isRead && (
@@ -349,19 +390,19 @@ export default function NotificationDropdown({
                         </div>
                       </div>
 
-                      <p className="text-xs text-slate-600 font-normal mt-1 leading-relaxed line-clamp-2">
+                      <p className="text-xs text-slate-600 dark:text-slate-400 font-normal mt-1 leading-relaxed line-clamp-2">
                         {n.message}
                       </p>
 
                       <div className="flex flex-wrap items-center gap-2 mt-1.5 text-[10.5px]">
-                        {n.ref && <span className="font-mono text-blue-600 font-bold">{n.ref}</span>}
+                        {n.ref && <span className="font-mono text-blue-600 dark:text-blue-400 font-bold">{n.ref}</span>}
                         {n.person_name && (
-                          <span className="text-slate-500 font-medium">
+                          <span className="text-slate-500 dark:text-slate-400 font-medium">
                             • {n.person_name}
                           </span>
                         )}
                         {activeTab === "archive" && (
-                          <span className="text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60">
+                          <span className="text-amber-700 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded-md border border-amber-200/60 dark:border-amber-800/60">
                             Auto-purges in {getDaysRemainingInArchive(n.id)}d
                           </span>
                         )}
@@ -369,9 +410,17 @@ export default function NotificationDropdown({
                     </div>
 
                     {/* Actions on Hover */}
-                    <div className="shrink-0 flex items-center gap-2 pt-0.5">
+                    <div className="shrink-0 flex items-center gap-1.5 pt-0.5">
                       {activeTab === "inbox" ? (
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            type="button"
+                            onClick={(e) => handleDirectView(e, n)}
+                            className="px-2 py-1 text-[10px] font-extrabold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/60 rounded-md transition-colors cursor-pointer"
+                            title="Directly view and locate record"
+                          >
+                            View
+                          </button>
                           {!isRead && (
                             <button
                               type="button"
@@ -379,7 +428,7 @@ export default function NotificationDropdown({
                                 e.stopPropagation();
                                 if (markAsRead) markAsRead(n.id);
                               }}
-                              className="px-2 py-1 text-[10px] font-extrabold text-blue-600 hover:bg-blue-50 rounded-md transition-colors cursor-pointer"
+                              className="px-2 py-1 text-[10px] font-extrabold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
                             >
                               Read
                             </button>
@@ -387,17 +436,24 @@ export default function NotificationDropdown({
                           <button
                             type="button"
                             onClick={(e) => handleSingleArchive(e, n)}
-                            className="px-2 py-1 text-[10px] font-extrabold text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-md transition-colors cursor-pointer"
+                            className="px-2 py-1 text-[10px] font-extrabold text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
                           >
                             Archive
                           </button>
                         </div>
                       ) : (
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={(e) => handleDirectView(e, n)}
+                            className="px-2 py-1 text-[10.5px] font-black text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
+                          >
+                            View
+                          </button>
                           <button
                             type="button"
                             onClick={(e) => handleRestore(e, n)}
-                            className="px-2.5 py-1 text-[10.5px] font-black text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors cursor-pointer"
+                            className="px-2.5 py-1 text-[10.5px] font-black text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/60 rounded-md transition-colors cursor-pointer"
                           >
                             Restore
                           </button>
@@ -412,19 +468,19 @@ export default function NotificationDropdown({
 
           {/* Footer Actions */}
           {activeTab === "inbox" && inboxItems.length > 0 && (
-            <div className="p-3 border-t border-slate-100 bg-slate-50/70 flex items-center gap-2">
+            <div className="p-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/90 flex items-center gap-2">
               <button
                 type="button"
                 onClick={markAllAsRead}
                 disabled={unreadCount === 0}
-                className="flex-1 py-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 disabled:text-slate-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer bg-white hover:bg-slate-50 disabled:hover:bg-white rounded-xl border border-slate-200 shadow-2xs text-center"
+                className="flex-1 py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 disabled:text-slate-400 dark:disabled:text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:hover:bg-white dark:disabled:hover:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs text-center"
               >
                 Mark all as read
               </button>
               <button
                 type="button"
                 onClick={handleArchiveAll}
-                className="flex-1 py-1.5 text-xs font-bold text-slate-700 hover:text-slate-900 transition-colors cursor-pointer bg-white hover:bg-slate-50 rounded-xl border border-slate-200 shadow-2xs text-center"
+                className="flex-1 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs text-center"
               >
                 Archive All
               </button>
@@ -432,14 +488,14 @@ export default function NotificationDropdown({
           )}
 
           {activeTab === "archive" && archiveItems.length > 0 && (
-            <div className="p-3 border-t border-slate-100 bg-slate-50/70 flex items-center justify-between text-xs">
-              <span className="text-[11px] text-slate-400 font-medium">
+            <div className="p-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/90 flex items-center justify-between text-xs">
+              <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
                 Auto-purges in 30 days
               </span>
               <button
                 type="button"
                 onClick={handleRestoreAll}
-                className="px-3 py-1.5 text-xs font-black text-blue-600 hover:text-blue-800 bg-white hover:bg-slate-50 rounded-xl border border-slate-200 transition-colors cursor-pointer shadow-2xs"
+                className="px-3 py-1.5 text-xs font-black text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer shadow-2xs"
               >
                 Restore All
               </button>

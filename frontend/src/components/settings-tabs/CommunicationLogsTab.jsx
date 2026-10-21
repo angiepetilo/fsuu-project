@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { Loader2, X, Trash2 } from "lucide-react";
+import { Loader2, X, Trash2, Filter } from "lucide-react";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
 import { formatDate } from "@/lib/dateUtils";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import FilterDropdown from "@/components/ui/FilterDropdown";
 
 export default function CommunicationLogsTab() {
   const [logs, setLogs] = useState([]);
@@ -167,43 +168,59 @@ export default function CommunicationLogsTab() {
       <div className="bg-white dark:bg-slate-900/80 rounded-2xl border border-slate-200/90 dark:border-blue-900/50 shadow-xs p-4 flex flex-col md:flex-row items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
           {/* Channel Filter */}
-          <select
+          <FilterDropdown
             value={channelFilter}
-            onChange={(e) => { setChannelFilter(e.target.value); setPage(1); }}
-            className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-700 focus:outline-none"
-          >
-            <option value="all">All Channels</option>
-            <option value="email">Email Dispatches</option>
-            <option value="sms">SMS Alerts</option>
-          </select>
+            onChange={(val) => {
+              setChannelFilter(val);
+              setPage(1);
+            }}
+            options={[
+              { value: "all", label: "All Channels" },
+              { value: "email", label: "Email Dispatches" },
+              { value: "sms", label: "SMS Alerts" },
+            ]}
+            label="Channel:"
+            title="Filter by Channel"
+          />
 
-          {/* Category Filter */}
-          <select
+          {/* Category Filter (8 items capped at 5 visible with smooth scroll) */}
+          <FilterDropdown
             value={categoryFilter}
-            onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
-            className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-700 focus:outline-none"
-          >
-            <option value="all">All Categories</option>
-            <option value="venue_confirmation">Venue Confirmations</option>
-            <option value="equipment_confirmation">Equipment Confirmations</option>
-            <option value="status_update">Status Updates</option>
-            <option value="urgent_reminder">Due Time Reminders</option>
-            <option value="overdue_reminder">Overdue Alerts</option>
-            <option value="user_credentials">User Credentials</option>
-            <option value="test_email">SMTP Tests</option>
-          </select>
+            onChange={(val) => {
+              setCategoryFilter(val);
+              setPage(1);
+            }}
+            options={[
+              { value: "all", label: "All Categories" },
+              { value: "venue_confirmation", label: "Venue Confirmations" },
+              { value: "equipment_confirmation", label: "Equipment Confirmations" },
+              { value: "status_update", label: "Status Updates" },
+              { value: "urgent_reminder", label: "Due Time Reminders" },
+              { value: "overdue_reminder", label: "Overdue Alerts" },
+              { value: "user_credentials", label: "User Credentials" },
+              { value: "test_email", label: "SMTP Tests" },
+            ]}
+            label="Category:"
+            title="Filter by Category"
+          />
 
           {/* Status Filter */}
-          <select
+          <FilterDropdown
             value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-            className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-700 focus:outline-none"
-          >
-            <option value="all">All Statuses</option>
-            <option value="sent">Sent</option>
-            <option value="queued">Queued</option>
-            <option value="failed">Failed</option>
-          </select>
+            onChange={(val) => {
+              setStatusFilter(val);
+              setPage(1);
+            }}
+            options={[
+              { value: "all", label: "All Statuses" },
+              { value: "sent", label: "Sent" },
+              { value: "queued", label: "Queued" },
+              { value: "failed", label: "Failed" },
+            ]}
+            icon={Filter}
+            label="Status:"
+            title="Filter by Dispatch Status"
+          />
         </div>
 
         {/* Search */}

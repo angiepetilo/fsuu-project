@@ -3,6 +3,7 @@ import { Loader2, Clock, Building2, PackageOpen } from "lucide-react";
 import { formatTime12 as formatTime12h } from "../../../lib/dateUtils";
 import CustomTimePicker from "@/components/ui/custom-time-picker";
 import IosToggle from "@/components/ui/ios-toggle";
+import CustomSelect from "@/components/ui/CustomSelect";
 
 export default function VenueScheduleForm({
   activeMode = "venue",
@@ -195,10 +196,9 @@ export default function VenueScheduleForm({
                   </span>
                 </div>
               ) : (
-                <select
+                <CustomSelect
                   value={selectedVenue?.id || ""}
-                  onChange={(e) => {
-                    const val = e.target.value;
+                  onChange={(val) => {
                     if (val === "all") {
                       setScope(true);
                       return;
@@ -209,21 +209,16 @@ export default function VenueScheduleForm({
                       setSetupForm((prev) => ({ ...prev, venueId: found.id, applyToAll: false }));
                     }
                   }}
-                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-600 cursor-pointer text-xs"
-                >
-                  {!VENUES || VENUES.length === 0 ? (
-                    <option value="">No venues created yet</option>
-                  ) : (
-                    <>
-                      <option value="all">All Venues ({VENUES.length})</option>
-                      {VENUES.map((v) => (
-                        <option key={v.id} value={v.id}>
-                          {v.name}
-                        </option>
-                      ))}
-                    </>
-                  )}
-                </select>
+                  options={[
+                    ...(VENUES.length > 0 ? [{ value: "all", label: `All Venues (${VENUES.length})` }] : []),
+                    ...VENUES.map((v) => ({
+                      value: String(v.id),
+                      label: v.name,
+                      description: v.location || null,
+                    })),
+                  ]}
+                  placeholder={!VENUES || VENUES.length === 0 ? "No venues created yet" : "Select Venue..."}
+                />
               )}
             </div>
           )}

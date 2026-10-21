@@ -9,6 +9,7 @@ import { invalidateCache } from "@/lib/apiCache";
 import notify from "@/lib/notify";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import ActionPopover from "@/components/ui/action-popover";
+import FilterDropdown from "@/components/ui/FilterDropdown";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 export default function BrandsTab({ isActive = true }) {
@@ -338,26 +339,23 @@ export default function BrandsTab({ isActive = true }) {
         </form>
 
         <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-          {/* Category Filter */}
-          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-xl">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Category:</span>
-            <select
-              value={categoryFilter}
-              onFocus={() => refreshCategories(true)}
-              onChange={(e) => {
-                setCategoryFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="bg-transparent text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-none cursor-pointer"
-            >
-              <option value="all" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100">All</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100">
-                  {cat.eq_name || cat.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Category Filter (Capped at 5 visible items with scroll) */}
+          <FilterDropdown
+            value={categoryFilter}
+            onChange={(val) => {
+              setCategoryFilter(val);
+              setCurrentPage(1);
+            }}
+            options={[
+              { value: "all", label: "All Categories" },
+              ...categories.map((cat) => ({
+                value: String(cat.id),
+                label: cat.eq_name || cat.name,
+              })),
+            ]}
+            label="Category:"
+            title="Filter by Equipment Category"
+          />
 
           <button
             type="button"

@@ -23,6 +23,9 @@ import {
   exportAllHistoryToExcel,
 } from "./history/exportHistoryExcelHelper";
 import AcademicTermSelect from "@/components/ui/AcademicTermSelect";
+import FilterDropdown from "@/components/ui/FilterDropdown";
+import ExportButton from "@/components/ui/ExportButton";
+import ExportModal, { filterRecordsByBounds } from "@/components/ui/ExportModal";
 
 const VenueBookingDetailModal = lazy(() => import("./components/VenueBookingDetailModal"));
 const EquipmentBorrowDetailModal = lazy(() => import("./components/EquipmentBorrowDetailModal"));
@@ -434,21 +437,9 @@ export default function HistoryLog() {
     return activeList.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   }, [activeList, startIndex, ITEMS_PER_PAGE]);
 
-  // CSV Export State & Handlers
-  const [showExportMenu, setShowExportMenu] = useState(false);
-  const exportMenuRef = useRef(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target)) {
-        setShowExportMenu(false);
-      }
-    };
-    if (showExportMenu) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
-    }
-  }, [showExportMenu]);
+  // Export State & Handlers (shared ExportButton + ExportModal)
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [isExportingExcel, setIsExportingExcel] = useState(false);
 
   const currentTermLabel = useMemo(() => {
     if (!selectedTermId) return "";
@@ -456,65 +447,46 @@ export default function HistoryLog() {
     return term?.name || "";
   }, [selectedTermId, academicTerms]);
 
-  const activeRecordCount = historyType === "venue" ? filteredVenues.length : filteredEquipment.length;
-  const [isExportingExcel, setIsExportingExcel] = useState(false);
+  const handleExport = async ({ format, scope, bounds }) => {
+    const venues = filterRecordsByBounds(filteredVenues, bounds);
+    const equipment = filterRecordsByBounds(filteredEquipment, bounds);
 
-  const handleExportExcel = async (targetType = historyType) => {
+    const hasRecords =
+      scope === "venue" ? venues.length > 0 :
+      scope === "equipment" ? equipment.length > 0 :
+      venues.length + equipment.length > 0;
+
+    if (!hasRecords) {
+      notify.warning("No Records to Export", "No history records match the selected scope and timeframe.");
+      return;
+    }
+
     setIsExportingExcel(true);
     try {
-      if (targetType === "venue") {
-        if (filteredVenues.length === 0) {
-          notify.warning("No Records to Export", "There are no venue history records matching your current filter.");
-          return;
+      if (format === "csv") {
+        if ((scope === "venue" || scope === "combined") && venues.length > 0) {
+          exportVenueHistoryToCsv(venues, currentTermLabel);
         }
-        await exportVenueHistoryToExcel(filteredVenues, currentTermLabel);
-        notify.success("Excel Export Complete", `Saved ${filteredVenues.length} venue history record${filteredVenues.length === 1 ? "" : "s"} to formatted Excel (.xlsx).`);
-      } else if (targetType === "equipment") {
-        if (filteredEquipment.length === 0) {
-          notify.warning("No Records to Export", "There are no equipment history records matching your current filter.");
-          return;
+        if ((scope === "equipment" || scope === "combined") && equipment.length > 0) {
+          exportEquipmentHistoryToCsv(equipment, currentTermLabel);
         }
-        await exportEquipmentHistoryToExcel(filteredEquipment, currentTermLabel);
-        notify.success("Excel Export Complete", `Saved ${filteredEquipment.length} equipment history record${filteredEquipment.length === 1 ? "" : "s"} to formatted Excel (.xlsx).`);
-      } else if (targetType === "combined") {
-        if (filteredVenues.length === 0 && filteredEquipment.length === 0) {
-          notify.warning("No Records to Export", "No history records found to export.");
-          return;
+        notify.success("Export Complete", "History records exported to CSV.");
+      } else {
+        if (scope === "venue") {
+          await exportVenueHistoryToExcel(venues, currentTermLabel);
+        } else if (scope === "equipment") {
+          await exportEquipmentHistoryToExcel(equipment, currentTermLabel);
+        } else {
+          await exportAllHistoryToExcel(venues, equipment, currentTermLabel);
         }
-        await exportAllHistoryToExcel(filteredVenues, filteredEquipment, currentTermLabel);
-        notify.success("Excel Export Complete", `Saved Master History workbook with ${filteredVenues.length} venue and ${filteredEquipment.length} equipment borrow records across multi-tabs (.xlsx).`);
+        notify.success("Excel Export Complete", "History records exported to Excel (.xlsx).");
       }
+      setShowExportModal(false);
     } catch (err) {
-      console.error("Export Excel Error:", err);
-      notify.error("Export Failed", `Failed to generate Excel file: ${err?.message || "Unknown error"}`);
+      console.error("History export error:", err);
+      notify.error("Export Failed", `Failed to generate file: ${err?.message || "Unknown error"}`);
     } finally {
       setIsExportingExcel(false);
-      setShowExportMenu(false);
-    }
-  };
-
-  const handleExportCsv = (targetType = historyType) => {
-    try {
-      if (targetType === "venue") {
-        if (filteredVenues.length === 0) {
-          notify.warning("No Records to Export", "There are no venue history records matching your current filter.");
-          return;
-        }
-        exportVenueHistoryToCsv(filteredVenues, currentTermLabel);
-        notify.success("Export Complete", `Exported ${filteredVenues.length} venue history record${filteredVenues.length === 1 ? "" : "s"} to CSV.`);
-      } else if (targetType === "equipment") {
-        if (filteredEquipment.length === 0) {
-          notify.warning("No Records to Export", "There are no equipment history records matching your current filter.");
-          return;
-        }
-        exportEquipmentHistoryToCsv(filteredEquipment, currentTermLabel);
-        notify.success("Export Complete", `Exported ${filteredEquipment.length} equipment history record${filteredEquipment.length === 1 ? "" : "s"} to CSV.`);
-      }
-    } catch (err) {
-      console.error("Export CSV Error:", err);
-      notify.error("Export Failed", "Failed to generate CSV file.");
-    } finally {
-      setShowExportMenu(false);
     }
   };
 
@@ -551,17 +523,17 @@ export default function HistoryLog() {
         {/* Row 1: Category & Academic Term & Sort */}
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2">
-              <label className="text-xs font-bold text-slate-700 whitespace-nowrap">Category Log:</label>
-              <select
-                value={historyType}
-                onChange={(e) => setHistoryType(e.target.value)}
-                className="p-2 bg-white border border-slate-200 rounded-xl font-bold text-slate-900 text-xs focus:outline-none focus:border-blue-500 cursor-pointer shadow-2xs"
-              >
-                <option value="venue">Venue Bookings History</option>
-                <option value="equipment">Equipment Borrowings History</option>
-              </select>
-            </div>
+            {/* Category Log Dropdown */}
+            <FilterDropdown
+              value={historyType}
+              onChange={setHistoryType}
+              options={[
+                { value: "venue", label: "Venue Bookings History" },
+                { value: "equipment", label: "Equipment Borrowings History" },
+              ]}
+              label="Category Log:"
+              title="Select History Category"
+            />
 
             {academicTerms.length > 0 && (
               <AcademicTermSelect
@@ -575,125 +547,26 @@ export default function HistoryLog() {
           {/* Right side: Sort Dropdown & Export Options */}
           <div className="flex flex-wrap items-center gap-2.5 self-end sm:self-auto shrink-0">
             {/* Sort Dropdown */}
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                <ArrowUpDown size={12} /> SORT:
-              </span>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-500 cursor-pointer shadow-2xs"
-              >
-                <option value="completed_desc">Newest</option>
-                <option value="completed_asc">Oldest</option>
-              </select>
-            </div>
+            <FilterDropdown
+              value={sortBy}
+              onChange={setSortBy}
+              options={[
+                { value: "completed_desc", label: "Newest" },
+                { value: "completed_asc", label: "Oldest" },
+              ]}
+              icon={ArrowUpDown}
+              label="Sort:"
+              title="Sort History Records"
+            />
 
-            {/* Export Excel (.xlsx) & CSV Dropdown */}
-            <div className="relative inline-flex items-center" ref={exportMenuRef}>
-              <button
-                type="button"
-                onClick={() => handleExportExcel(historyType)}
-                disabled={isExportingExcel}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-l-xl transition-all shadow-2xs cursor-pointer disabled:opacity-60"
-                title={`Export ${historyType === "venue" ? "Venue Bookings (28 Fields)" : "Equipment Borrowings"} to Formatted Excel (.xlsx)`}
-              >
-                {isExportingExcel ? (
-                  <Loader2 size={13} className="shrink-0 animate-spin" />
-                ) : (
-                  <FileSpreadsheet size={13} className="shrink-0" />
-                )}
-                <span>Export Excel</span>
-                <span className="ml-0.5 text-[10px] bg-emerald-700/90 text-emerald-100 px-1.5 py-0.5 rounded-full font-mono font-bold leading-none">
-                  {activeRecordCount}
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowExportMenu((prev) => !prev)}
-                className="px-2 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-r-xl border-l border-emerald-500/40 transition-all shadow-2xs cursor-pointer"
-                title="More Export Options (Excel & CSV)"
-                aria-label="Export options"
-              >
-                <ChevronDown size={13} className={`transition-transform duration-150 ${showExportMenu ? "rotate-180" : ""}`} />
-              </button>
-
-              {showExportMenu && (
-                <div className="absolute right-0 top-full mt-1.5 w-72 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-50 text-xs font-semibold text-slate-700 space-y-1 animate-in fade-in zoom-in-95">
-                  <div className="px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider text-slate-400 border-b border-slate-100 flex items-center justify-between">
-                    <span>Export Format: Excel (.xlsx)</span>
-                    <span className="text-emerald-600 font-bold">Recommended</span>
-                  </div>
-
-                  {/* Excel Options */}
-                  <button
-                    type="button"
-                    onClick={() => handleExportExcel("venue")}
-                    className="w-full text-left px-2.5 py-2 rounded-xl hover:bg-emerald-50/70 flex items-center justify-between transition-colors cursor-pointer group"
-                  >
-                    <span className="flex items-center gap-2 text-slate-800 font-bold group-hover:text-emerald-700">
-                      <Building2 size={13} className="text-slate-400 group-hover:text-emerald-600" />
-                      <span>Venue History <span className="text-[10px] text-slate-400 font-normal">(28 Fields)</span></span>
-                    </span>
-                    <span className="font-mono text-[11px] text-slate-400 font-normal">{filteredVenues.length}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleExportExcel("equipment")}
-                    className="w-full text-left px-2.5 py-2 rounded-xl hover:bg-emerald-50/70 flex items-center justify-between transition-colors cursor-pointer group"
-                  >
-                    <span className="flex items-center gap-2 text-slate-800 font-bold group-hover:text-emerald-700">
-                      <PackageOpen size={13} className="text-slate-400 group-hover:text-emerald-600" />
-                      <span>Equipment History <span className="text-[10px] text-slate-400 font-normal">(Unit Serials)</span></span>
-                    </span>
-                    <span className="font-mono text-[11px] text-slate-400 font-normal">{filteredEquipment.length}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleExportExcel("combined")}
-                    className="w-full text-left px-2.5 py-2 rounded-xl bg-slate-50 hover:bg-emerald-50/70 flex items-center justify-between transition-colors cursor-pointer group border border-slate-100"
-                  >
-                    <span className="flex items-center gap-2 text-emerald-800 font-extrabold group-hover:text-emerald-700">
-                      <Layers size={13} className="text-emerald-600" />
-                      <span>Combined All History <span className="text-[10px] text-emerald-600 font-semibold">(Multi-Tab)</span></span>
-                    </span>
-                    <span className="font-mono text-[11px] text-emerald-700 font-bold">
-                      {filteredVenues.length + filteredEquipment.length}
-                    </span>
-                  </button>
-
-                  {/* CSV Options */}
-                  <div className="pt-1 mt-1 border-t border-slate-100 px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider text-slate-400 flex items-center justify-between">
-                    <span>Export Format: CSV</span>
-                    <span>UTF-8 BOM</span>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => handleExportCsv("venue")}
-                    className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-slate-50 flex items-center justify-between transition-colors cursor-pointer group"
-                  >
-                    <span className="flex items-center gap-2 text-slate-700 font-medium group-hover:text-slate-900">
-                      <Download size={12} className="text-slate-400" /> Venue Bookings (CSV)
-                    </span>
-                    <span className="font-mono text-[10px] text-slate-400">{filteredVenues.length}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleExportCsv("equipment")}
-                    className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-slate-50 flex items-center justify-between transition-colors cursor-pointer group"
-                  >
-                    <span className="flex items-center gap-2 text-slate-700 font-medium group-hover:text-slate-900">
-                      <Download size={12} className="text-slate-400" /> Equipment Borrowings (CSV)
-                    </span>
-                    <span className="font-mono text-[10px] text-slate-400">{filteredEquipment.length}</span>
-                  </button>
-                </div>
-              )}
-            </div>
+            {/* Shared Export Button (opens ExportModal) */}
+            <ExportButton
+              label="Export"
+              onClick={() => setShowExportModal(true)}
+              loading={isExportingExcel}
+              disabled={filteredVenues.length + filteredEquipment.length === 0}
+              title="Export History Log to Excel or CSV"
+            />
           </div>
         </div>
 
@@ -824,6 +697,31 @@ export default function HistoryLog() {
         message={confirmModal.message}
         confirmLabel={confirmModal.confirmLabel}
       />
+
+      {/* Shared Export Modal — mounted on open so the scope defaults to the current category */}
+      {showExportModal && (
+        <ExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          title="Export History Log"
+          subtitle="Choose a timeframe, format, and which history records to export."
+          formats={["xlsx", "csv"]}
+          defaultFormat="xlsx"
+          scopeOptions={[
+            { id: "venue", label: "Venue Bookings History" },
+            { id: "equipment", label: "Equipment Borrowings History" },
+            { id: "combined", label: "Combined (Venue + Equipment)" },
+          ]}
+          defaultScope={historyType}
+          recordsByScope={{
+            venue: filteredVenues,
+            equipment: filteredEquipment,
+            combined: { venues: filteredVenues, equipment: filteredEquipment },
+          }}
+          onExport={handleExport}
+          isExporting={isExportingExcel}
+        />
+      )}
     </div>
   );
 }
