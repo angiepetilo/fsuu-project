@@ -41,7 +41,7 @@ class VenueBookingController extends Controller
 
         $includeReturned = $request->boolean('include_returned') || $request->query('include_returned') === '1' || $request->query('status') === 'all';
 
-        $bookingsQuery = VenueBooking::with(['trackingNumber', 'venue', 'documents', 'venueBookingEquipment.equipmentType'])
+        $bookingsQuery = VenueBooking::with(['trackingNumber', 'venue', 'documents', 'venueBookingEquipment.equipmentType', 'inspections'])
             ->when(!$includeReturned, function ($query) {
                 $completedStatuses = ['completed', 'done', 'returned', 'damaged', 'lost', 'returned late', 'returned_late'];
                 $query->where(function ($q) use ($completedStatuses) {
@@ -75,7 +75,7 @@ class VenueBookingController extends Controller
     {
         $this->authorize('view', $avrVenueBooking);
 
-        $relations = ['trackingNumber', 'venue', 'documents'];
+        $relations = ['trackingNumber', 'venue', 'documents', 'inspections'];
         if (\Illuminate\Support\Facades\Schema::hasTable('venue_booking_equipment')) {
             $relations[] = 'venueBookingEquipment.equipmentType';
         }

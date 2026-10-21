@@ -46,7 +46,7 @@ class EquipmentBorrowingController extends Controller
 
         $includeReturned = $request->boolean('include_returned') || $request->query('include_returned') === '1' || $request->query('status') === 'all';
 
-        $borrowingsQuery = EquipmentBorrow::with(['trackingNumber', 'items.equipmentType'])
+        $borrowingsQuery = EquipmentBorrow::with(['trackingNumber', 'items.equipmentType', 'inspections'])
             ->when(!$includeReturned, function ($query) {
                 $completedStatuses = ['completed', 'done', 'returned', 'damaged', 'lost', 'returned late', 'returned_late'];
                 $query->where(function ($q) use ($completedStatuses) {
@@ -98,7 +98,7 @@ class EquipmentBorrowingController extends Controller
     {
         $this->authorize('view', $equipmentBorrowing);
 
-        return response()->json($equipmentBorrowing->load(['trackingNumber', 'items.equipmentType']));
+        return response()->json($equipmentBorrowing->load(['trackingNumber', 'items.equipmentType', 'inspections']));
     }
 
     public function store(StoreEquipmentBorrowingRequest $request): JsonResponse

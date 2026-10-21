@@ -333,98 +333,115 @@ export default function EquipmentBorrowDetailModal({
         }
       } catch {}
 
-      // Check existing inspection from backend API
+      const isBorrowCompleted = ['completed', 'done', 'returned', 'damaged', 'lost'].includes(String(selected.status || selected.tracking_number?.status || '').toLowerCase());
+
+      const applyPostInspection = (postUse) => {
+        if (!postUse) return;
+        // Parse assigned_units (may be JSON string or object from DB)
+        let auData = postUse.assigned_units;
+        if (typeof auData === 'string') { try { auData = JSON.parse(auData); } catch { auData = {}; } }
+        if (auData && typeof auData === 'object' && isBorrowCompleted) {
+          setAssignedUnitSelections((prev) => ({ ...prev, ...auData }));
+        }
+        // Parse unit_conditions (may be JSON string or object)
+        let ucData = postUse.unit_conditions;
+        if (typeof ucData === 'string') { try { ucData = JSON.parse(ucData); } catch { ucData = {}; } }
+        if (ucData && typeof ucData === 'object') {
+          setUnitReturnedConditions((prev) => ({ ...prev, ...ucData }));
+        }
+        const postStatus = (postUse.condition === "damaged" || postUse.condition === "violation" || postUse.condition === "lost") ? "violation" : "clean";
+        setInspectionStatus(postStatus);
+        const postTimeliness = postUse.timeliness || defaultTimeliness;
+        setTimeliness(postTimeliness);
+        const postNotes = postUse.notes || "";
+        setViolationNotes(postNotes);
+        
+        // Hydrate multi-photo evidence
+        const rawPhoto = postUse.evidence_photos || postUse.evidence_photo || postUse.evidence_image || selected.evidence_photos || selected.evidence_photo || selected.evidence_image;
+        let photoList = [];
+        if (Array.isArray(rawPhoto)) {
+          photoList = rawPhoto.filter(Boolean);
+        } else if (typeof rawPhoto === 'string' && (rawPhoto.startsWith('[') || rawPhoto.startsWith('{'))) {
+          try {
+            const parsed = JSON.parse(rawPhoto);
+            photoList = Array.isArray(parsed) ? parsed.filter(Boolean) : [rawPhoto];
+          } catch {
+            photoList = [rawPhoto];
+          }
+        } else if (rawPhoto) {
+          photoList = [rawPhoto];
+        }
+        setEvidencePhoto(photoList);
+
+        setInitialPostState({
+          status: postStatus,
+          timeliness: postTimeliness,
+          notes: postNotes,
+          conditions: JSON.stringify(ucData || {}),
+          photos: JSON.stringify(photoList || [])
+        });
+      };
+
+      const applyPreInspection = (preUse) => {
+        if (!preUse) return;
+        // Parse unit_conditions for pre-use (may be JSON string)
+        let preUc = preUse.unit_conditions;
+        if (typeof preUc === 'string') { try { preUc = JSON.parse(preUc); } catch { preUc = {}; } }
+        if (preUc && typeof preUc === 'object') {
+          setPreUnitReturnedConditions((prev) => ({ ...prev, ...preUc }));
+        }
+        if (preUse.condition === "damaged" || preUse.condition === "violation") {
+          setPreInspectionStatus("violation");
+        } else if (preUse.condition === "good" || preUse.condition === "clean") {
+          setPreInspectionStatus("clean");
+        }
+        if (preUse.notes) {
+          setPreViolationNotes(preUse.notes);
+        }
+
+        // Hydrate pre-inspection multi-photo evidence
+        const rawPrePhoto = preUse.evidence_photos || preUse.evidence_photo || preUse.evidence_image;
+        let prePhotoList = [];
+        if (Array.isArray(rawPrePhoto)) {
+          prePhotoList = rawPrePhoto.filter(Boolean);
+        } else if (typeof rawPrePhoto === 'string' && (rawPrePhoto.startsWith('[') || rawPrePhoto.startsWith('{'))) {
+          try {
+            const parsed = JSON.parse(rawPrePhoto);
+            prePhotoList = Array.isArray(parsed) ? parsed.filter(Boolean) : [rawPrePhoto];
+          } catch {
+            prePhotoList = [rawPrePhoto];
+          }
+        } else if (rawPrePhoto) {
+          prePhotoList = [rawPrePhoto];
+        }
+        setPreEvidencePhoto(prePhotoList);
+      };
+
+      // 1. Immediately apply if inspections were already eager-loaded on selected (eliminates 3s delay & prevents flashing default values)
+      const existingList = Array.isArray(selected.inspections) ? selected.inspections : (selected.inspection ? [selected.inspection] : []);
+      if (existingList.length > 0) {
+        const syncPost = existingList.find(i => i.inspection_type === 'post_use')
+          || existingList.find(i => i.inspection_type === 'post_event')
+          || existingList.find(i => i.inspection_type && i.inspection_type !== 'pre_use')
+          || existingList[0];
+        const syncPre = existingList.find(i => i.inspection_type === 'pre_use');
+        if (syncPost) applyPostInspection(syncPost);
+        if (syncPre) applyPreInspection(syncPre);
+      }
+
+      // 2. Background fresh fetch from API
       // Accept both 'post_use' (saved via Save button) and 'post_event' (saved via Complete action)
       api.get(`/inspections?inspectable_id=${selected.id}&inspectable_type=equipment_borrow`)
         .then((res) => {
           const list = Array.isArray(res.data) ? res.data : res.data?.data ?? [];
           
           const preUse = list.find(i => i.inspection_type === 'pre_use');
-          const isBorrowCompleted = ['completed', 'done', 'returned', 'damaged', 'lost'].includes(String(selected.status || selected.tracking_number?.status || '').toLowerCase());
-          // Accept post_use OR post_event as the after-inspection record
           const postUse = list.find(i => i.inspection_type === 'post_use')
             || list.find(i => i.inspection_type === 'post_event')
             || list.find(i => i.inspection_type && i.inspection_type !== 'pre_use');
 
-          if (postUse) {
-            // Parse assigned_units (may be JSON string or object from DB)
-            let auData = postUse.assigned_units;
-            if (typeof auData === 'string') { try { auData = JSON.parse(auData); } catch { auData = {}; } }
-            if (auData && typeof auData === 'object' && isBorrowCompleted) {
-              setAssignedUnitSelections((prev) => ({ ...prev, ...auData }));
-            }
-            // Parse unit_conditions (may be JSON string or object)
-            let ucData = postUse.unit_conditions;
-            if (typeof ucData === 'string') { try { ucData = JSON.parse(ucData); } catch { ucData = {}; } }
-            if (ucData && typeof ucData === 'object') {
-              setUnitReturnedConditions((prev) => ({ ...prev, ...ucData }));
-            }
-            const postStatus = (postUse.condition === "damaged" || postUse.condition === "violation" || postUse.condition === "lost") ? "violation" : "clean";
-            setInspectionStatus(postStatus);
-            const postTimeliness = postUse.timeliness || defaultTimeliness;
-            setTimeliness(postTimeliness);
-            const postNotes = postUse.notes || "";
-            setViolationNotes(postNotes);
-            
-            // Hydrate multi-photo evidence
-            const rawPhoto = postUse.evidence_photos || postUse.evidence_photo || postUse.evidence_image || selected.evidence_photos || selected.evidence_photo || selected.evidence_image;
-            let photoList = [];
-            if (Array.isArray(rawPhoto)) {
-              photoList = rawPhoto.filter(Boolean);
-            } else if (typeof rawPhoto === 'string' && (rawPhoto.startsWith('[') || rawPhoto.startsWith('{'))) {
-              try {
-                const parsed = JSON.parse(rawPhoto);
-                photoList = Array.isArray(parsed) ? parsed.filter(Boolean) : [rawPhoto];
-              } catch {
-                photoList = [rawPhoto];
-              }
-            } else if (rawPhoto) {
-              photoList = [rawPhoto];
-            }
-            setEvidencePhoto(photoList);
-
-            setInitialPostState({
-              status: postStatus,
-              timeliness: postTimeliness,
-              notes: postNotes,
-              conditions: JSON.stringify(ucData || {}),
-              photos: JSON.stringify(photoList || [])
-            });
-          }
-
-          if (preUse) {
-            // Parse unit_conditions for pre-use (may be JSON string)
-            let preUc = preUse.unit_conditions;
-            if (typeof preUc === 'string') { try { preUc = JSON.parse(preUc); } catch { preUc = {}; } }
-            if (preUc && typeof preUc === 'object') {
-              setPreUnitReturnedConditions((prev) => ({ ...prev, ...preUc }));
-            }
-            if (preUse.condition === "damaged" || preUse.condition === "violation") {
-              setPreInspectionStatus("violation");
-            } else if (preUse.condition === "good" || preUse.condition === "clean") {
-              setPreInspectionStatus("clean");
-            }
-            if (preUse.notes) {
-              setPreViolationNotes(preUse.notes);
-            }
-
-            // Hydrate pre-inspection multi-photo evidence
-            const rawPrePhoto = preUse.evidence_photos || preUse.evidence_photo || preUse.evidence_image;
-            let prePhotoList = [];
-            if (Array.isArray(rawPrePhoto)) {
-              prePhotoList = rawPrePhoto.filter(Boolean);
-            } else if (typeof rawPrePhoto === 'string' && (rawPrePhoto.startsWith('[') || rawPrePhoto.startsWith('{'))) {
-              try {
-                const parsed = JSON.parse(rawPrePhoto);
-                prePhotoList = Array.isArray(parsed) ? parsed.filter(Boolean) : [rawPrePhoto];
-              } catch {
-                prePhotoList = [rawPrePhoto];
-              }
-            } else if (rawPrePhoto) {
-              prePhotoList = [rawPrePhoto];
-            }
-            setPreEvidencePhoto(prePhotoList);
-          }
+          if (postUse) applyPostInspection(postUse);
+          if (preUse) applyPreInspection(preUse);
         })
         .catch(() => {});
     }

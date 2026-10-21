@@ -33,16 +33,16 @@ class TrackingController extends Controller
 
         if ($tracking) {
             if (in_array($tracking->reservation_type, ['equipment_borrow', 'equipment_borrowing'])) {
-                $booking = EquipmentBorrow::with(['items.equipmentType', 'trackingNumber', 'department'])
+                $booking = EquipmentBorrow::with(['items.equipmentType', 'trackingNumber', 'department', 'inspections'])
                     ->find($tracking->reservation_id);
             } elseif ($tracking->reservation_type === 'venue_booking') {
-                $booking = VenueBooking::with(['venue', 'trackingNumber', 'department'])->where('id', $tracking->reservation_id)->first();
+                $booking = VenueBooking::with(['venue', 'trackingNumber', 'department', 'inspections'])->where('id', $tracking->reservation_id)->first();
             }
         }
 
         // 2. Direct fallback on EquipmentBorrow
         if (!$booking) {
-            $booking = EquipmentBorrow::with(['items.equipmentType', 'trackingNumber', 'department'])
+            $booking = EquipmentBorrow::with(['items.equipmentType', 'trackingNumber', 'department', 'inspections'])
                 ->whereHas('trackingNumber', fn($q) => $q->whereRaw('LOWER(reference_code) = ?', [$refLower]))
                 ->orWhere('id', str_replace(['eq-2026-', 'eq-'], '', $refLower))
                 ->first();
@@ -50,7 +50,7 @@ class TrackingController extends Controller
 
         // 3. Direct fallback on VenueBooking
         if (!$booking) {
-            $booking = VenueBooking::with(['venue', 'trackingNumber', 'department'])
+            $booking = VenueBooking::with(['venue', 'trackingNumber', 'department', 'inspections'])
                 ->whereRaw('LOWER(reference_code) = ?', [$refLower])
                 ->orWhere('id', str_replace(['trk-avr', 'trk-'], '', $refLower))
                 ->first();
