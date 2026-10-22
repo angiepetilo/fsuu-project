@@ -126,6 +126,8 @@ export default function EquipmentReturn() {
       return;
     }
 
+    const targetId = selectedBorrowing.id;
+    const borrowerName = selectedBorrowing.borrower_name || "Borrower";
     setSubmitting(true);
     try {
       const hasSevereDamage = Object.values(unitConditions).some(c => c === "Damaged");
@@ -134,7 +136,7 @@ export default function EquipmentReturn() {
       if (hasMissing) conditionSlug = "lost";
       else if (hasSevereDamage) conditionSlug = "damaged";
 
-      await api.post(`/avr-equipment-borrowings/${selectedBorrowing.id}/complete`, {
+      await api.post(`/avr-equipment-borrowings/${targetId}/complete`, {
         condition: conditionSlug,
         unit_conditions: equipmentItems.map((item, idx) => ({
           name: item.name || "Equipment Unit",
@@ -144,10 +146,29 @@ export default function EquipmentReturn() {
         remarks: returnNotes.trim() || "Returned in good condition."
       });
 
-      notify.success("Return Confirmed", `Equipment for ${selectedBorrowing.borrower_name || "Borrower"} has been logged as returned.`);
-      await fetchBorrowings();
+      notify.success("Return Confirmed", `Equipment for ${borrowerName} has been logged as returned.`);
+
+      // Optimistic in-place update: remove returned item from active borrowings immediately (0ms)
+      setBorrowings(prev => prev.filter(b => b.id !== targetId));
       setSelectedBorrowing(null);
       setReturnNotes("");
+      setUnitConditions({});
+
+      // Broadcast events to update other views silently
+      window.dispatchEvent(new Event("equipment_borrowings_updated"));
+      window.dispatchEvent(new Event("booking_status_updated"));
+      window.dispatchEvent(new Event("equipment_inventory_updated"));
+      try {
+        localStorage.setItem("fsuu_booking_status_updated_ping", JSON.stringify({
+          type: "equipment_borrowing",
+          id: targetId,
+          status: "completed",
+          timestamp: Date.now()
+        }));
+      } catch {}
+
+      // Background silent sync
+      fetchBorrowings(true);
     } catch (err) {
       notify.error("Return Failed", err?.response?.data?.message || "Could not process equipment return.");
     } finally {

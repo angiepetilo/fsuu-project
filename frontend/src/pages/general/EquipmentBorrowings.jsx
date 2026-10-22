@@ -173,7 +173,7 @@ export default function EquipmentBorrowings() {
   }, []);
 
   useRealtimeSync(fetchBorrowings, {
-    interval: 8000,
+    interval: 30000,
     customEvents: [
       "equipment_borrowings_updated",
       "booking_status_updated",

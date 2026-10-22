@@ -231,10 +231,36 @@ export default function NotificationDropdown({
   // Unread badge count strictly calculates unread items inside Inbox
   const unreadCount = inboxItems.filter((n) => !readNotifIds.has(n.id) && !n.is_read).length;
 
+  const isIncidentNotification = (n) => {
+    const incType = String(n.incident_type || "").toLowerCase();
+    const tgtType = String(n.target_type || "").toLowerCase();
+    return (
+      incType === "damaged" ||
+      incType === "lost" ||
+      incType === "policy_violation" ||
+      incType === "late_return" ||
+      tgtType === "damaged_unit" ||
+      tgtType === "lost_unit" ||
+      tgtType === "policy_violation" ||
+      tgtType === "late_return" ||
+      Boolean(n.is_late) ||
+      Boolean(n.has_damaged) ||
+      Boolean(n.has_lost) ||
+      Boolean(n.has_violation)
+    );
+  };
+
   const handleDirectView = (e, n) => {
     e.stopPropagation();
     if (markAsRead) markAsRead(n.id);
     setIsOpen(false);
+
+    // 1. If it's a damaged, lost, violation, or late return record:
+    // Open in-place incident modal directly with 0ms delay (prevents 3s full-page reload!)
+    if (isIncidentNotification(n) && onSelectIncident) {
+      onSelectIncident(n);
+      return;
+    }
 
     const basePath = isSuperAdmin ? "/sysad" : "/general";
     const ref = (n.ref || "").trim();
@@ -274,7 +300,7 @@ export default function NotificationDropdown({
         state: { search: barcode, highlightBarcode: targetHighlightBarcode },
       });
     } else {
-      navigate(`${basePath}/reports?tab=incidents&search=${encodeURIComponent(ref || barcode || "")}`);
+      navigate(`${basePath}/reports?tab=incident_reports&search=${encodeURIComponent(ref || barcode || "")}`);
     }
   };
 
@@ -282,14 +308,9 @@ export default function NotificationDropdown({
     if (markAsRead) markAsRead(n.id);
     setIsOpen(false);
 
-    const isRealIncident =
-      n.incident_type === "damaged" ||
-      n.incident_type === "lost" ||
-      n.incident_type === "policy_violation" ||
-      n.target_type === "damaged_unit" ||
-      n.target_type === "lost_unit";
-
-    if (isRealIncident && onSelectIncident) {
+    // 1. If it's a damaged, lost, violation, or late return record:
+    // Open in-place incident modal directly with 0ms delay (prevents 3s full-page reload!)
+    if (isIncidentNotification(n) && onSelectIncident) {
       onSelectIncident(n);
       return;
     }

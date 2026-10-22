@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { 
   X, AlertCircle, AlertTriangle, User, Phone, Mail, 
   Building2, Package, Tag, FileText, Calendar, 
-  ExternalLink, Clock, MapPin 
+  ExternalLink, Clock, MapPin, History, FileBarChart2 
 } from "lucide-react";
 
 export default function IncidentDetailModal({ incident, onClose }) {
@@ -12,9 +12,10 @@ export default function IncidentDetailModal({ incident, onClose }) {
 
   const basePath = typeof window !== "undefined" && window.location.pathname.startsWith("/sysad") ? "/sysad" : "/general";
 
-  const isDamaged = incident.incident_type === "damaged";
-  const isLost = incident.incident_type === "lost";
-  const isViolation = incident.incident_type === "policy_violation";
+  const isDamaged = incident.incident_type === "damaged" || incident.has_damaged || String(incident.target_type || "").includes("damage");
+  const isLost = incident.incident_type === "lost" || incident.has_lost || String(incident.target_type || "").includes("lost");
+  const isViolation = incident.incident_type === "policy_violation" || incident.has_violation || String(incident.target_type || "").includes("violation");
+  const isLate = incident.incident_type === "late_return" || incident.is_late || Number(incident.minutes_late || 0) > 0 || String(incident.target_type || "").includes("late");
 
   const ref = (incident.ref || "").trim();
   const recordId = incident.record_id ?? incident.booking_id ?? incident.borrowing_id ?? incident.equipment_borrowing_id ?? incident.equipment_borrow_id ?? incident.venue_booking_id ?? (incident.target_type !== "damaged_unit" && incident.target_type !== "lost_unit" ? incident.target_id : null) ?? null;
@@ -51,11 +52,20 @@ export default function IncidentDetailModal({ incident, onClose }) {
         title: isEquipmentRef ? "Equipment Policy Violation Report" : "Venue Policy Violation Report",
       };
     }
+    if (isLate) {
+      return {
+        badge: isEquipmentRef ? "Late Equipment Return" : "Late Venue Turnover",
+        badgeStyle: "bg-orange-50 dark:bg-orange-950/60 text-orange-700 dark:text-orange-400 border-orange-200/80 dark:border-orange-900/60",
+        icon: Clock,
+        iconStyle: "bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 border border-orange-100 dark:border-orange-900/40",
+        title: isEquipmentRef ? "Late Equipment Return Report" : "Late Venue Turnover Report",
+      };
+    }
     return {
       badge: isEquipmentRef ? "Equipment Inspection Notice" : "Venue Inspection Notice",
-      badgeStyle: "bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800",
+      badgeStyle: "bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200/80 dark:border-blue-800",
       icon: Clock,
-      iconStyle: "bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/40",
+      iconStyle: "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/40",
       title: isEquipmentRef ? "Equipment Return Notice" : "Venue Post-Inspection Notice",
     };
   };
@@ -69,19 +79,12 @@ export default function IncidentDetailModal({ incident, onClose }) {
     ? [incident.evidence_photo]
     : [];
 
-  let targetUrl = `${basePath}/reports?tab=incidents`;
-  let actionLabel = "View in Reports";
-
-  if (isEquipmentRef) {
-    targetUrl = `${basePath}/equipment-borrowing?id=${recordId || ""}&trk=${encodeURIComponent(ref)}`;
-    actionLabel = "View Borrowing Record";
-  } else if (ref.startsWith("VB-") || ref.startsWith("TRK-AVR") || ref.startsWith("TRK-") || incident.target_type === "venue_booking" || incident.record_type === "venue_booking") {
-    targetUrl = `${basePath}/venue-bookings?id=${recordId || ""}&trk=${encodeURIComponent(ref)}`;
-    actionLabel = "View Venue Booking";
-  } else if (canLocateUnit) {
-    targetUrl = `${basePath}/manage-equipments?search=${encodeURIComponent(barcode)}&barcode=${encodeURIComponent(barcode)}`;
-    actionLabel = "Locate Unit in Inventory";
-  }
+  // Updated placement destinations:
+  // Concluded transactions are stored in History Log (NOT in current active borrowings)
+  const historyUrl = `${basePath}/history-log?type=${isEquipmentRef ? "equipment" : "venue"}&trk=${encodeURIComponent(ref)}&id=${recordId || ""}`;
+  const reportsUrl = isViolation || isLate
+    ? `${basePath}/reports?tab=breaches&search=${encodeURIComponent(ref || barcode || "")}`
+    : `${basePath}/reports?tab=incident_reports&search=${encodeURIComponent(ref || barcode || "")}`;
 
   const handleLocateUnit = () => {
     if (onClose) onClose();
@@ -95,15 +98,25 @@ export default function IncidentDetailModal({ incident, onClose }) {
     });
   };
 
-  const handleViewRecord = () => {
+  const handleViewHistory = () => {
     if (onClose) onClose();
-    navigate(targetUrl, {
+    navigate(historyUrl, {
       state: {
         selectedId: recordId,
-        targetType: incident.target_type,
+        targetType: isEquipmentRef ? "equipment" : "venue",
+        targetRef: ref,
         trk: ref,
-        search: barcode || ref,
-        highlightBarcode: canLocateUnit ? barcode : null,
+        search: ref,
+      },
+    });
+  };
+
+  const handleViewReports = () => {
+    if (onClose) onClose();
+    navigate(reportsUrl, {
+      state: {
+        search: ref || barcode,
+        trk: ref,
       },
     });
   };
@@ -143,6 +156,52 @@ export default function IncidentDetailModal({ incident, onClose }) {
 
         {/* Modal Body */}
         <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto text-xs">
+          {/* Updated Placement Card (Clarifies where record is now placed) */}
+          <div className="p-4 rounded-2xl bg-slate-50/90 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 space-y-2.5">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-blue-100 dark:bg-blue-900/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                  <MapPin size={13} />
+                </div>
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                  Updated Record Placement
+                </span>
+              </div>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                Archived in History Log
+              </span>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
+              This transaction has finished inspection and is now placed in <strong className="text-slate-900 dark:text-white font-bold">History Log</strong> (it has been removed from Current Active Borrowings).
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[11px]">
+              <div className="flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800">
+                <span className="font-bold text-slate-500 dark:text-slate-400">Transaction:</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">
+                  History Log → {isEquipmentRef ? "Equipment History" : "Venue History"}
+                </span>
+              </div>
+
+              {canLocateUnit ? (
+                <div className="flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800">
+                  <span className="font-bold text-rose-500 dark:text-rose-400">Physical Unit:</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">
+                    Inventory → <span className="font-bold text-rose-600 dark:text-rose-400">{isLost ? "Lost" : "Damaged"}</span>
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800">
+                  <span className="font-bold text-slate-500 dark:text-slate-400">Report Filing:</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">
+                    {isViolation || isLate ? "Reports → Breaches & Late Log" : "Reports → Incident Reports"}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Responsible Person / Borrower */}
           <div className="space-y-2">
             <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
@@ -173,7 +232,7 @@ export default function IncidentDetailModal({ incident, onClose }) {
           {/* Physical Unit / Item Details */}
           <div className="space-y-2">
             <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
-              {isViolation ? (isEquipmentRef ? "Equipment Item Involved" : "Facility Involved") : "Physical Unit Details"}
+              {isViolation ? (isEquipmentRef ? "Equipment Item Involved" : "Facility Involved") : isLate ? "Returned Equipment / Facility" : "Physical Unit Details"}
             </span>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2.5 bg-slate-50/70 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-200/70 dark:border-slate-800">
               <div className="flex items-center gap-2.5">
@@ -191,27 +250,31 @@ export default function IncidentDetailModal({ incident, onClose }) {
             </div>
           </div>
 
-          {/* Condition & Damage / Violation Report */}
+          {/* Condition & Damage / Violation / Late Return Report */}
           <div className="space-y-2">
             <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
-              {isViolation ? "Violation & Remarks" : "Condition & Damage Report"}
+              {isViolation ? "Violation & Remarks" : isLate ? "Turnover Timeliness & Remarks" : "Condition & Damage Report"}
             </span>
             <div className={`p-4 rounded-r-2xl rounded-l-xs border-l-4 flex items-start gap-3 shadow-2xs ${
               isDamaged 
                 ? "bg-rose-50/70 dark:bg-rose-950/40 border-l-rose-500 border-y border-r border-rose-200/60 dark:border-rose-900/50" 
                 : isLost 
                 ? "bg-amber-50/70 dark:bg-amber-950/40 border-l-amber-500 border-y border-r border-amber-200/60 dark:border-amber-900/50" 
+                : isLate
+                ? "bg-orange-50/70 dark:bg-orange-950/40 border-l-orange-500 border-y border-r border-orange-200/60 dark:border-orange-900/50"
                 : "bg-violet-50/70 dark:bg-violet-950/40 border-l-violet-500 border-y border-r border-violet-200/60 dark:border-violet-900/50"
             }`}>
-              <AlertCircle size={18} className={`shrink-0 mt-0.5 ${
+              <IconComp size={18} className={`shrink-0 mt-0.5 ${
                 isDamaged 
                   ? "text-rose-500 dark:text-rose-400" 
                   : isLost 
                   ? "text-amber-500 dark:text-amber-400" 
+                  : isLate
+                  ? "text-orange-500 dark:text-orange-400"
                   : "text-violet-500 dark:text-violet-400"
               }`} />
               <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 leading-relaxed">
-                {incident.notes || incident.message || "Returned with damaged equipment."}
+                {incident.notes || incident.message || "Returned with inspection report."}
               </p>
             </div>
           </div>
@@ -243,11 +306,11 @@ export default function IncidentDetailModal({ incident, onClose }) {
             <Clock size={14} className="text-slate-400 dark:text-slate-500 shrink-0" />
             <span>Reported: {incident.time || "N/A"}</span>
           </div>
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
               onClick={onClose}
-              className="whitespace-nowrap px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl text-xs transition-colors cursor-pointer shadow-2xs"
+              className="whitespace-nowrap px-3.5 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl text-xs transition-colors cursor-pointer shadow-2xs"
             >
               Close
             </button>
@@ -255,21 +318,32 @@ export default function IncidentDetailModal({ incident, onClose }) {
               <button
                 type="button"
                 onClick={handleLocateUnit}
-                className="whitespace-nowrap px-3.5 py-2 border border-blue-200 dark:border-blue-800 bg-blue-50/80 dark:bg-blue-950/60 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-blue-600 dark:text-blue-400 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
-                title="Locate and highlight this physical unit in equipment inventory"
+                className="whitespace-nowrap px-3 py-2 border border-rose-200 dark:border-rose-800 bg-rose-50/80 dark:bg-rose-950/60 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-700 dark:text-rose-300 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                title="Locate this physical unit in Equipment Inventory"
               >
-                <MapPin size={13} className="shrink-0 text-blue-600 dark:text-blue-400" />
-                <span>Locate Unit</span>
-                <ExternalLink size={12} className="shrink-0 text-blue-600 dark:text-blue-400" />
+                <MapPin size={13} className="shrink-0 text-rose-600 dark:text-rose-400" />
+                <span>Locate in Inventory</span>
+                <ExternalLink size={12} className="shrink-0 text-rose-500" />
               </button>
             )}
             <button
               type="button"
-              onClick={handleViewRecord}
-              className="whitespace-nowrap px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+              onClick={handleViewReports}
+              className="whitespace-nowrap px-3 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+              title="Open audit records under Reports"
             >
-              <span>{actionLabel}</span>
-              <ExternalLink size={13} className="shrink-0" />
+              <FileBarChart2 size={13} className="shrink-0 text-slate-500 dark:text-slate-400" />
+              <span>View in Reports</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleViewHistory}
+              className="whitespace-nowrap px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+              title="Open this concluded record in History Log"
+            >
+              <History size={13} className="shrink-0" />
+              <span>View in History Log</span>
+              <ExternalLink size={13} className="shrink-0 opacity-80" />
             </button>
           </div>
         </div>

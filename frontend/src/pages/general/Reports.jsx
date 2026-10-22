@@ -46,7 +46,9 @@ export default function Reports() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const getInitialTab = () => {
-    const urlTab = searchParams.get("tab");
+    let urlTab = searchParams.get("tab");
+    if (urlTab === "incidents" || urlTab === "incident") urlTab = "incident_reports";
+    if (urlTab === "breach" || urlTab === "violations" || urlTab === "late") urlTab = "breaches";
     if (urlTab && visibleReportTabs.some(t => t.id === urlTab)) return urlTab;
     return visibleReportTabs[0]?.id || "booking_borrowing";
   };

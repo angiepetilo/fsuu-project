@@ -180,7 +180,7 @@ export default function VenueBookings() {
   }, []);
 
   useRealtimeSync(fetchBookings, {
-    interval: 8000,
+    interval: 30000,
     customEvents: [
       "venue_bookings_updated",
       "booking_status_updated",

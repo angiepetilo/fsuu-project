@@ -196,10 +196,12 @@ export default function HistoryLog() {
     const targetType = params.get("type") || location.state?.targetType;
     const targetRef = params.get("trk") || params.get("ref");
 
-    if (targetType === "incident" || targetType === "incidents" || targetType === "damaged_unit" || targetType === "lost_unit" || targetType === "policy_violation") {
+    if (targetType === "incident" || targetType === "incidents" || targetType === "damaged_unit" || targetType === "lost_unit" || targetType === "policy_violation" || targetType === "late_return") {
       setHistoryType("incidents");
+      if (targetRef) setSearchQuery(targetRef);
     } else if (targetType === "equipment" || targetType === "equipment_borrow") {
       setHistoryType("equipment");
+      if (targetRef) setSearchQuery(targetRef);
       if ((targetId || targetRef) && equipmentHistory.length > 0) {
         const match = equipmentHistory.find(e => 
           (targetId && String(e.id) === String(targetId)) ||
@@ -209,6 +211,7 @@ export default function HistoryLog() {
       }
     } else if (targetType === "venue" || targetType === "venue_booking") {
       setHistoryType("venue");
+      if (targetRef) setSearchQuery(targetRef);
       if ((targetId || targetRef) && venueHistory.length > 0) {
         const match = venueHistory.find(v => 
           (targetId && String(v.id) === String(targetId)) ||

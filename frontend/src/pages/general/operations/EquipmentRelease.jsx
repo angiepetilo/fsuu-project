@@ -131,17 +131,41 @@ export default function EquipmentRelease() {
       return;
     }
 
+    const targetId = selectedBorrowing.id;
+    const borrowerName = selectedBorrowing.borrower_name || "Borrower";
     setReleasing(true);
     try {
-      await api.post(`/avr-equipment-borrowings/${selectedBorrowing.id}/ongoing`, {
+      await api.post(`/avr-equipment-borrowings/${targetId}/ongoing`, {
         remarks: "Physically inspected & released by Student Assistant counter."
       });
-      notify.success("Equipment Released", `Items released to ${selectedBorrowing.borrower_name || "Borrower"} successfully.`);
-      await fetchBorrowings();
-      setSelectedBorrowing(prev => ({
-        ...prev,
-        status: "ongoing"
+      notify.success("Equipment Released", `Items released to ${borrowerName} successfully.`);
+      
+      // Optimistic in-place update: mark as ongoing immediately (0ms)
+      setBorrowings(prev => prev.map(b => {
+        if (b.id === targetId) {
+          const updatedTracking = b.tracking_number ? { ...b.tracking_number, status: "ongoing" } : { status: "ongoing" };
+          return { ...b, status: "ongoing", tracking_number: updatedTracking };
+        }
+        return b;
       }));
+      setSelectedBorrowing(null);
+      setInspectedChecklist({});
+
+      // Broadcast events to update other views silently
+      window.dispatchEvent(new Event("equipment_borrowings_updated"));
+      window.dispatchEvent(new Event("booking_status_updated"));
+      window.dispatchEvent(new Event("equipment_inventory_updated"));
+      try {
+        localStorage.setItem("fsuu_booking_status_updated_ping", JSON.stringify({
+          type: "equipment_borrowing",
+          id: targetId,
+          status: "ongoing",
+          timestamp: Date.now()
+        }));
+      } catch {}
+
+      // Background silent sync
+      fetchBorrowings(true);
     } catch (err) {
       notify.error("Release Failed", err?.response?.data?.message || "Could not complete release handover.");
     } finally {
