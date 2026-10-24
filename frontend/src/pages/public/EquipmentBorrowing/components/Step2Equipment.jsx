@@ -448,15 +448,15 @@ export default function Step2Equipment({
   return (
     <div className="p-3 sm:p-6 md:p-8 animate-in slide-in-from-top-2 duration-300">
       {/* Section Header with Search Bar aligned to the right */}
-      <div className="mb-6 pb-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="mb-6 pb-4 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h3 className="font-black text-slate-900 text-xl tracking-tight mb-1">Select Equipment</h3>
-          <p className="text-xs text-slate-500 font-medium">Walk-in physical custody & equipment requisition</p>
+          <h3 className="font-black text-slate-900 dark:text-white text-xl tracking-tight mb-1">Select Equipment</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Walk-in physical custody & equipment requisition</p>
         </div>
 
         {/* Equipment Search Bar aligned to the right side */}
         <div className="relative w-full sm:w-80 md:w-96">
-          <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" />
           <input
             type="text"
             placeholder="Search equipment"
@@ -465,25 +465,47 @@ export default function Step2Equipment({
               setEquipSearch(e.target.value);
               setCurrentPage(1);
             }}
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200/90 rounded-full text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-xs"
+            className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-700/80 rounded-full text-xs font-medium text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-950 transition-all shadow-xs"
           />
         </div>
       </div>
+
+      {/* Public Borrowing Policy Notice */}
+      {!isPortal && (
+        <div className="mb-6 px-4 py-3.5 bg-gradient-to-r from-blue-50/90 to-indigo-50/60 dark:from-slate-900/80 dark:to-slate-900/80 dark:bg-slate-900/80 border border-blue-200/80 dark:border-blue-900/50 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-center gap-2.5">
+            <span className="w-2 h-2 rounded-full bg-blue-600 dark:bg-blue-400 animate-pulse shrink-0" />
+            <p className="text-xs text-blue-950 dark:text-slate-300">
+              <span className="font-black text-blue-900 dark:text-white">Public Policy: </span>
+              Each filer may select a maximum of <span className="font-extrabold text-blue-950 dark:text-white underline decoration-blue-400/80">2 equipment categories</span> (strictly <span className="font-extrabold text-blue-950 dark:text-white underline decoration-blue-400/80">1 unit per item</span>).
+            </p>
+          </div>
+          <div className="shrink-0 flex items-center gap-1.5 self-end sm:self-auto">
+            <span className={`text-[11px] font-black px-3 py-1 rounded-full border transition-all ${
+              selectedItems.length >= 2
+                ? "bg-amber-500/15 border-amber-400/40 text-amber-700 dark:text-amber-300 dark:bg-amber-500/10 dark:border-amber-500/30"
+                : "bg-white dark:bg-slate-800 border-blue-200 dark:border-blue-900/50 text-blue-800 dark:text-slate-200 shadow-2xs"
+            }`}>
+              {selectedItems.length} of 2 categories selected
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Main Grid: Left 2x2 Catalog + Right Same-Day Time Controls */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
         {/* Left Column: Equipment Catalog (2x2 Grid) */}
         <div className="lg:col-span-7 sm:col-span-12 space-y-4">
           {catalogLoading && (filteredCatalog || []).length === 0 ? (
-            <div className="p-12 text-center bg-white rounded-3xl border border-slate-200/80 space-y-3">
+            <div className="p-12 text-center bg-white dark:bg-slate-900/80 rounded-3xl border border-slate-200/80 dark:border-slate-800 space-y-3">
               <Loader2 size={32} className="mx-auto text-blue-600 animate-spin" />
-              <p className="text-xs font-bold text-slate-700">Loading equipment inventory...</p>
+              <p className="text-xs font-bold text-slate-700 dark:text-slate-200">Loading equipment inventory...</p>
               <p className="text-[11px] text-slate-400">Loading live stock availability</p>
             </div>
           ) : catalogList.length === 0 ? (
-            <div className="p-8 text-center bg-white rounded-3xl border border-slate-200/80">
-              <PackageOpen size={32} className="mx-auto text-slate-300 mb-2" />
-              <p className="text-xs font-bold text-slate-700">
+            <div className="p-8 text-center bg-white dark:bg-slate-900/80 rounded-3xl border border-slate-200/80 dark:border-slate-800">
+              <PackageOpen size={32} className="mx-auto text-slate-300 dark:text-slate-600 mb-2" />
+              <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
                 {(filteredCatalog || []).length === 0 ? "No equipment categories registered yet" : "No equipment found matching your search"}
               </p>
               <p className="text-[11px] text-slate-400 mt-0.5">
@@ -509,14 +531,16 @@ export default function Step2Equipment({
                       if (isAvailable && !isActiveBlocked) handleEquipmentToggle(item.id);
                     }}
                     className={`relative border rounded-2xl p-4 transition-all duration-200 flex flex-col justify-between overflow-hidden ${isActiveBlocked
-                      ? "border-slate-200 bg-slate-50/50 dark:bg-card/50 opacity-60 cursor-not-allowed shadow-none"
+                      ? "border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-card/50 opacity-60 cursor-not-allowed shadow-none"
                       : isMaintenance
-                        ? "border-amber-300/80 bg-amber-50/20 opacity-90 cursor-not-allowed shadow-2xs"
+                        ? "border-amber-300/80 dark:border-amber-700/50 bg-amber-50/20 dark:bg-amber-950/20 opacity-90 cursor-not-allowed shadow-2xs"
                         : !isAvailable
-                          ? "border-slate-200 bg-white dark:bg-card opacity-90 cursor-pointer"
+                          ? "border-slate-200 dark:border-slate-800 bg-white dark:bg-card opacity-90 cursor-pointer"
                           : isChecked
                             ? "border-blue-600 bg-white dark:bg-card shadow-md ring-2 ring-blue-500/20 cursor-pointer"
-                            : "border-slate-200 dark:border-border bg-white dark:bg-card hover:border-blue-500/60 hover:shadow-xs cursor-pointer"
+                            : !isPortal && selectedItems.length >= 2
+                              ? "border-slate-200/70 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-900/40 opacity-75 cursor-pointer"
+                              : "border-slate-200 dark:border-slate-800 bg-white dark:bg-card hover:border-blue-500/60 dark:hover:border-blue-500/60 hover:shadow-xs cursor-pointer"
                       }`}
                   >
                     <div>
@@ -547,55 +571,70 @@ export default function Step2Equipment({
                       {isMaintenance ? (
                         <button
                           disabled
-                          className="w-full py-3 rounded-full border border-amber-300 bg-amber-50 text-amber-800 text-xs font-extrabold flex items-center justify-center gap-1.5 opacity-90 cursor-not-allowed"
+                          className="w-full py-3 rounded-full border border-amber-300 dark:border-amber-700/50 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 text-xs font-extrabold flex items-center justify-center gap-1.5 opacity-90 cursor-not-allowed"
                         >
-                          <AlertTriangle size={14} className="text-amber-600" />
+                          <AlertTriangle size={14} className="text-amber-600 dark:text-amber-400" />
                           <span>Maintenance Block</span>
                         </button>
                       ) : !isAvailable ? (
                         <button
                           disabled
-                          className="w-full py-3 rounded-full border border-slate-200 bg-slate-50 text-slate-500 text-xs font-extrabold flex items-center justify-center gap-1.5 opacity-80 cursor-not-allowed"
+                          className="w-full py-3 rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 text-xs font-extrabold flex items-center justify-center gap-1.5 opacity-80 cursor-not-allowed"
                         >
-                          <XCircle size={14} className="text-slate-400" />
+                          <XCircle size={14} className="text-slate-400 dark:text-slate-500" />
                           <span>No Stock Available</span>
                         </button>
                       ) : isChecked ? (
-                        <div className="flex items-center gap-2">
+                        !isPortal ? (
                           <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); handleEquipmentToggle(item.id); }}
-                            className="flex-1 py-3 rounded-full bg-blue-600 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-colors cursor-pointer"
+                            className="w-full py-3 rounded-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-colors cursor-pointer"
                           >
                             <Check size={14} />
-                            <span>Selected</span>
+                            <span>Selected (1 Unit)</span>
                           </button>
-                          <div className="flex items-center border border-blue-200 rounded-full px-2 py-1 bg-blue-50">
+                        ) : (
+                          <div className="flex items-center gap-2">
                             <button
                               type="button"
-                              onClick={(e) => { e.stopPropagation(); handleQuantityChange && handleQuantityChange(item.id, Math.max(1, (itemQuantities[item.id] || 1) - 1), availableTotal); }}
-                              className="w-7 h-7 sm:w-6 sm:h-6 rounded-full bg-white text-blue-700 font-bold text-xs flex items-center justify-center hover:bg-blue-100 shadow-2xs cursor-pointer"
+                              onClick={(e) => { e.stopPropagation(); handleEquipmentToggle(item.id); }}
+                              className="flex-1 py-3 rounded-full bg-blue-600 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-colors cursor-pointer"
                             >
-                              -
+                              <Check size={14} />
+                              <span>Selected</span>
                             </button>
-                            <span className="font-extrabold text-xs px-2 text-blue-900">{itemQuantities[item.id] || 1}</span>
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); handleQuantityChange && handleQuantityChange(item.id, (itemQuantities[item.id] || 1) + 1, availableTotal); }}
-                              disabled={(itemQuantities[item.id] || 1) >= availableTotal}
-                              className="w-7 h-7 sm:w-6 sm:h-6 rounded-full bg-blue-600 disabled:bg-slate-200 text-white disabled:text-slate-400 font-bold text-xs flex items-center justify-center shadow-2xs cursor-pointer"
-                            >
-                              +
-                            </button>
+                            <div className="flex items-center border border-blue-200 dark:border-blue-900/60 rounded-full px-2 py-1 bg-blue-50 dark:bg-slate-900/60">
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); handleQuantityChange && handleQuantityChange(item.id, Math.max(1, (itemQuantities[item.id] || 1) - 1), availableTotal); }}
+                                className="w-7 h-7 sm:w-6 sm:h-6 rounded-full bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-300 font-bold text-xs flex items-center justify-center hover:bg-blue-100 dark:hover:bg-slate-700 shadow-2xs cursor-pointer"
+                              >
+                                -
+                              </button>
+                              <span className="font-extrabold text-xs px-2 text-blue-900 dark:text-white">{itemQuantities[item.id] || 1}</span>
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); handleQuantityChange && handleQuantityChange(item.id, (itemQuantities[item.id] || 1) + 1, availableTotal); }}
+                                disabled={(itemQuantities[item.id] || 1) >= availableTotal}
+                                className="w-7 h-7 sm:w-6 sm:h-6 rounded-full bg-blue-600 dark:bg-blue-600 disabled:bg-slate-200 dark:disabled:bg-slate-800 text-white disabled:text-slate-400 dark:disabled:text-slate-600 font-bold text-xs flex items-center justify-center shadow-2xs cursor-pointer"
+                              >
+                                +
+                              </button>
+                            </div>
                           </div>
-                        </div>
+                        )
                       ) : (
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); handleEquipmentToggle(item.id); }}
-                          className="w-full py-3 rounded-full border border-slate-200 bg-white hover:bg-blue-600 hover:text-white hover:border-blue-600 text-slate-800 text-xs font-black transition-all cursor-pointer shadow-2xs"
+                          className={`w-full py-3 rounded-full border text-xs font-black transition-all cursor-pointer shadow-2xs ${
+                            !isPortal && selectedItems.length >= 2
+                              ? "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-slate-400 dark:text-slate-500 hover:border-slate-300 dark:hover:border-slate-700"
+                              : "border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900/80 hover:bg-blue-600 hover:text-white hover:border-blue-600 dark:hover:bg-blue-600 dark:hover:border-blue-600 text-slate-800 dark:text-white"
+                          }`}
                         >
-                          Select Item
+                          {!isPortal && selectedItems.length >= 2 ? "Max 2 Categories Reached" : "Select Item"}
                         </button>
                       )}
                     </div>
@@ -612,13 +651,13 @@ export default function Step2Equipment({
                 type="button"
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={safeCurrentPage <= 1}
-                className="px-4 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-extrabold text-slate-700 hover:bg-slate-50 disabled:opacity-40 flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                className="px-4 py-1.5 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
               >
                 <ChevronLeft size={14} />
                 <span>Prev</span>
               </button>
 
-              <span className="text-xs font-black text-slate-700 px-2">
+              <span className="text-xs font-black text-slate-700 dark:text-slate-300 px-2">
                 {safeCurrentPage} / {totalPages}
               </span>
 
@@ -626,7 +665,7 @@ export default function Step2Equipment({
                 type="button"
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={safeCurrentPage >= totalPages}
-                className="px-4 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-extrabold text-slate-700 hover:bg-slate-50 disabled:opacity-40 flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                className="px-4 py-1.5 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
               >
                 <span>Next</span>
                 <ChevronRight size={14} />
