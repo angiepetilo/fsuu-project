@@ -6,7 +6,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import api from "@/lib/axios";
 import { getTodayISO, isPastDate, isPastTimeToday, isPastDateTime } from "@/lib/dateTimeUtils";
 import IosToggle from "@/components/ui/ios-toggle";
-import { Building, MapPin, Users, Check, Clock } from "lucide-react";
+import { Building, MapPin, Users, Check, Clock, ChevronLeft, ChevronRight, AlertTriangle, XCircle } from "lucide-react";
 
 const BLOCKING_STATUSES = ["approved", "ongoing", "on-going", "reserved"];
 
@@ -652,23 +652,23 @@ export default function Step2Venue({
                     onClick={() => {
                       if (!isCardBlocked) onSelectVenue(v);
                     }}
-                    className={`border rounded-2xl p-3.5 transition-all flex flex-col justify-between overflow-hidden shadow-xs ${isClosed
-                        ? "border-rose-200 dark:border-rose-900/60 bg-rose-50/30 dark:bg-rose-950/20 opacity-85 cursor-not-allowed"
+                    className={`group relative border rounded-2xl p-4 transition-all duration-200 flex flex-col justify-between overflow-hidden ${isClosed
+                        ? "border-rose-200 dark:border-rose-900/60 bg-rose-50/30 dark:bg-rose-950/20 opacity-85 cursor-not-allowed shadow-none"
                         : isMaintenance
-                          ? "border-amber-200 dark:border-amber-900/60 bg-amber-50/30 dark:bg-amber-950/20 opacity-85 cursor-not-allowed"
+                          ? "border-amber-300/80 dark:border-amber-700/50 bg-amber-50/20 dark:bg-amber-950/20 opacity-90 cursor-not-allowed shadow-2xs"
                           : isSelected
-                            ? "border-blue-600 dark:border-blue-500 bg-white dark:bg-slate-900 ring-2 ring-blue-500 shadow-md cursor-pointer"
-                            : "border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-400 hover:shadow-md cursor-pointer"
+                            ? "border-blue-600 bg-white dark:bg-slate-900 shadow-md ring-2 ring-blue-500/20 cursor-pointer"
+                            : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-500 hover:ring-2 hover:ring-blue-500/20 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-0.5 cursor-pointer"
                       }`}
                   >
                     <div>
                       {/* Venue Image Container (aspect 16/9, subtle padding, cover fit) */}
-                      <div className="w-full aspect-[16/9] bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800/80 rounded-xl overflow-hidden flex flex-col items-center justify-center text-center relative group p-1">
+                      <div className="w-full aspect-[16/9] bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 rounded-xl overflow-hidden flex flex-col items-center justify-center text-center relative shadow-2xs p-1">
                         {venueInfo.photo ? (
                           <img
                             src={venueInfo.photo}
                             alt={v.name}
-                            className="w-full h-full object-cover rounded-lg"
+                            className="w-full h-full object-cover rounded-lg group-hover:scale-105 transition-transform duration-300"
                           />
                         ) : (
                           <div className="p-4 flex flex-col items-center justify-center h-full w-full bg-slate-50 dark:bg-slate-800/40">
@@ -681,61 +681,64 @@ export default function Step2Venue({
                       </div>
 
                       {/* Venue Metadata */}
-                      <div className="mt-3 space-y-1">
+                      <div className="mt-3.5 space-y-1">
                         <div className="flex items-center justify-between gap-2">
-                          <h4 className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm leading-tight line-clamp-1">
+                          <h4 className="font-bold text-slate-900 dark:text-[#F8FAFC] text-sm leading-tight truncate" title={v.name}>
                             {v.name}
                           </h4>
-                          <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full shrink-0 ${isClosed
-                              ? "bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400"
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold shrink-0 ${isClosed
+                              ? "bg-rose-500/15 border border-rose-400/30 text-rose-700 dark:text-rose-400"
                               : isMaintenance
-                                ? "bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400"
-                                : "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300"
+                                ? "bg-amber-500/15 border border-amber-400/30 text-amber-700 dark:text-[#FCD34D]"
+                                : "bg-emerald-500/15 border border-emerald-400/30 text-emerald-700 dark:text-[#6EE7B7]"
                             }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${isClosed ? "bg-rose-400" : isMaintenance ? "bg-amber-400" : "bg-emerald-400 animate-pulse"}`} />
                             {isClosed ? "Closed" : isMaintenance ? "Maintenance" : "Available"}
                           </span>
                         </div>
                         <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium line-clamp-1 flex items-center gap-1.5">
-                          <MapPin size={11} className="shrink-0 text-slate-400" />
+                          <MapPin size={11} className="shrink-0 text-slate-400 dark:text-slate-500" />
                           <span>{formatVenueLocation(v)}</span>
                         </p>
                         <p className="text-[11px] text-slate-600 dark:text-slate-300 font-semibold flex items-center gap-1.5">
-                          <Users size={11} className="shrink-0 text-slate-400" />
+                          <Users size={11} className="shrink-0 text-slate-400 dark:text-slate-500" />
                           <span>Min {v.min_capacity || 1} • Max {v.max_capacity || v.capacity || venueInfo.capacity || 80} guests</span>
                         </p>
                       </div>
                     </div>
 
-                    {/* Primary Action Button (Level with Preview Card) */}
-                    <div className="mt-3.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    {/* Bottom Action Pill Button */}
+                    <div className="mt-5">
                       {isClosed ? (
                         <button
                           disabled
-                          className="w-full h-8 rounded-lg border border-rose-300 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 text-xs font-semibold flex items-center justify-center opacity-85 cursor-not-allowed"
+                          className="w-full py-3 rounded-full border border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/30 text-rose-800 dark:text-rose-300 text-xs font-extrabold flex items-center justify-center gap-1.5 opacity-85 cursor-not-allowed"
                         >
-                          Closed
+                          <XCircle size={14} className="text-rose-500 dark:text-rose-400" />
+                          <span>Closed</span>
                         </button>
                       ) : isMaintenance ? (
                         <button
                           disabled
-                          className="w-full h-8 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 text-xs font-semibold flex items-center justify-center opacity-85 cursor-not-allowed"
+                          className="w-full py-3 rounded-full border border-amber-300 dark:border-amber-700/50 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 text-xs font-extrabold flex items-center justify-center gap-1.5 opacity-90 cursor-not-allowed"
                         >
-                          Maintenance
+                          <AlertTriangle size={14} className="text-amber-600 dark:text-amber-400" />
+                          <span>Maintenance Block</span>
                         </button>
                       ) : isSelected ? (
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); onSelectVenue(v); }}
-                          className="w-full h-8 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                          className="w-full py-3 rounded-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-colors cursor-pointer"
                         >
-                          <Check size={14} className="stroke-[2.5]" />
+                          <Check size={14} />
                           <span>Selected</span>
                         </button>
                       ) : (
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); onSelectVenue(v); }}
-                          className="w-full h-8 rounded-lg border border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400 bg-transparent hover:bg-blue-50 dark:hover:bg-blue-950/40 text-xs font-semibold flex items-center justify-center transition-all shadow-xs cursor-pointer"
+                          className="w-full py-3 rounded-full border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900/80 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 group-hover:shadow-md dark:group-hover:bg-blue-600 dark:group-hover:text-white dark:group-hover:border-blue-600 hover:bg-blue-700 hover:text-white hover:border-blue-700 text-slate-800 dark:text-white text-xs font-black transition-all cursor-pointer shadow-2xs"
                         >
                           Select Venue
                         </button>
@@ -754,12 +757,13 @@ export default function Step2Venue({
                 type="button"
                 onClick={() => setVenuePage(p => Math.max(0, p - 1))}
                 disabled={safeVenuePage === 0}
-                className="px-3.5 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 transition-colors cursor-pointer"
+                className="px-4 py-1.5 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
               >
-                Prev
+                <ChevronLeft size={14} />
+                <span>Prev</span>
               </button>
 
-              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 px-2">
+              <span className="text-xs font-black text-slate-700 dark:text-slate-300 px-2">
                 {safeVenuePage + 1} / {totalPages}
               </span>
 
@@ -767,9 +771,10 @@ export default function Step2Venue({
                 type="button"
                 onClick={() => setVenuePage(p => Math.min(totalPages - 1, p + 1))}
                 disabled={safeVenuePage >= totalPages - 1}
-                className="px-3.5 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 transition-colors cursor-pointer"
+                className="px-4 py-1.5 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
               >
-                Next
+                <span>Next</span>
+                <ChevronRight size={14} />
               </button>
             </div>
           )}

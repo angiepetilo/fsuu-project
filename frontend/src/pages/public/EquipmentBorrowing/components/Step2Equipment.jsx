@@ -530,7 +530,7 @@ export default function Step2Equipment({
                     onClick={() => {
                       if (isAvailable && !isActiveBlocked) handleEquipmentToggle(item.id);
                     }}
-                    className={`relative border rounded-2xl p-4 transition-all duration-200 flex flex-col justify-between overflow-hidden ${isActiveBlocked
+                    className={`group relative border rounded-2xl p-4 transition-all duration-200 flex flex-col justify-between overflow-hidden ${isActiveBlocked
                       ? "border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-card/50 opacity-60 cursor-not-allowed shadow-none"
                       : isMaintenance
                         ? "border-amber-300/80 dark:border-amber-700/50 bg-amber-50/20 dark:bg-amber-950/20 opacity-90 cursor-not-allowed shadow-2xs"
@@ -540,7 +540,7 @@ export default function Step2Equipment({
                             ? "border-blue-600 bg-white dark:bg-card shadow-md ring-2 ring-blue-500/20 cursor-pointer"
                             : !isPortal && selectedItems.length >= 2
                               ? "border-slate-200/70 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-900/40 opacity-75 cursor-pointer"
-                              : "border-slate-200 dark:border-slate-800 bg-white dark:bg-card hover:border-blue-500/60 dark:hover:border-blue-500/60 hover:shadow-xs cursor-pointer"
+                              : "border-slate-200 dark:border-slate-800 bg-white dark:bg-card hover:border-blue-500 hover:ring-2 hover:ring-blue-500/20 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-0.5 cursor-pointer"
                       }`}
                   >
                     <div>
@@ -631,7 +631,7 @@ export default function Step2Equipment({
                           className={`w-full py-3 rounded-full border text-xs font-black transition-all cursor-pointer shadow-2xs ${
                             !isPortal && selectedItems.length >= 2
                               ? "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-slate-400 dark:text-slate-500 hover:border-slate-300 dark:hover:border-slate-700"
-                              : "border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900/80 hover:bg-blue-600 hover:text-white hover:border-blue-600 dark:hover:bg-blue-600 dark:hover:border-blue-600 text-slate-800 dark:text-white"
+                              : "border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900/80 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 group-hover:shadow-md dark:group-hover:bg-blue-600 dark:group-hover:text-white dark:group-hover:border-blue-600 hover:bg-blue-700 hover:text-white hover:border-blue-700 text-slate-800 dark:text-white"
                           }`}
                         >
                           {!isPortal && selectedItems.length >= 2 ? "Max 2 Categories Reached" : "Select Item"}
