@@ -1,7 +1,7 @@
 # ==========================================
-# 1. Base Stage: PHP 8.2 FPM with Extensions
+# 1. Base Stage: PHP 8.3 FPM with Extensions
 # ==========================================
-FROM php:8.2-fpm-alpine AS base
+FROM php:8.3-fpm-alpine AS base
 
 # Install system dependencies
 RUN apk add --no-cache \
