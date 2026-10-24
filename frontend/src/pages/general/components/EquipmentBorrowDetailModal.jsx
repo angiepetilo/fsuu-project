@@ -1450,7 +1450,7 @@ export default function EquipmentBorrowDetailModal({
                 <div className="space-y-1">
                   <h5 className="font-extrabold text-slate-900 dark:text-white text-sm">Equipment Currently In-Use</h5>
                   <p className="text-xs text-slate-500 dark:text-slate-400 font-medium max-w-md mx-auto">
-                    Borrower is currently utilizing the released items. When the items are returned, proceed with post-equipment inspection using the button below.
+                    Borrower is currently utilizing the released items. When the items are returned, click <span className="font-bold text-slate-700 dark:text-slate-300">Return Equipment</span> below to inspect and complete check-in.
                   </p>
                 </div>
               </div>
@@ -1548,18 +1548,18 @@ export default function EquipmentBorrowDetailModal({
                     type="button"
                     onClick={handleStartInspection}
                     disabled={!isInspectionReady || startingInspection}
-                    title={!isInspectionReady ? inspectionEligibility.reason : "Start Post-Equipment Inspection"}
+                    title={!isInspectionReady ? inspectionEligibility.reason : "Return Equipment"}
                     className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 dark:bg-amber-600 dark:hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all duration-150 cursor-pointer"
                   >
                     {startingInspection ? (
                       <>
                         <Loader2 size={13} className="animate-spin" />
-                        <span>Opening Inspection...</span>
+                        <span>Opening Return...</span>
                       </>
                     ) : (
                       <>
-                        <ShieldAlert size={14} />
-                        <span>Start Post-Equipment Inspection</span>
+                        <PackageCheck size={14} />
+                        <span>Return Equipment</span>
                       </>
                     )}
                   </button>

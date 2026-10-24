@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Loader2, Play, FileCheck, Check, ShieldAlert, BellRing, AlertTriangle, Clock, ShieldCheck, Ban, PackageCheck } from "lucide-react";
+import { Loader2, Play, FileCheck, Check, ShieldAlert, BellRing, AlertTriangle, Clock, ShieldCheck, Ban, PackageCheck, ClipboardCheck } from "lucide-react";
 import api from "@/lib/axios";
 import { notify } from "@/lib/notify";
 import { getInspectionEligibility, getTodayISO } from "@/lib/dateTimeUtils";
@@ -7,7 +7,7 @@ import ConfirmModal from "@/components/ui/ConfirmModal";
 
 /**
  * VenueModalFooter — Action buttons at the bottom of the venue booking form modal.
- * Follows lifecycle: Pending -> Approved -> Ongoing ("Start Event") -> Post-Inspection ("Start Post-Event Inspection") -> Complete.
+ * Follows lifecycle: Pending -> Approved -> Ongoing ("Start Event") -> Post-Inspection ("End Event & Inspect") -> Complete.
  */
 export default function VenueModalFooter({
   isPending,
@@ -249,7 +249,7 @@ export default function VenueModalFooter({
             type="button"
             onClick={() => handleAction(selected.id, "post-inspection", adminEarlyOverride ? { force: true } : {})}
             disabled={!isInspectionReady || !!actionLoading}
-            title={!isInspectionReady ? inspectionEligibility.reason : "Start Post-Event Inspection"}
+            title={!isInspectionReady ? inspectionEligibility.reason : "End Event & Inspect"}
             className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 dark:bg-amber-600 dark:hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all duration-150 cursor-pointer"
           >
             {actionLoading === `${selected.id}-post-inspection` ? (
@@ -259,8 +259,8 @@ export default function VenueModalFooter({
               </>
             ) : (
               <>
-                <ShieldAlert size={14} />
-                <span>Start Post-Event Inspection</span>
+                <ClipboardCheck size={14} />
+                <span>End Event &amp; Inspect</span>
               </>
             )}
           </button>
