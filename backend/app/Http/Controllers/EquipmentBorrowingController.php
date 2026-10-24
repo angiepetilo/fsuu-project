@@ -238,9 +238,10 @@ class EquipmentBorrowingController extends Controller
         }
 
         // Capture previous status BEFORE writes — used as idempotency guard for Email 3
-        $prevStatus = strtolower($equipmentBorrowing->status ?? $equipmentBorrowing->trackingNumber?->status ?? '');
+        $prevStatus = strtolower(trim((string)($equipmentBorrowing->status ?? $equipmentBorrowing->trackingNumber?->status ?? '')));
+        $barcodes = [];
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($equipmentBorrowing, $request) {
+        \Illuminate\Support\Facades\DB::transaction(function () use ($equipmentBorrowing, $request, &$barcodes) {
             if ($request->has('assigned_units')) {
                 $assignedData = $request->input('assigned_units');
                 if (is_string($assignedData)) {
@@ -261,7 +262,6 @@ class EquipmentBorrowingController extends Controller
             if (is_string($assigned)) {
                 try { $assigned = json_decode($assigned, true); } catch (\Throwable $t) { $assigned = []; }
             }
-            $barcodes = [];
             if (is_array($assigned)) {
                 foreach ($assigned as $val) {
                     if ($val) $barcodes[] = trim((string)$val);
@@ -324,7 +324,16 @@ class EquipmentBorrowingController extends Controller
 
         // ── Email 3: Equipment On-Going ────────────────────────────────────
         // Only send when transitioning FROM 'approved' (idempotency: skip if already on-going)
-        if ($prevStatus === 'approved' && !empty($barcodes)) {
+        if (empty($barcodes) && !empty($equipmentBorrowing->assigned_units)) {
+            $assignedRaw = is_string($equipmentBorrowing->assigned_units)
+                ? (json_decode($equipmentBorrowing->assigned_units, true) ?: [])
+                : (array)$equipmentBorrowing->assigned_units;
+            foreach ($assignedRaw as $val) {
+                if ($val) $barcodes[] = trim((string)$val);
+            }
+        }
+
+        if (in_array($prevStatus, ['approved', 'confirmed', 'pending'], true) && !empty($barcodes)) {
             $this->dispatchOngoingEmail($equipmentBorrowing, $barcodes);
         }
 
