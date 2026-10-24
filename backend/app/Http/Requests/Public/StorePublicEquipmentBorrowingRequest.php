@@ -73,11 +73,19 @@ class StorePublicEquipmentBorrowingRequest extends FormRequest
             'start_datetime' => ['required'],
             'end_datetime' => ['required'],
             'is_pin_verified' => ['nullable'],
-            'items' => ['required', 'array', 'min:1'],
+            'items' => ['required', 'array', 'min:1', 'max:2'],
             'items.*.equipment_type_id' => ['required'],
-            'items.*.quantity_requested' => ['nullable', 'integer', 'min:1'],
+            'items.*.quantity_requested' => ['nullable', 'integer', 'min:1', 'max:1'],
             'equipment_items' => ['nullable'],
             'endorsement_file' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,webp,docx', 'max:10240'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'items.max' => 'Public equipment borrowing allows a maximum of 2 equipment categories per requisition.',
+            'items.*.quantity_requested.max' => 'In public equipment borrowing, only 1 equipment unit is allowed per equipment category.',
         ];
     }
 
