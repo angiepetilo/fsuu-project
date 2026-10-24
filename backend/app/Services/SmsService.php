@@ -355,12 +355,18 @@ class SmsService
             ?? $booking->trackingNumber?->reference_code 
             ?? ($type === 'venue' ? "TRK-AVR-{$booking->id}" : "EQ-2026-{$booking->id}");
 
+        $statusNorm = strtolower(str_replace(['_', '-'], ' ', (string)$status));
         $statusUpper = strtoupper($status);
         $typeLabel = $type === 'venue' ? 'Venue Reservation' : 'Equipment Borrowing';
         $remarksNote = $remarks ? " Note: {$remarks}" : "";
 
-        $isReminder = in_array(strtolower(str_replace(['_', '-'], ' ', $status)), ['reminder', 'due soon', 'return reminder'], true);
-        if ($isReminder) {
+        if ($type === 'equipment' && in_array($statusNorm, ['ready', 'ready for pickup', 'ready_for_pickup'], true)) {
+            $message = "[FSUU AVR] Your equipment request (#{$refCode}) is ready for pickup.";
+        } elseif ($type === 'equipment' && in_array($statusNorm, ['approved'], true)) {
+            $message = "[FSUU AVR] Your equipment request (#{$refCode}) has been approved.";
+        } elseif ($type === 'venue' && in_array($statusNorm, ['approved'], true)) {
+            $message = "[FSUU AVR] Your venue reservation (#{$refCode}) is confirmed.";
+        } elseif (in_array($statusNorm, ['reminder', 'due soon', 'return reminder'], true)) {
             $sched = \App\Mail\BookingConfirmationMail::formatSchedule($booking);
             $message = "FSUU AVR Reminder: Good day, {$requestorName}. Your {$typeLabel} [{$refCode}] is scheduled for {$sched}. Please arrive 15 minutes early and bring a valid ID.";
         } else {

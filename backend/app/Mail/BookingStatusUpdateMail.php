@@ -61,9 +61,18 @@ class BookingStatusUpdateMail extends Mailable
                 : ($hasGatePass
                     ? "READY FOR PICKUP & GATE PASS: Equipment Borrowing Approved [{$this->refCode}]{$extTag}"
                     : "READY FOR PICKUP: Equipment Borrowing Approved [{$this->refCode}]{$extTag}"),
+            in_array($normalized, ['ready for pickup', 'ready_for_pickup', 'ready']) =>
+                "READY FOR PICKUP: Equipment Borrowing Approved [{$this->refCode}]{$extTag}",
             in_array($normalized, ['on going', 'on-going', 'ongoing', 'released', 'on_going']) => $this->type === 'venue'
                 ? "CHECK-IN LOGGED: Event Now In Progress [{$this->refCode}]{$extTag}"
                 : "CUSTODY HANDOVER RECEIPT: Equipment Units Released [{$this->refCode}]{$extTag}",
+            in_array($normalized, ['event ended', 'event_ended', 'ended', 'concluded']) =>
+                "EVENT CONCLUDED: Venue Booking [{$this->refCode}]{$extTag}",
+            in_array($normalized, ['inspection', 'post-inspection', 'post_inspection', 'inspected']) => $this->type === 'venue'
+                ? "POST-EVENT INSPECTION REPORT: [{$this->refCode}]{$extTag}"
+                : "EQUIPMENT RETURN RECEIVED: [{$this->refCode}]{$extTag}",
+            in_array($normalized, ['return', 'returned']) =>
+                "EQUIPMENT RETURN RECEIVED: [{$this->refCode}]{$extTag}",
             in_array($normalized, ['past due', 'past_due', 'passed due']) =>
                 "PAST DUE NOTICE: Venue Reservation Exceeded Scheduled End Time [{$this->refCode}]{$extTag}",
             in_array($normalized, ['late return', 'late_return', 'late']) =>
@@ -74,6 +83,11 @@ class BookingStatusUpdateMail extends Mailable
             in_array($normalized, ['exceed end time', 'exceeded end time', 'overtime']) => $this->type === 'venue'
                 ? "PAST DUE NOTICE: Venue Reservation Exceeded Scheduled End Time [{$this->refCode}]{$extTag}"
                 : "NOTICE OF LATE RETURN: Equipment Past Due for Return [{$this->refCode}]{$extTag}",
+            in_array($normalized, ['damaged', 'damage noted', 'damage_noted']) => $this->type === 'venue'
+                ? "INCIDENT REPORT: Facility Damage Noted [{$this->refCode}]{$extTag}"
+                : "INCIDENT REPORT: Equipment Damage Noted [{$this->refCode}]{$extTag}",
+            in_array($normalized, ['lost', 'missing']) =>
+                "INCIDENT REPORT: Lost Equipment Noted [{$this->refCode}]{$extTag}",
             in_array($normalized, ['completed', 'returned', 'done', 'cleared']) => $this->type === 'venue'
                 ? "CLEARED: Facility Turnover Completed [{$this->refCode}]{$extTag}"
                 : "CLEARANCE RECEIPT: Equipment Returned & Inspected [{$this->refCode}]{$extTag}",

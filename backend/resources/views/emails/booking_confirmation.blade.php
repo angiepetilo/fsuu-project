@@ -15,94 +15,80 @@
       padding: 24px 12px;
     }
     .wrapper {
-      max-width: 620px;
+      max-width: 600px;
       margin: 0 auto;
       background-color: #ffffff;
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
       overflow: hidden;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
     }
     .top-banner {
       background-color: #0f172a;
       color: #ffffff;
-      padding: 18px 24px;
+      padding: 22px 24px;
+      text-align: center;
       border-bottom: 3px solid #2563eb;
     }
-    .top-banner .org-title {
-      font-size: 15px;
+    .top-banner .header-title {
+      font-size: 16px;
       font-weight: 800;
-      letter-spacing: 0.5px;
+      letter-spacing: 1px;
       text-transform: uppercase;
       margin: 0;
+      color: #ffffff;
     }
-    .top-banner .sub-title {
-      font-size: 12px;
+    .top-banner .header-sub {
+      font-size: 11.5px;
       color: #94a3b8;
-      margin-top: 3px;
+      margin-top: 4px;
+      letter-spacing: 0.3px;
     }
     .content {
-      padding: 24px;
+      padding: 28px 24px;
     }
-    .ref-card {
-      background-color: #f8fafc;
-      border: 1px solid #cbd5e1;
-      border-left: 4px solid #2563eb;
-      border-radius: 6px;
-      padding: 14px 18px;
-      margin: 18px 0;
-    }
-    .ref-label {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      color: #475569;
-    }
-    .ref-value {
-      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
-      font-size: 22px;
-      font-weight: 800;
-      color: #1e40af;
-      margin-top: 4px;
-      letter-spacing: 1px;
-    }
-    .badge-external {
+    .badge-pill {
       display: inline-block;
       background-color: #fef3c7;
       color: #92400e;
-      font-size: 11px;
-      font-weight: 700;
-      padding: 3px 8px;
-      border-radius: 4px;
       border: 1px solid #fde68a;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 4px 12px;
+      border-radius: 9999px;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-left: 8px;
-      vertical-align: middle;
+      letter-spacing: 0.8px;
+      margin-bottom: 14px;
     }
-    .badge-internal {
-      display: inline-block;
+    .badge-pill.badge-ext {
       background-color: #eff6ff;
       color: #1e40af;
-      font-size: 11px;
-      font-weight: 700;
-      padding: 3px 8px;
-      border-radius: 4px;
-      border: 1px solid #bfdbfe;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-left: 8px;
-      vertical-align: middle;
+      border-color: #bfdbfe;
+      margin-left: 6px;
+    }
+    .email-heading {
+      font-size: 20px;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 0 0 10px 0;
+      letter-spacing: -0.3px;
+    }
+    .intro-text {
+      font-size: 13.5px;
+      color: #475569;
+      margin: 0 0 20px 0;
+      line-height: 1.6;
     }
     .data-table {
       width: 100%;
       border-collapse: collapse;
       font-size: 13px;
-      margin: 16px 0;
+      margin: 18px 0;
+      border-top: 1px solid #e2e8f0;
+      border-bottom: 1px solid #e2e8f0;
     }
     .data-table td {
-      padding: 8px 10px;
+      padding: 10px 12px;
       border-bottom: 1px solid #f1f5f9;
       vertical-align: top;
     }
@@ -110,66 +96,96 @@
       border-bottom: none;
     }
     .data-label {
-      width: 36%;
+      width: 32%;
       font-weight: 700;
-      color: #475569;
+      color: #64748b;
     }
     .data-value {
       color: #0f172a;
-      font-weight: 500;
+      font-weight: 600;
     }
-    .notice-box {
-      border-radius: 6px;
-      padding: 14px 16px;
-      margin: 18px 0;
+    .ref-code-value {
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+      font-size: 16px;
+      font-weight: 800;
+      color: #1e40af;
+      letter-spacing: 0.5px;
+    }
+    .section-title {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #475569;
+      margin: 18px 0 8px 0;
+    }
+    .items-box {
+      background-color: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-bottom: 20px;
+    }
+    .item-row {
       font-size: 13px;
+      color: #0f172a;
+      margin-bottom: 6px;
       line-height: 1.5;
     }
-    .notice-info {
+    .item-row:last-child {
+      margin-bottom: 0;
+    }
+    .built-in-tag {
+      display: inline-block;
+      background-color: #eff6ff;
+      color: #1d4ed8;
+      border: 1px solid #bfdbfe;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 10.5px;
+      font-weight: 700;
+      margin: 1px 2px;
+    }
+    .notice-box {
       background-color: #eff6ff;
       border: 1px solid #bfdbfe;
-      color: #1e3a8a;
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin: 20px 0;
+      font-size: 12.5px;
+      color: #1e40af;
+      line-height: 1.5;
     }
-    .notice-warning {
-      background-color: #fffbeb;
-      border: 1px solid #fde68a;
-      color: #92400e;
-    }
-    .notice-external {
-      background-color: #faf5ff;
-      border: 1px solid #e9d5ff;
-      color: #581c87;
-    }
-    .notice-title {
-      font-weight: 700;
-      margin-bottom: 4px;
-      display: block;
-    }
-    .track-btn {
+    .action-btn {
       display: inline-block;
       background-color: #0f172a;
       color: #ffffff !important;
       text-decoration: none;
-      padding: 10px 22px;
-      border-radius: 6px;
+      padding: 12px 28px;
+      border-radius: 8px;
       font-weight: 700;
       font-size: 13px;
-      margin: 12px 0 6px 0;
+      letter-spacing: 0.2px;
+      margin: 8px 0 4px 0;
     }
-    .signoff {
-      border-top: 1px solid #e2e8f0;
-      padding: 20px 24px;
+    .footer {
       background-color: #f8fafc;
-      font-size: 12px;
+      border-top: 1px solid #e2e8f0;
+      padding: 18px 24px;
+      text-align: center;
+      font-size: 11.5px;
       color: #64748b;
       line-height: 1.6;
+    }
+    .footer strong {
+      color: #334155;
     }
   </style>
 </head>
 <body>
 
 @php
-    $mode = $mode ?? ($status ?? 'pending');
+    $isEquip = ($type ?? 'venue') === 'equipment';
     $requestorName = $booking->filer_name 
         ?? $booking->requestor_name 
         ?? $booking->borrower_name 
@@ -178,9 +194,9 @@
 
     $ref = $refCode ?? ($booking->reference_code ?? ($booking->trackingNumber?->reference_code ?? 'TRK-FSUU'));
     $venueName = $booking->venue?->name ?? 'AVR Facility';
-    $venueLocation = $booking->venue?->location ?? 'Main Campus';
+    $venueLocation = $booking->venue?->location ?? 'Room Number';
     $sched = $formattedSchedule ?? ($formattedStart ?? ($booking->date_of_usage ? \Carbon\Carbon::parse($booking->date_of_usage)->format('M d, Y') : 'Scheduled Time'));
-    $purpose = $booking->purpose ?? 'University Activity';
+    $purpose = $booking->purpose ?? ($isEquip ? 'University Activity' : 'Event Name');
     $persons = $booking->no_of_person ?? ($booking->number_of_persons ?? 'N/A');
     $baseUrl = rtrim(config('app.frontend_url') ?: env('FRONTEND_URL', 'https://fsuu-project.vercel.app'), '/');
     $trackUrl = $baseUrl . '/track?tracking=' . urlencode($ref);
@@ -188,8 +204,9 @@
     $classification = strtolower(trim((string)($booking->requestor_identity_type ?? $booking->classification ?? 'student')));
     $isExternal = str_contains($classification, 'external');
     $organization = $booking->program_office ?? $booking->department?->name ?? ($isExternal ? 'External Organization' : 'Department');
+    $identityLabel = ucwords($booking->classification ?? $booking->requestor_identity_type ?? 'Student');
 
-    // Build equipment list with built-in accessories/components
+    // Build equipment list
     $equipmentList = [];
     if (!empty($booking->items) && count($booking->items) > 0) {
         foreach ($booking->items as $item) {
@@ -257,347 +274,121 @@
             'built_ins' => [],
         ];
     }
-
-    // Resolve individual physical equipment units
-    $assignedRaw = $booking->assigned_units ?? [];
-    if (is_string($assignedRaw)) {
-        try { $assignedRaw = json_decode($assignedRaw, true) ?? []; } catch (\Throwable $e) { $assignedRaw = []; }
-    }
-
-    if (empty($assignedRaw) && !empty($booking->equipment_units)) {
-        $rawEqU = $booking->equipment_units;
-        if (is_string($rawEqU)) {
-            $dec = json_decode($rawEqU, true);
-            $assignedRaw = is_array($dec) ? $dec : array_map('trim', explode(',', $rawEqU));
-        } elseif (is_array($rawEqU)) {
-            $assignedRaw = $rawEqU;
-        }
-    }
-
-    $flatBarcodes = [];
-    foreach ((array)$assignedRaw as $item) {
-        if (is_string($item) || is_numeric($item)) {
-            if (!empty($item)) $flatBarcodes[] = trim((string)$item);
-        } elseif (is_array($item)) {
-            $bc = $item['barcode'] ?? $item['serial_number'] ?? $item['id'] ?? null;
-            if (!empty($bc)) $flatBarcodes[] = trim((string)$bc);
-        } elseif (is_object($item)) {
-            $bc = $item->barcode ?? $item->serial_number ?? $item->id ?? null;
-            if (!empty($bc)) $flatBarcodes[] = trim((string)$bc);
-        }
-    }
-    $barcodes = array_values(array_unique(array_filter($flatBarcodes)));
-
-    $resolvedUnits = collect();
-    if (!empty($barcodes)) {
-        $numericIds = array_values(array_filter($barcodes, fn($v) => is_numeric($v) && (int)$v > 0));
-        $unitCodes  = array_values(array_filter($barcodes, fn($v) => !empty($v)));
-        try {
-            $resolvedUnits = \App\Models\EquipmentUnit::with(['equipmentType'])->where(function($q) use ($unitCodes, $numericIds) {
-                $q->whereIn('barcode', $unitCodes)
-                  ->orWhereIn('serial_number', $unitCodes);
-                if (!empty($numericIds)) { $q->orWhereIn('id', array_map('intval', $numericIds)); }
-            })->get();
-        } catch (\Throwable $e) {}
-    }
 @endphp
 
 <div class="wrapper">
-  <!-- Top Banner -->
+  <!-- Header -->
   <div class="top-banner">
-    <div class="org-title">Father Saturnino Urios University</div>
-    <div class="sub-title">Audio-Visual Resource Center (AVR / PMO) &bull; Facilities &amp; Equipment Lending</div>
+    <div class="header-title">
+      {{ $isEquip ? 'EQUIPMENT BORROWING REQUEST RECEIVED' : 'VENUE RESERVATION REQUEST RECEIVED' }}
+    </div>
+    <div class="header-sub">
+      Father Saturnino Urios University &bull; Audio-Visual Resource Center (AVR)
+    </div>
   </div>
 
   <div class="content">
-
-  @if(($type ?? 'venue') === 'equipment')
-    {{-- =========================================================
-         EQUIPMENT BORROWING: PENDING / SUBMISSION RECEIPT
-       ========================================================= --}}
-    <p style="margin-top: 0;">Hi <strong>{{ $requestorName }}</strong>,</p>
-    <p>Your equipment borrowing request has been logged in the AVR queue. The custodial desk is checking inventory and unit readiness for your schedule.</p>
-
-    <div class="ref-card">
-      <div class="ref-label">
-        Official Reference Code
-        @if($isExternal)
-          <span class="badge-external">External Client</span>
-        @else
-          <span class="badge-internal">FSUU Internal</span>
-        @endif
-      </div>
-      <div class="ref-value">{{ $ref }}</div>
-    </div>
-
-    <table class="data-table">
-      <tr>
-        <td class="data-label">Accountable Borrower:</td>
-        <td class="data-value"><strong>{{ $requestorName }}</strong></td>
-      </tr>
-      <tr>
-        <td class="data-label">{{ $isExternal ? 'Office / Organization:' : 'Department / College:' }}</td>
-        <td class="data-value">{{ $organization }}</td>
-      </tr>
-      <tr>
-        <td class="data-label">Intended Purpose:</td>
-        <td class="data-value">{{ $purpose }}</td>
-      </tr>
-      <tr>
-        <td class="data-label">Requested Items:</td>
-        <td class="data-value">
-          @if(!empty($equipmentList))
-            @foreach($equipmentList as $eqItem)
-              @php
-                $itemLabel = is_array($eqItem) ? ($eqItem['label'] ?? ($eqItem['name'] ?? 'Equipment Item')) : $eqItem;
-                $builtIns = is_array($eqItem) ? ($eqItem['built_ins'] ?? []) : [];
-              @endphp
-              <div style="margin-bottom: 6px;">
-                <div>&bull; <strong>{{ $itemLabel }}</strong></div>
-                @if(!empty($builtIns) && count($builtIns) > 0)
-                  <div style="margin-left: 14px; margin-top: 3px; font-size: 12px; color: #475569;">
-                    <span style="font-weight: 700; color: #1e40af;">Built-in:</span>
-                    @foreach($builtIns as $bName)
-                      <span style="display: inline-block; background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 4px; padding: 1px 7px; font-size: 11px; font-weight: 700; margin: 1px 2px;">{{ $bName }}</span>
-                    @endforeach
-                  </div>
-                @endif
-              </div>
-            @endforeach
-          @else
-            {{ $booking->equipment_name ?? 'Equipment requested' }}
-          @endif
-        </td>
-      </tr>
-      <tr>
-        <td class="data-label">Borrow Schedule:</td>
-        <td class="data-value"><strong>{{ $sched }}</strong></td>
-      </tr>
-      <tr>
-        <td class="data-label">Pickup Location:</td>
-        <td class="data-value">AVR Custodial Counter (2nd Floor, Main Building)</td>
-      </tr>
-    </table>
-
-    @if($isExternal)
-      <!-- External Client Guidance -->
-      <div class="notice-box notice-external">
-        <span class="notice-title">📌 External Client Verification Protocols:</span>
-        <div>1. <strong>Identification:</strong> You must present a valid Government-Issued Photo ID (e.g. PhilID, Passport, Driver's License) or official Company/Agency ID upon pickup.</div>
-        <div style="margin-top: 4px;">2. <strong>On-Campus Bound:</strong> External equipment loans must remain within the approved campus venue and cannot be transported off-campus.</div>
-        <div style="margin-top: 4px;">3. <strong>Gate Clearance:</strong> Present this reference code at the FSUU Security Gate for entry verification.</div>
-      </div>
-    @else
-      <!-- Internal Member Guidance -->
-      <div class="notice-box notice-info">
-        <span class="notice-title">📌 Counter Pickup Checklist:</span>
-        <div>&bull; Present your physical <strong>FSUU School ID</strong> at the AVR Counter.</div>
-        <div>&bull; Arrive 15 minutes before your scheduled start time. Unclaimed units are returned to stock after 20 minutes.</div>
-      </div>
-    @endif
-
-    <div style="text-align: center; margin-top: 20px;">
-      <a href="{{ $trackUrl }}" class="track-btn">Track Request Status Online &rarr;</a>
-    </div>
-
-  @elseif($mode === 'approved')
-    {{-- =========================================================
-         VENUE BOOKING: APPROVED
-       ========================================================= --}}
-    <p style="margin-top: 0;">Hi <strong>{{ $requestorName }}</strong>,</p>
-    <p>Your reservation request for <strong>{{ $venueName }}</strong> is confirmed. The room has been locked on the university facility calendar.</p>
-
-    <div class="ref-card">
-      <div class="ref-label">
-        Booking Reference Code
-        @if($isExternal)
-          <span class="badge-external">External Reservation</span>
-        @else
-          <span class="badge-internal">FSUU Confirmed</span>
-        @endif
-      </div>
-      <div class="ref-value">{{ $ref }}</div>
-    </div>
-
-    <table class="data-table">
-      <tr>
-        <td class="data-label">Organizer / Filer:</td>
-        <td class="data-value"><strong>{{ $requestorName }}</strong></td>
-      </tr>
-      <tr>
-        <td class="data-label">{{ $isExternal ? 'Organization / Agency:' : 'Collegiate Department:' }}</td>
-        <td class="data-value">{{ $organization }}</td>
-      </tr>
-      <tr>
-        <td class="data-label">Reserved Venue:</td>
-        <td class="data-value"><strong>{{ $venueName }}</strong> ({{ $venueLocation }})</td>
-      </tr>
-      <tr>
-        <td class="data-label">Event Purpose:</td>
-        <td class="data-value">{{ $purpose }}</td>
-      </tr>
-      <tr>
-        <td class="data-label">Event Schedule:</td>
-        <td class="data-value"><strong>{{ $sched }}</strong></td>
-      </tr>
-      <tr>
-        <td class="data-label">Expected Pax:</td>
-        <td class="data-value">{{ $persons }} attendees</td>
-      </tr>
-      @if(!empty($equipmentList))
-      <tr>
-        <td class="data-label">Bundled AV Equipment:</td>
-        <td class="data-value">{{ implode(', ', array_map(fn($e) => is_array($e) ? ($e['label'] ?? ($e['name'] ?? 'Equipment Item')) : (string)$e, $equipmentList)) }}</td>
-      </tr>
-      @endif
-    </table>
-
-    @if($resolvedUnits->isNotEmpty())
-      <div style="margin: 16px 0;">
-        <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #475569; letter-spacing: 0.5px; margin-bottom: 6px;">
-          Assigned Venue Equipment Units (Seq No., Serial No., Brand &amp; Model):
-        </div>
-        @include('emails.partials.equipment_unit_table', ['units' => $resolvedUnits, 'mode' => 'release', 'equipmentList' => $equipmentList ?? [], 'booking' => $booking ?? null])
-      </div>
-    @endif
-
-    @if($isExternal)
-      <!-- External Client Financial / Entry Advisory -->
-      <div class="notice-box notice-external">
-        <span class="notice-title">🏢 External Client Venue &amp; Billing Advisory:</span>
-        <div>1. <strong>Cashier Settlement:</strong> Rental fees and utility assessment must be settled at the FSUU Cashier (Main Building Ground Floor). Present the Official Receipt (O.R.) at the AVR office to validate room turnover.</div>
-        <div style="margin-top: 4px;">2. <strong>Gate Pass &amp; Parking:</strong> Provide your Reference Code ({{ $ref }}) and attendee list to Campus Security at the main gate for smooth visitor ingress.</div>
-        <div style="margin-top: 4px;">3. <strong>Photo ID:</strong> The designated event coordinator must present a valid Government Photo ID upon arrival.</div>
-      </div>
-    @else
-      <div class="notice-box notice-info">
-        <span class="notice-title">🏛️ Room Access &amp; Turnover Protocol:</span>
-        <div>&bull; Have an authorized representative present their physical <strong>FSUU School ID</strong> at the AVR Counter 15 minutes before start time to collect the room key and aircon remotes.</div>
-        <div style="margin-top: 4px;">&bull; Slots unattended 15 minutes past start time are subject to no-show release.</div>
-      </div>
-    @endif
-
-    <div style="text-align: center; margin-top: 20px;">
-      <a href="{{ $trackUrl }}" class="track-btn">View Reservation Pass &rarr;</a>
-    </div>
-
-  @elseif($mode === 'reminder')
-    {{-- =========================================================
-         VENUE BOOKING: REMINDER
-       ========================================================= --}}
-    <p style="margin-top: 0;">Hi <strong>{{ $requestorName }}</strong>,</p>
-    <p>This is an operational reminder that your reservation for <strong>{{ $venueName }}</strong> is scheduled for today.</p>
-
-    <div class="ref-card">
-      <div class="ref-label">Reference: {{ $ref }}</div>
-      <div style="font-size: 16px; font-weight: 700; color: #0f172a; margin-top: 4px;">
-        {{ $sched }}
-      </div>
-    </div>
-
-    <div class="notice-box notice-warning">
-      <span class="notice-title">⏰ Arrival &amp; Setup Window:</span>
-      <div>&bull; The room will be opened 15–30 minutes before your program begins.</div>
-      <div>&bull; Report to the AVR Custodial Counter or meet the on-duty technician at the venue.</div>
+    <div>
+      <span class="badge-pill">PENDING REVIEW</span>
       @if($isExternal)
-        <div style="margin-top: 4px;">&bull; Ensure the Cashier Official Receipt (O.R.) and valid Government ID are ready upon facility check-in.</div>
-      @else
-        <div style="margin-top: 4px;">&bull; Please ensure your group vacates on time to allow scheduled cleanup for succeeding university reservations.</div>
+        <span class="badge-pill badge-ext">External Client</span>
       @endif
     </div>
 
-    <div style="text-align: center; margin-top: 18px;">
-      <a href="{{ $trackUrl }}" class="track-btn">Track Live Status &rarr;</a>
-    </div>
+    <h1 class="email-heading">
+      {{ $isEquip ? 'Borrowing Request Submitted' : 'Request Submitted Successfully' }}
+    </h1>
 
-  @else
-    {{-- =========================================================
-         VENUE BOOKING: PENDING / SUBMISSION RECEIPT
-       ========================================================= --}}
-    <p style="margin-top: 0;">Hi <strong>{{ $requestorName }}</strong>,</p>
-    <p>Your venue reservation request has been submitted to the AVR Facility Office. Our staff is verifying schedule availability and facility maintenance calendars.</p>
-
-    <div class="ref-card">
-      <div class="ref-label">
-        Official Reference Code
-        @if($isExternal)
-          <span class="badge-external">External Client</span>
-        @else
-          <span class="badge-internal">FSUU Internal</span>
-        @endif
-      </div>
-      <div class="ref-value">{{ $ref }}</div>
-    </div>
+    <p class="intro-text">
+      Hi <strong>{{ $requestorName }}</strong>,<br>
+      @if($isEquip)
+        We have received your request to borrow university equipment. Our custodial team is checking asset availability for your requested date.
+      @else
+        We have received your venue reservation request. Our staff is currently reviewing your schedule and equipment needs.
+      @endif
+    </p>
 
     <table class="data-table">
       <tr>
-        <td class="data-label">Organizer Name:</td>
-        <td class="data-value"><strong>{{ $requestorName }}</strong></td>
+        <td class="data-label">Reference Code</td>
+        <td class="data-value"><span class="ref-code-value">[{{ $ref }}]</span></td>
       </tr>
-      <tr>
-        <td class="data-label">{{ $isExternal ? 'Office / Organization:' : 'Department / College:' }}</td>
-        <td class="data-value">{{ $organization }}</td>
-      </tr>
-      <tr>
-        <td class="data-label">Requested Venue:</td>
-        <td class="data-value"><strong>{{ $venueName }}</strong> ({{ $venueLocation }})</td>
-      </tr>
-      <tr>
-        <td class="data-label">Date &amp; Schedule:</td>
-        <td class="data-value"><strong>{{ $sched }}</strong></td>
-      </tr>
-      <tr>
-        <td class="data-label">Event Purpose:</td>
-        <td class="data-value">{{ $purpose }}</td>
-      </tr>
-      <tr>
-        <td class="data-label">Expected Pax:</td>
-        <td class="data-value">{{ $persons }} persons</td>
-      </tr>
-      @if(!empty($equipmentList))
-      <tr>
-        <td class="data-label">Included Equipment:</td>
-        <td class="data-value">{{ implode(', ', $equipmentList) }}</td>
-      </tr>
+      @if($isEquip)
+        <tr>
+          <td class="data-label">Borrower</td>
+          <td class="data-value"><strong>{{ $requestorName }}</strong> ({{ $identityLabel }}, {{ $organization }})</td>
+        </tr>
+        <tr>
+          <td class="data-label">Requested Date</td>
+          <td class="data-value">{{ $sched }}</td>
+        </tr>
+      @else
+        <tr>
+          <td class="data-label">Venue</td>
+          <td class="data-value"><strong>{{ $venueName }}</strong> ({{ $venueLocation }})</td>
+        </tr>
+        <tr>
+          <td class="data-label">Schedule</td>
+          <td class="data-value">{{ $sched }}</td>
+        </tr>
+        <tr>
+          <td class="data-label">Event Title</td>
+          <td class="data-value"><strong>{{ $purpose }}</strong></td>
+        </tr>
+        @if($isExternal)
+        <tr>
+          <td class="data-label">Organization</td>
+          <td class="data-value">{{ $organization }}</td>
+        </tr>
+        @endif
       @endif
     </table>
 
-    @if($isExternal)
-      <div class="notice-box notice-external">
-        <span class="notice-title">🏢 Note for External Clients &amp; Organizations:</span>
-        <div>&bull; Venue rental rates and utility requirements are assessed according to the university Fee Matrix.</div>
-        <div style="margin-top: 4px;">&bull; Payment scheduling will be finalized only after administrative approval. You will receive an approved billing assessment notice before payment is required.</div>
-        <div style="margin-top: 4px;">&bull; Present a valid Government ID at the security gate on the date of activity.</div>
-      </div>
-    @else
-      <div class="notice-box notice-info">
-        <span class="notice-title">📌 Next Steps for Organizers:</span>
-        <div>&bull; Keep your Reference Code <strong>{{ $ref }}</strong> for tracking.</div>
-        <div>&bull; If your event requires an endorsement letter, ensure the file is clearly legible on your submission portal.</div>
-        <div>&bull; You will receive an official notification once the slot is confirmed.</div>
-      </div>
-    @endif
-
-    <div style="text-align: center; margin-top: 20px;">
-      <a href="{{ $trackUrl }}" class="track-btn">Track Reservation Status &rarr;</a>
+    <div class="section-title">
+      {{ $isEquip ? 'REQUESTED ITEMS:' : 'REQUESTED VENUE EQUIPMENT:' }}
     </div>
-  @endif
 
+    <div class="items-box">
+      @if(!empty($equipmentList))
+        @foreach($equipmentList as $item)
+          <div class="item-row">
+            &bull; <strong>{{ $item['label'] }}</strong>
+            @if(!empty($item['built_ins']) && count($item['built_ins']) > 0)
+              <div style="margin-left: 14px; margin-top: 2px;">
+                <span style="font-size: 11px; font-weight: 700; color: #2563eb;">Included:</span>
+                @foreach($item['built_ins'] as $bName)
+                  <span class="built-in-tag">{{ $bName }}</span>
+                @endforeach
+              </div>
+            @endif
+          </div>
+        @endforeach
+      @else
+        <div class="item-row" style="color: #64748b;">
+          None
+        </div>
+      @endif
+    </div>
+
+    <div class="notice-box">
+      <div>ℹ️ <strong>NOTICE:</strong> You will receive an email confirmation once your booking and equipment requests are verified and approved.</div>
+      @if($isExternal)
+        <div style="margin-top: 8px; font-size: 11.5px; border-top: 1px dashed #bfdbfe; padding-top: 6px; color: #1e3a8a;">
+          📌 <em>Venue rental rates and utility requirements are assessed according to the university Fee Matrix. Please present a valid Government ID at the security gate upon entry.</em>
+        </div>
+      @endif
+    </div>
+
+    <div style="text-align: center; margin-top: 24px;">
+      <a href="{{ $trackUrl }}" class="action-btn">
+        {{ $isEquip ? 'Track Request Status' : 'Track Status Online' }}
+      </a>
+    </div>
   </div>
 
-  @php
-      $sysSettings = \App\Models\SystemSetting::getSettings();
-  @endphp
-  <!-- Footer / Signoff -->
-  <div class="signoff">
-    <strong>{{ $sysSettings->system_name ?: 'AVR Operations Management' }}</strong><br>
-    {{ $sysSettings->organization_name ?: 'Father Saturnino Urios University' }} &bull; Audio-Visual Resource Center (AVR / PMO)<br>
-    Location: Main Building, Ground &amp; 2nd Floor &bull; Desk Extension: Local 214<br>
-    @if(!empty($sysSettings->contact_email)) Email: <a href="mailto:{{ $sysSettings->contact_email }}" style="color: #2563eb; text-decoration: none;">{{ $sysSettings->contact_email }}</a> &bull; @endif
-    @if(!empty($sysSettings->contact_phone)) Phone: {{ $sysSettings->contact_phone }} @endif
-    <div style="margin-top: 8px; font-size: 11px; color: #94a3b8;">
-      This is an automated operational notice generated by the FSUU Venue Reservation &amp; Equipment Lending System.
-    </div>
+  <div class="footer">
+    <strong>Father Saturnino Urios University</strong> &bull; Audio-Visual Resource Center (AVR)<br>
+    <span style="font-size: 11px; color: #94a3b8;">This is an automated operational notice generated by the FSUU Booking System.</span>
   </div>
 </div>
 

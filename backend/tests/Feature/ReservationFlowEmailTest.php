@@ -403,4 +403,116 @@ class ReservationFlowEmailTest extends TestCase
         $this->assertContains('Visible Mic Category', $venueNames);
         $this->assertContains('Internal High-End Camera', $venueNames);
     }
+
+    public function test_venue_booking_email_renders_policy_violation_advisory(): void
+    {
+        $venue = $this->makeVenue();
+        $tracking = TrackingNumber::forceCreate([
+            'reference_code'   => 'TRK-AVR-VIO01',
+            'reservation_type' => 'venue_booking',
+            'reservation_id'   => 88,
+            'status'           => 'completed',
+        ]);
+
+        $booking = VenueBooking::create([
+            'tracking_number_id'      => $tracking->id,
+            'venue_id'                => $venue->id,
+            'submission_channel'      => 'online_self',
+            'first_name'              => 'Mark',
+            'last_name'               => 'Reyes',
+            'filer_name'              => 'Mark Reyes',
+            'email_address'           => 'mark.reyes@fsuu.edu.ph',
+            'contact_number'          => '09179998877',
+            'classification'          => 'student',
+            'requestor_identity_type' => 'student',
+            'purpose'                 => 'Guild Assembly',
+            'no_of_person'            => 50,
+            'date_of_usage'           => now()->subDay()->toDateString(),
+            'time_start'              => '13:00:00',
+            'time_end'                => '16:00:00',
+            'status'                  => 'completed',
+        ]);
+
+        \Illuminate\Support\Facades\DB::table('inspections')->insert([
+            'inspectable_type' => \App\Models\VenueBooking::class,
+            'inspectable_id'   => $booking->id,
+            'inspected_by'     => $this->makeAdmin()->id,
+            'inspection_type'  => 'post_event',
+            'condition'        => 'good',
+            'is_late'          => false,
+            'timeliness'       => 'on_time',
+            'minutes_late'     => 0,
+            'violation_type'   => 'Excessive Noise or Facility Policy Breach',
+            'notes'            => 'Disturbance reported by adjacent library hall.',
+            'inspected_at'     => now(),
+            'created_at'       => now(),
+            'updated_at'       => now(),
+        ]);
+
+        $mail = new BookingStatusUpdateMail('venue', $booking->fresh(), 'completed');
+        $html = $mail->render();
+
+        $this->assertStringContainsString('POLICY VIOLATION NOTED', $html);
+        $this->assertStringContainsString('Excessive Noise or Facility Policy Breach', $html);
+        $this->assertStringContainsString('Disturbance reported by adjacent library hall.', $html);
+        $this->assertStringContainsString('CLEARANCE HOLD', $html);
+    }
+
+    public function test_equipment_borrowing_email_renders_damage_and_lost_advisory(): void
+    {
+        $eqType = EquipmentType::create([
+            'name'        => 'High-Res Projector',
+            'eq_name'     => 'Projector',
+            'status'      => 'available',
+        ]);
+
+        $unit = EquipmentUnit::create([
+            'equipment_type_id' => $eqType->id,
+            'brand'             => 'Epson',
+            'model'             => 'EB-X06',
+            'serial_number'     => 'SN-EPSON-DAM01',
+            'barcode'           => 'BC-PRJ-DAM01',
+            'seq_no'            => '009',
+            'status'            => 'damaged',
+            'condition'         => 'Damaged',
+        ]);
+
+        $tracking = TrackingNumber::forceCreate([
+            'reference_code'   => 'EQ-202610-DAM01',
+            'reservation_type' => 'equipment_borrow',
+            'reservation_id'   => 99,
+            'status'           => 'damaged',
+        ]);
+
+        $borrow = EquipmentBorrow::create([
+            'tracking_number_id'      => $tracking->id,
+            'submission_channel'      => 'online_self',
+            'first_name'              => 'Sarah',
+            'last_name'               => 'Gerard',
+            'filer_name'              => 'Sarah Gerard',
+            'email_address'           => 'sarah.gerard@fsuu.edu.ph',
+            'contact_number'          => '09192223344',
+            'classification'          => 'student',
+            'requestor_identity_type' => 'student',
+            'purpose'                 => 'Thesis Defense',
+            'date_of_usage'           => now()->toDateString(),
+            'time_start'              => '08:00:00',
+            'time_end'                => '10:00:00',
+            'assigned_units'          => [$unit->barcode],
+            'status'                  => 'damaged',
+        ]);
+        $borrow->unit_conditions = [
+            $unit->barcode => ['condition' => 'Damaged', 'notes' => 'HDMI connector cracked and non-functional'],
+        ];
+
+        $mail = new BookingStatusUpdateMail('equipment', $borrow, 'damaged', 'HDMI connector damaged during unplugging.');
+        $envelope = $mail->envelope();
+        $html = $mail->render();
+
+        $this->assertStringContainsString('INCIDENT REPORT: Equipment Damage Noted', $envelope->subject);
+        $this->assertStringContainsString('DAMAGE NOTED', $html);
+        $this->assertStringContainsString('DAMAGED', $html);
+        $this->assertStringContainsString('LIABILITY ADVISORY', $html);
+        $this->assertStringContainsString('HDMI connector damaged during unplugging.', $html);
+    }
 }

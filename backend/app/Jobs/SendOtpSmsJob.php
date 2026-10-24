@@ -34,7 +34,7 @@ class SendOtpSmsJob implements ShouldQueue
             return;
         }
 
-        $message = "FSUU Equipment Borrowing: Your mobile verification code is {$code}. Valid for 10 minutes. Do not share this code with anyone.";
+        $message = "[FSUU AVR] Your Equipment Borrowing verification code is: {$code}. Valid for 10 mins. Do not share this code with anyone.";
 
         $res = SmsService::send($phone, $message);
 

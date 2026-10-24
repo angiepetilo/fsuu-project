@@ -347,7 +347,7 @@
           @endif
           @if(!empty($builtInItems) && count($builtInItems) > 0)
             <div style="margin-top: 5px; font-size: 11px; color: #475569; line-height: 1.4;">
-              <span style="font-weight: 700; color: #1e40af; margin-right: 2px;">Built-in Accessories / Units:</span>
+              <span style="font-weight: 700; color: #1e40af; margin-right: 2px;">Included Accessories:</span>
               <div style="margin-top: 3px;">
                 @foreach($builtInItems as $bItem)
                   <span style="display: inline-block; background-color: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; border-radius: 4px; padding: 2px 7px; font-size: 11px; margin: 1px 3px 2px 0;">

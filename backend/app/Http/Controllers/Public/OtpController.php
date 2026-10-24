@@ -172,9 +172,9 @@ class OtpController extends Controller
             Cache::put($cooldownKey, time() + 30, 30);
 
             // Dispatch SMS via SmsService
-            $serviceName = $isEquipment ? 'equipment borrowing' : 'venue booking';
+            $serviceName = $isEquipment ? 'Equipment Borrowing' : 'Venue Booking';
             try {
-                $smsResult = SmsService::send($cleanPhone, "FSUU AVR: Your 6-digit {$serviceName} verification code is {$code}. Valid for 10 minutes.");
+                $smsResult = SmsService::send($cleanPhone, "[FSUU AVR] Your {$serviceName} verification code is: {$code}. Valid for 10 mins. Do not share this code with anyone.");
             } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::error("Failed to send OTP SMS: " . $e->getMessage());
             }

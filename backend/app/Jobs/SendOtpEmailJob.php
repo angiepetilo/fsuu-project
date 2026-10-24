@@ -106,45 +106,203 @@ class SendOtpEmailJob implements ShouldQueue
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Verification Code — FSUU</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Security Verification — FSUU</title>
   <style>
-    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4ff; margin: 0; padding: 0; }
-    .wrap { max-width: 520px; margin: 40px auto; background: #fff; border-radius: 20px; overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,0.08); }
-    .header { background: linear-gradient(135deg, #0f1c3f, #1e3a8a); padding: 32px; text-align: center; }
-    .header h1 { color: #fff; font-size: 20px; margin: 0 0 4px; font-weight: 800; }
-    .header p { color: rgba(255,255,255,0.6); font-size: 12px; margin: 0; }
-    .body { padding: 36px; text-align: center; }
-    .greeting { font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 12px; }
-    .sub { font-size: 13px; color: #475569; margin-bottom: 28px; line-height: 1.7; }
-    .code-box { background: #eff6ff; border: 2px dashed #93c5fd; border-radius: 16px; padding: 24px; margin-bottom: 24px; }
-    .code { font-size: 40px; font-weight: 900; color: #1d4ed8; letter-spacing: 10px; font-family: 'Courier New', monospace; }
-    .expires { font-size: 11px; color: #94a3b8; margin-top: 8px; }
-    .warning { background: #fef9c3; border: 1px solid #fde68a; border-radius: 10px; padding: 12px 16px; font-size: 12px; color: #713f12; margin-bottom: 20px; text-align: left; }
-    .footer { background: #f8faff; border-top: 1px solid #e8edf5; padding: 16px; text-align: center; font-size: 10px; color: #94a3b8; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #0f172a;
+      background-color: #f1f5f9;
+      margin: 0;
+      padding: 24px 12px;
+    }
+    .wrapper {
+      max-width: 600px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+    }
+    .top-banner {
+      background-color: #0f172a;
+      color: #ffffff;
+      padding: 24px;
+      text-align: center;
+      border-bottom: 3px solid #2563eb;
+    }
+    .header-title {
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin: 0;
+      color: #ffffff;
+    }
+    .header-sub {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-top: 4px;
+      letter-spacing: 0.3px;
+    }
+    .content {
+      padding: 28px 24px;
+    }
+    .badge-pill {
+      display: inline-block;
+      background-color: #eff6ff;
+      color: #1e40af;
+      border: 1px solid #bfdbfe;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 14px;
+    }
+    .email-heading {
+      font-size: 20px;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 0 0 10px 0;
+      letter-spacing: -0.3px;
+    }
+    .intro-text {
+      font-size: 13.5px;
+      color: #475569;
+      margin: 0 0 24px 0;
+      line-height: 1.6;
+    }
+    .code-container {
+      background-color: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      margin-bottom: 22px;
+    }
+    .code-label {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #64748b;
+      margin-bottom: 12px;
+    }
+    .code-display {
+      display: inline-block;
+      background-color: #eff6ff;
+      border: 2px dashed #93c5fd;
+      border-radius: 12px;
+      padding: 10px 24px;
+      white-space: nowrap;
+      text-align: center;
+    }
+    .code-number {
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: 4px;
+      color: #1d4ed8;
+      vertical-align: middle;
+      margin: 0 10px;
+    }
+    .code-bracket {
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+      font-size: 26px;
+      font-weight: 400;
+      color: #64748b;
+      vertical-align: middle;
+    }
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin: 18px 0;
+      border-top: 1px solid #e2e8f0;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .data-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: middle;
+    }
+    .data-table tr:last-child td {
+      border-bottom: none;
+    }
+    .data-label {
+      width: 32%;
+      font-weight: 700;
+      color: #64748b;
+    }
+    .data-value {
+      color: #0f172a;
+      font-weight: 600;
+    }
+    .notice-box {
+      background-color: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-top: 22px;
+      font-size: 12.5px;
+      color: #1e40af;
+      line-height: 1.5;
+    }
+    .footer {
+      background-color: #f8fafc;
+      border-top: 1px solid #e2e8f0;
+      padding: 16px 20px;
+      text-align: center;
+      font-size: 11.5px;
+      color: #64748b;
+      font-weight: 500;
+    }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="header">
-      <h1>🎓 FSUU Facilities &amp; Booking System</h1>
-      <p>Father Saturnino Urios University, Butuan City</p>
+  <div class="wrapper">
+    <div class="top-banner">
+      <div class="header-title">FSUU FACILITIES &amp; BOOKING SYSTEM</div>
+      <div class="header-sub">Father Saturnino Urios University, Butuan City</div>
     </div>
-    <div class="body">
-      <p class="greeting">{$title}</p>
-      <p class="sub">
+    <div class="content">
+      <div class="badge-pill">SECURITY VERIFICATION</div>
+      <h1 class="email-heading">{$title}</h1>
+      <p class="intro-text">
         {$sub}
       </p>
-      <div class="code-box">
-        <div class="code">{$code}</div>
-        <div class="expires">⏱ Expires in 10 minutes</div>
+
+      <div class="code-container" style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 22px;">
+        <div class="code-label" style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 12px;">YOUR VERIFICATION CODE:</div>
+        <div class="code-display" style="display: inline-block; background-color: #eff6ff; border: 2px dashed #93c5fd; border-radius: 12px; padding: 10px 24px; white-space: nowrap; text-align: center;">
+          <span class="code-bracket" style="font-family: 'SFMono-Regular', Consolas, Menlo, Monaco, monospace; font-size: 26px; font-weight: 400; color: #64748b; vertical-align: middle;">[</span>
+          <span class="code-number" style="font-family: 'SFMono-Regular', Consolas, Menlo, Monaco, monospace; font-size: 28px; font-weight: 800; letter-spacing: 4px; color: #1d4ed8; margin: 0 10px; vertical-align: middle;">{$code}</span>
+          <span class="code-bracket" style="font-family: 'SFMono-Regular', Consolas, Menlo, Monaco, monospace; font-size: 26px; font-weight: 400; color: #64748b; vertical-align: middle;">]</span>
+        </div>
       </div>
-      <div class="warning">
-        ⚠ <strong>Do not share this code</strong> with anyone. FSUU staff will never ask for your verification code.
+
+      <table class="data-table">
+        <tr>
+          <td class="data-label">Code Validity</td>
+          <td class="data-value">Expires in 10 minutes</td>
+        </tr>
+        <tr>
+          <td class="data-label">Sent to</td>
+          <td class="data-value">{$email}</td>
+        </tr>
+      </table>
+
+      <div class="notice-box">
+        ℹ️ <strong>SECURITY NOTICE:</strong> Do not share this code with anyone. FSUU staff will never ask for your verification code.
       </div>
-      <p style="font-size:12px;color:#94a3b8;">Sent to: {$email}</p>
     </div>
     <div class="footer">
-      © FSUU Facilities &amp; Equipment Booking System — Father Saturnino Urios University, Butuan City
+      &copy; FSUU Facilities &amp; Equipment Booking System — Father Saturnino Urios University
     </div>
   </div>
 </body>
