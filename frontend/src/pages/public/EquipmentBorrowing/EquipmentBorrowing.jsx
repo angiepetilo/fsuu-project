@@ -291,19 +291,11 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
         setItemQuantities(q => { const copy = { ...q }; delete copy[itemId]; return copy; });
         return prev.filter(i => i !== itemId);
       } else {
-        if (!isPortal && prev.length >= 2) {
-          showAlert(
-            "Public equipment borrowing is limited to a maximum of 2 equipment categories. If your activity requires additional equipment, please coordinate with the AVR / PMO office.",
-            "Category Limit Reached",
-            "warning"
-          );
-          return prev;
-        }
         setItemQuantities(q => ({ ...q, [itemId]: 1 }));
         return [...prev, itemId];
       }
     });
-  }, [isPortal, showAlert]);
+  }, []);
 
   const handleQuantityChange = useCallback((itemId, newQty, maxAvailable) => {
     if (!isPortal) {

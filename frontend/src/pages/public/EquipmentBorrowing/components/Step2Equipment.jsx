@@ -477,16 +477,12 @@ export default function Step2Equipment({
             <span className="w-2 h-2 rounded-full bg-blue-600 dark:bg-blue-400 animate-pulse shrink-0" />
             <p className="text-xs text-blue-950 dark:text-slate-300">
               <span className="font-black text-blue-900 dark:text-white">Public Policy: </span>
-              Each filer may select a maximum of <span className="font-extrabold text-blue-950 dark:text-white underline decoration-blue-400/80">2 equipment categories</span> (strictly <span className="font-extrabold text-blue-950 dark:text-white underline decoration-blue-400/80">1 unit per item</span>).
+              Filers may select <span className="font-extrabold text-blue-950 dark:text-white underline decoration-blue-400/80">multiple equipment categories</span> (strictly <span className="font-extrabold text-blue-950 dark:text-white underline decoration-blue-400/80">1 unit per category</span>).
             </p>
           </div>
           <div className="shrink-0 flex items-center gap-1.5 self-end sm:self-auto">
-            <span className={`text-[11px] font-black px-3 py-1 rounded-full border transition-all ${
-              selectedItems.length >= 2
-                ? "bg-amber-500/15 border-amber-400/40 text-amber-700 dark:text-amber-300 dark:bg-amber-500/10 dark:border-amber-500/30"
-                : "bg-white dark:bg-slate-800 border-blue-200 dark:border-blue-900/50 text-blue-800 dark:text-slate-200 shadow-2xs"
-            }`}>
-              {selectedItems.length} of 2 categories selected
+            <span className="text-[11px] font-black px-3 py-1 rounded-full border transition-all bg-white dark:bg-slate-800 border-blue-200 dark:border-blue-900/50 text-blue-800 dark:text-slate-200 shadow-2xs">
+              {selectedItems.length} {selectedItems.length === 1 ? "category" : "categories"} selected
             </span>
           </div>
         </div>
@@ -538,9 +534,7 @@ export default function Step2Equipment({
                           ? "border-slate-200 dark:border-slate-800 bg-white dark:bg-card opacity-90 cursor-pointer"
                           : isChecked
                             ? "border-blue-600 bg-white dark:bg-card shadow-md ring-2 ring-blue-500/20 cursor-pointer"
-                            : !isPortal && selectedItems.length >= 2
-                              ? "border-slate-200/70 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-900/40 opacity-75 cursor-pointer"
-                              : "border-slate-200 dark:border-slate-800 bg-white dark:bg-card hover:border-blue-500 hover:ring-2 hover:ring-blue-500/20 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-0.5 cursor-pointer"
+                            : "border-slate-200 dark:border-slate-800 bg-white dark:bg-card hover:border-blue-500 hover:ring-2 hover:ring-blue-500/20 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-0.5 cursor-pointer"
                       }`}
                   >
                     <div>
@@ -628,13 +622,9 @@ export default function Step2Equipment({
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); handleEquipmentToggle(item.id); }}
-                          className={`w-full py-3 rounded-full border text-xs font-black transition-all cursor-pointer shadow-2xs ${
-                            !isPortal && selectedItems.length >= 2
-                              ? "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-slate-400 dark:text-slate-500 hover:border-slate-300 dark:hover:border-slate-700"
-                              : "border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900/80 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 group-hover:shadow-md dark:group-hover:bg-blue-600 dark:group-hover:text-white dark:group-hover:border-blue-600 hover:bg-blue-700 hover:text-white hover:border-blue-700 text-slate-800 dark:text-white"
-                          }`}
+                          className="w-full py-3 rounded-full border text-xs font-black transition-all cursor-pointer shadow-2xs border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900/80 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 group-hover:shadow-md dark:group-hover:bg-blue-600 dark:group-hover:text-white dark:group-hover:border-blue-600 hover:bg-blue-700 hover:text-white hover:border-blue-700 text-slate-800 dark:text-white"
                         >
-                          {!isPortal && selectedItems.length >= 2 ? "Max 2 Categories Reached" : "Select Item"}
+                          Select Item
                         </button>
                       )}
                     </div>
