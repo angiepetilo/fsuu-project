@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Loader2, Play, Mail, CheckCircle2, PackageCheck, AlertCircle, Smartphone, ChevronDown, X, Check, Clock } from "lucide-react";
+import { Loader2, Play, Mail, CheckCircle2, PackageCheck, AlertCircle, Smartphone, ChevronDown, X, Check, Clock, Ban } from "lucide-react";
 import api from "@/lib/axios";
 import { getTodayISO } from "@/lib/dateTimeUtils";
 
@@ -391,6 +391,8 @@ export default function EquipBorrowUnitAssignment({
   handleSendOverdueSms,
   loadingUnits = false,
   isSuperAdmin = false,
+  restrictedCategories = [],
+  onToggleRestrictCategory,
 }) {
   const borrowingOfficeId = selected?.office_id || selected?.office?.id || (selected?.items && selected.items[0]?.equipment_type?.office_id);
 
@@ -554,11 +556,16 @@ export default function EquipBorrowUnitAssignment({
     }).filter(Boolean);
   };
 
-  // Check if all requested units have been assigned
+  // Check if all requested units have been assigned (excluding restricted categories)
   let totalRequestedUnits = 0;
   let totalAssignedUnits = 0;
 
   categoriesToRender.forEach((catObj, catIdx) => {
+    const isCatRestricted = restrictedCategories.some(
+      (c) => String(c).toLowerCase().trim() === String(catObj.category).toLowerCase().trim()
+    );
+    if (isCatRestricted) return;
+
     const reqQty = parseInt(catObj.quantity, 10) || 1;
     totalRequestedUnits += reqQty;
     for (let uIdx = 0; uIdx < reqQty; uIdx++) {
@@ -616,6 +623,9 @@ export default function EquipBorrowUnitAssignment({
         </div>
 
         {categoriesToRender.map((reqCat, catIdx) => {
+          const isRestricted = restrictedCategories.some(
+            (c) => String(c).toLowerCase().trim() === String(reqCat.category).toLowerCase().trim()
+          );
           const availableUnits = getAvailableUnitsForCategory(reqCat.category, reqCat.equipment_type_id);
 
           // Count assigned for this category
@@ -628,26 +638,61 @@ export default function EquipBorrowUnitAssignment({
           }
 
           return (
-            <div key={catIdx} className="p-3.5 bg-white dark:bg-slate-900/80 rounded-2xl border border-slate-200/90 dark:border-blue-900/50 space-y-2.5 shadow-xs">
-              <div className="flex items-center justify-between">
-                <span className="font-extrabold text-slate-900 dark:text-white text-xs">
-                  {reqCat.category}
-                </span>
-                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">
-                  Qty: {reqCat.quantity}
-                </span>
+            <div
+              key={catIdx}
+              className={`p-3.5 rounded-2xl border space-y-2.5 transition-all ${
+                isRestricted
+                  ? "bg-slate-100/80 dark:bg-slate-800/60 border-slate-300 dark:border-slate-700 opacity-75"
+                  : "bg-white dark:bg-slate-900/80 border-slate-200/90 dark:border-blue-900/50 shadow-xs"
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 flex-wrap min-w-0">
+                  <span className={`font-extrabold text-xs truncate ${isRestricted ? "line-through text-slate-500 dark:text-slate-400" : "text-slate-900 dark:text-white"}`}>
+                    {reqCat.category}
+                  </span>
+                  {isRestricted && (
+                    <span className="px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900 text-[10px] font-black uppercase tracking-wider">
+                      Restricted / Not Approved
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">
+                    Qty: {reqCat.quantity}
+                  </span>
+                  {onToggleRestrictCategory && (
+                    <button
+                      type="button"
+                      onClick={() => onToggleRestrictCategory(reqCat)}
+                      className={`px-2.5 py-1 rounded-lg text-[10.5px] font-black transition-all cursor-pointer flex items-center gap-1 border shadow-2xs ${
+                        isRestricted
+                          ? "bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 border-slate-300 dark:border-slate-600"
+                          : "bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border-rose-200 hover:border-rose-600 dark:bg-rose-950/50 dark:hover:bg-rose-600 dark:text-rose-300 dark:hover:text-white dark:border-rose-900/60"
+                      }`}
+                      title={isRestricted ? "Click to unrestrict this category" : "Click to restrict this equipment category"}
+                    >
+                      <Ban size={11} className={isRestricted ? "text-slate-600 dark:text-slate-300" : ""} />
+                      <span>{isRestricted ? "Unrestrict" : "Restrict"}</span>
+                    </button>
+                  )}
+                </div>
               </div>
 
-              {/* State 1: Pending (No unit dropdown yet) */}
-              {isPending && (
+              {/* State 1: Restricted notice */}
+              {isRestricted ? (
+                <div className="p-2.5 bg-slate-200/60 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-xl text-[11px] font-bold text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                  <Ban size={14} className="text-rose-500 shrink-0" />
+                  <span>This equipment category is restricted and will not be approved or released.</span>
+                </div>
+              ) : isPending ? (
+                /* State 2: Pending (No unit dropdown yet) */
                 <div className="p-2.5 bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800 rounded-xl text-[11px] font-medium text-slate-500 dark:text-slate-400 flex items-center gap-2">
                   <PackageCheck size={14} className="text-slate-400 shrink-0" />
                   <span>Awaiting approval to assign physical unit models.</span>
                 </div>
-              )}
-
-              {/* State 2: Approved OR On-Going (Changeable typeable model combobox) */}
-              {(isApproved || isOngoing) && (
+              ) : (isApproved || isOngoing) ? (
                 <>
                   <div className="flex items-center justify-between text-[11px] font-semibold text-slate-600 dark:text-slate-300">
                     <span>{isOngoing ? "Dispatched Unit / Model (Changeable):" : "Select Equipment Unit / Model:"}</span>
@@ -786,7 +831,7 @@ export default function EquipBorrowUnitAssignment({
                     </div>
                   )}
                 </>
-              )}
+              ) : null}
 
               {/* State 3: Completed (Read-only summary with returned condition badges) */}
               {isCompleted && (

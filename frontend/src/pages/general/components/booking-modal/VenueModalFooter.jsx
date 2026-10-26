@@ -33,6 +33,7 @@ export default function VenueModalFooter({
   isPostInspectionSaved = false,
   onRequestComplete,
   hasInspectionChanges = false,
+  restrictedCategories = [],
 }) {
   const [notifyingUrgent, setNotifyingUrgent] = useState(false);
   const [currentTick, setCurrentTick] = useState(() => Date.now());
@@ -143,7 +144,7 @@ export default function VenueModalFooter({
               )}
               <button
                 type="button"
-                onClick={() => handleAction(selected.id, "approve")}
+                onClick={() => handleAction(selected.id, "approve", { restricted_equipment: restrictedCategories })}
                 disabled={!!actionLoading}
                 className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-500 text-white font-extrabold text-xs rounded-xl shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
               >

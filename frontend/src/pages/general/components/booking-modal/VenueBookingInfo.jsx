@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { FileText, ExternalLink, Upload, CheckCircle, CheckCircle2, HardDrive, Check, Shield, PackageCheck, AlertCircle, X, Loader2, Download, Eye, Image as ImageIcon } from "lucide-react";
+import { FileText, ExternalLink, Upload, CheckCircle, CheckCircle2, HardDrive, Check, Shield, PackageCheck, AlertCircle, X, Loader2, Download, Eye, Image as ImageIcon, Ban } from "lucide-react";
 import { resolveStorageUrl, openFileInNewTab } from "@/lib/utils";
 import { formatDateRange, formatTime12 } from "@/lib/dateUtils";
 import api from "@/lib/axios";
@@ -45,6 +45,8 @@ export default function VenueBookingInfo({
   getAvailableUnitsForCategory,
   isOngoing = false,
   isApproved = false,
+  restrictedCategories = [],
+  onToggleRestrictCategory,
 }) {
   const { isSuperAdmin } = usePermissions();
   const [showOverrideModal, setShowOverrideModal] = useState(false);
@@ -490,19 +492,59 @@ export default function VenueBookingInfo({
           </span>
         </div>
 
-        {/* Requested Equipment Types Badges */}
+        {/* Requested Equipment Types Cards */}
         {requestedCategories && requestedCategories.length > 0 && (
-          <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80">
-            <span className="text-slate-500 dark:text-slate-400 block mb-1.5 font-bold">Requested Equipment Types :</span>
-            <div className="flex flex-wrap gap-1.5">
-              {requestedCategories.map((cat, idx) => (
-                <span
-                  key={idx}
-                  className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold font-mono"
-                >
-                  {cat.name || cat.category || cat.equipment_types_name} ({cat.quantity || 1} {Number(cat.quantity || 1) === 1 ? 'unit' : 'units'})
-                </span>
-              ))}
+          <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 space-y-2">
+            <span className="text-slate-500 dark:text-slate-400 block font-bold text-xs">Requested Equipment Types / Categories :</span>
+            <div className="space-y-2">
+              {requestedCategories.map((cat, idx) => {
+                const catName = cat.name || cat.category || cat.equipment_types_name;
+                const isRestricted = restrictedCategories.some(
+                  (c) => String(c).toLowerCase().trim() === String(catName).toLowerCase().trim()
+                );
+                const reqQty = cat.quantity || 1;
+
+                return (
+                  <div
+                    key={idx}
+                    className={`p-2.5 rounded-xl border flex items-center justify-between gap-3 transition-all ${
+                      isRestricted
+                        ? "bg-slate-100/80 dark:bg-slate-800/60 border-slate-300 dark:border-slate-700 opacity-75"
+                        : "bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                      <span className={`text-xs font-bold font-mono ${isRestricted ? "line-through text-slate-500 dark:text-slate-400" : "text-slate-800 dark:text-slate-200"}`}>
+                        {catName}
+                      </span>
+                      <span className="text-[10.5px] font-bold text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">
+                        {reqQty} {Number(reqQty) === 1 ? 'unit' : 'units'}
+                      </span>
+                      {isRestricted && (
+                        <span className="px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900 text-[9.5px] font-black uppercase tracking-wider">
+                          Restricted / Not Approved
+                        </span>
+                      )}
+                    </div>
+
+                    {onToggleRestrictCategory && (
+                      <button
+                        type="button"
+                        onClick={() => onToggleRestrictCategory(cat)}
+                        className={`px-2.5 py-1 rounded-lg text-[10.5px] font-black transition-all cursor-pointer flex items-center gap-1 border shadow-2xs shrink-0 ${
+                          isRestricted
+                            ? "bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 border-slate-300 dark:border-slate-600"
+                            : "bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border-rose-200 hover:border-rose-600 dark:bg-rose-950/50 dark:hover:bg-rose-600 dark:text-rose-300 dark:hover:text-white dark:border-rose-900/60"
+                        }`}
+                        title={isRestricted ? "Click to unrestrict this category" : "Click to restrict this equipment category"}
+                      >
+                        <Ban size={11} className={isRestricted ? "text-slate-600 dark:text-slate-300" : ""} />
+                        <span>{isRestricted ? "Unrestrict" : "Restrict"}</span>
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -516,7 +558,7 @@ export default function VenueBookingInfo({
                 Assigned Equipment Units :
               </span>
               <span className="text-[10.5px] font-mono font-bold text-slate-500 dark:text-slate-400">
-                {assignedUnitsList.length} of {requestedCategories.reduce((acc, c) => acc + (parseInt(c.quantity || 1, 10) || 1), 0)} unit(s) assigned
+                {assignedUnitsList.length} of {requestedCategories.filter(c => !restrictedCategories.some(r => String(r).toLowerCase().trim() === String(c.name || c.category || c.equipment_types_name).toLowerCase().trim())).reduce((acc, c) => acc + (parseInt(c.quantity || 1, 10) || 1), 0)} unit(s) assigned
               </span>
             </div>
 

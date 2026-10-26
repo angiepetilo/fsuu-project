@@ -113,6 +113,14 @@ class VenueBookingController extends Controller
     {
         $this->authorize('approve', $avrVenueBooking);
 
+        if ($request->has('restricted_equipment')) {
+            $restricted = $request->input('restricted_equipment', []);
+            if (is_string($restricted)) {
+                try { $restricted = json_decode($restricted, true) ?: []; } catch (\Throwable $e) { $restricted = []; }
+            }
+            $avrVenueBooking->forceFill(['restricted_equipment' => array_values(array_unique($restricted))])->save();
+        }
+
         try {
             $booking = $this->service->approve(
                 $avrVenueBooking,
@@ -654,6 +662,22 @@ class VenueBookingController extends Controller
         } catch (\Throwable $e) {}
 
         return response()->json($booking);
+    }
+
+    public function restrictEquipment(Request $request, VenueBooking $avrVenueBooking): JsonResponse
+    {
+        $this->authorize('approve', $avrVenueBooking);
+        $restricted = $request->input('restricted_equipment', []);
+        if (is_string($restricted)) {
+            try { $restricted = json_decode($restricted, true) ?: []; } catch (\Throwable $e) { $restricted = []; }
+        }
+        $avrVenueBooking->forceFill(['restricted_equipment' => array_values(array_unique($restricted))])->save();
+
+        return response()->json([
+            'message' => 'Equipment restrictions updated successfully.',
+            'restricted_equipment' => $avrVenueBooking->restricted_equipment,
+            'venue_booking' => $avrVenueBooking->fresh(['venue', 'trackingNumber']),
+        ]);
     }
 
     public function notifyUrgent(Request $request, VenueBooking $avrVenueBooking): JsonResponse

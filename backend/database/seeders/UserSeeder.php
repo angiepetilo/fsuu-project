@@ -19,6 +19,20 @@ class UserSeeder extends Seeder
                 'permissions' => ['*'],
             ]
         );
+        Role::firstOrCreate(
+            ['name' => 'staff'],
+            [
+                'description' => 'AVR and venue operations staff.',
+                'permissions' => [],
+            ]
+        );
+        Role::firstOrCreate(
+            ['name' => 'student_assistant'],
+            [
+                'description' => 'Student Assistant desk operations.',
+                'permissions' => [],
+            ]
+        );
         $defaultPassword = Hash::make(env('INITIAL_SUPERADMIN_PASSWORD', 'password123'));
 
         // 1. Super Administrator

@@ -139,6 +139,70 @@ export default function EquipmentBorrowDetailModal({
   const [overrideCategory, setOverrideCategory] = useState("PROJECTOR");
   const [overrideQuantity, setOverrideQuantity] = useState(2);
 
+  // Restricted categories state
+  const [restrictedCategories, setRestrictedCategories] = useState(() => {
+    const raw = selected?.restricted_equipment;
+    if (Array.isArray(raw)) return raw;
+    if (typeof raw === "string") {
+      try { return JSON.parse(raw); } catch { return []; }
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    const raw = selected?.restricted_equipment;
+    if (Array.isArray(raw)) {
+      setRestrictedCategories(raw);
+    } else if (typeof raw === "string") {
+      try { setRestrictedCategories(JSON.parse(raw)); } catch { setRestrictedCategories([]); }
+    } else {
+      setRestrictedCategories([]);
+    }
+  }, [selected?.id, selected?.restricted_equipment]);
+
+  const handleToggleRestrictCategory = async (catIdentifier) => {
+    if (!selected?.id) return;
+    const catName = typeof catIdentifier === "object" ? (catIdentifier.category || catIdentifier.name) : catIdentifier;
+    if (!catName) return;
+
+    const isCurrentlyRestricted = restrictedCategories.some(
+      (c) => String(c).toLowerCase().trim() === String(catName).toLowerCase().trim()
+    );
+
+    let nextRestricted;
+    if (isCurrentlyRestricted) {
+      nextRestricted = restrictedCategories.filter(
+        (c) => String(c).toLowerCase().trim() !== String(catName).toLowerCase().trim()
+      );
+    } else {
+      nextRestricted = [...restrictedCategories, catName];
+    }
+
+    setRestrictedCategories(nextRestricted);
+
+    try {
+      const res = await api.put(`/avr-equipment-borrowings/${selected.id}/restrict-equipment`, {
+        restricted_equipment: nextRestricted
+      });
+      if (setSelected) {
+        setSelected(prev => ({
+          ...prev,
+          restricted_equipment: nextRestricted
+        }));
+      }
+      notify.success(
+        isCurrentlyRestricted ? "Category Unrestricted" : "Category Restricted",
+        isCurrentlyRestricted
+          ? `"${catName}" has been unrestricted.`
+          : `"${catName}" is marked as restricted and will not be approved.`
+      );
+    } catch (err) {
+      // Revert on failure
+      setRestrictedCategories(restrictedCategories);
+      notify.error("Failed to update restriction", err.response?.data?.message || err.message);
+    }
+  };
+
   // Active bookings list for schedule overlap checking
   const [allVenueBookings, setAllVenueBookings] = useState([]);
   const [allEquipmentBorrows, setAllEquipmentBorrows] = useState([]);
@@ -1313,12 +1377,23 @@ export default function EquipmentBorrowDetailModal({
                       }
                     }
 
+                    const isRestricted = restrictedCategories.some(
+                      (c) => String(c).toLowerCase().trim() === String(catItem.category).toLowerCase().trim()
+                    );
+
                     return (
-                      <div key={cIdx} className="py-2.5 flex items-start justify-between gap-3">
+                      <div key={cIdx} className={`py-2.5 flex items-start justify-between gap-3 ${isRestricted ? "opacity-60 bg-slate-50 dark:bg-slate-900/50 p-2 rounded-xl" : ""}`}>
                         <div className="space-y-1 min-w-0 flex-1">
-                          <span className="font-extrabold text-slate-900 dark:text-white text-xs block">
-                            {catItem.category}
-                          </span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className={`font-extrabold text-xs block ${isRestricted ? "line-through text-slate-500 dark:text-slate-400" : "text-slate-900 dark:text-white"}`}>
+                              {catItem.category}
+                            </span>
+                            {isRestricted && (
+                              <span className="px-1.5 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900 text-[9.5px] font-black uppercase tracking-wider">
+                                Restricted / Not Approved
+                              </span>
+                            )}
+                          </div>
                           <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium block">
                             Borrow request specification
                           </span>
@@ -1394,6 +1469,8 @@ export default function EquipmentBorrowDetailModal({
                 actionLoading={actionLoading}
                 loadingUnits={eqLoading}
                 isSuperAdmin={isSuperAdmin}
+                restrictedCategories={restrictedCategories}
+                onToggleRestrictCategory={handleToggleRestrictCategory}
               />
             </div>
 
@@ -1491,7 +1568,7 @@ export default function EquipmentBorrowDetailModal({
                   )}
                   <button
                     type="button"
-                    onClick={() => handleAction(selected.id, "approve")}
+                    onClick={() => handleAction(selected.id, "approve", { restricted_equipment: restrictedCategories })}
                     disabled={!!actionLoading}
                     className="px-6 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold text-xs rounded-lg shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
                   >

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Sparkles, KeyRound, Lock, X, AlertCircle, ShieldCheck, Download, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { KioskTimeline } from "@/components/ui/kiosk-timeline";
@@ -697,6 +697,7 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
     }
   }, [selectedEndDate, selectedDate, firstName, middleName, lastName, suffix, fullName, selectedVenue, email, contactNumber, department, classification, purpose, persons, startTime, endTime, isPinVerified, avrEquipment, equipmentCatalog, equipmentRemarks, endorsementFile, showAlert]);
 
+  const navigate = useNavigate();
   const [copiedTrack, setCopiedTrack] = useState(false);
 
   const handleCopyTrack = useCallback(() => {
@@ -706,12 +707,18 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
     setTimeout(() => setCopiedTrack(false), 2000);
   }, [referenceCode]);
 
-  // Kiosk Inactivity Reset: in public mode, if terminal is left unattended for 3 minutes, reset to Step 1
+  // Kiosk Inactivity Reset: in public mode, if terminal is left unattended for 3 minutes, reset form / return home
   useEffect(() => {
-    if (isPortal || showSuccess || activeStep === 1) return;
+    if (isPortal) return;
+    // Don't timer if still on step 1 with nothing submitted
+    if (!showSuccess && activeStep === 1) return;
 
     let timeout;
     const resetKiosk = () => {
+      if (showSuccess) {
+        navigate("/");
+        return;
+      }
       setActiveStep(1);
       setCompletedSteps([]);
       setSelectedVenue(null);
@@ -743,7 +750,7 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
       clearTimeout(timeout);
       events.forEach(e => window.removeEventListener(e, handleActivity));
     };
-  }, [isPortal, showSuccess, activeStep]);
+  }, [isPortal, showSuccess, activeStep, navigate]);
 
   return (
     <div className="w-full flex flex-col items-center">

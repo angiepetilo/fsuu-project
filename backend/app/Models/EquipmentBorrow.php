@@ -40,6 +40,7 @@ class EquipmentBorrow extends Model
         'status',
         'rejection_reason',
         'returned_at',
+        'restricted_equipment',
         'unit_conditions',  // virtual: populated from inspection payload for Email 4 receipt
     ];
 
@@ -47,6 +48,7 @@ class EquipmentBorrow extends Model
         'date_of_usage'           => 'date:Y-m-d',
         'extend_of_date_returned' => 'date:Y-m-d',
         'assigned_units'          => 'array',
+        'restricted_equipment'    => 'array',
         'returned_at'             => 'datetime',
     ];
 

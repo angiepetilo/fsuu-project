@@ -343,6 +343,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/avr-venue-bookings/{id}/send-overtime-reminder',        [VenueBookingController::class, 'sendOvertimeReminder']);
     Route::put('/avr-venue-bookings/{avrVenueBooking}/assign-units', [VenueBookingController::class, 'assignUnits']);
     Route::put('/avr-venue-bookings/{avrVenueBooking}/override',     [VenueBookingController::class, 'override']);
+    Route::put('/avr-venue-bookings/{avrVenueBooking}/restrict-equipment', [VenueBookingController::class, 'restrictEquipment']);
 
     // ── Equipment Borrowings ───────────────────────────────────────────────────
     Route::get('/avr-equipment-borrowings',                               [EquipmentBorrowingController::class, 'index']);
@@ -362,6 +363,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/avr-equipment-borrowings/{id}/send-overtime-reminder',  [EquipmentBorrowingController::class, 'sendOvertimeReminder']);
     Route::put('/avr-equipment-borrowings/{equipmentBorrowing}/assign-units', [EquipmentBorrowingController::class, 'assignUnits']);
     Route::put('/avr-equipment-borrowings/{equipmentBorrowing}/override',     [EquipmentBorrowingController::class, 'override']);
+    Route::put('/avr-equipment-borrowings/{equipmentBorrowing}/restrict-equipment', [EquipmentBorrowingController::class, 'restrictEquipment']);
 
     // ── Documents & Inspections ────────────────────────────────────────────────
     Route::post('/documents',                    [DocumentController::class, 'store']);

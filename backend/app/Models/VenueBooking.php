@@ -57,6 +57,7 @@ class VenueBooking extends Model
         'rejection_reason',
         'is_auto_rejected',
         'auto_reject_winning_reference',
+        'restricted_equipment',
     ];
 
     protected $casts = [
@@ -69,6 +70,7 @@ class VenueBooking extends Model
         'extend_reservation_end_date' => 'date:Y-m-d',
         'claim_timestamp'             => 'datetime',
         'assigned_units'              => 'array',
+        'restricted_equipment'        => 'array',
         'missing_requirements_list'   => 'array',
         'incomplete_at'               => 'datetime',
         'incomplete_deadline_at'      => 'datetime',

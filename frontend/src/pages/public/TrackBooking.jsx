@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { Search, Hash, CheckCircle2, Loader2, AlertCircle, Building2, PackageOpen, AlertTriangle, ArrowLeft, Clock, UploadCloud, FileText, Check, Hourglass } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -8,6 +8,7 @@ import api from "@/lib/axios";
 import echoInstance from "@/lib/echo";
 
 export default function TrackBooking() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [hasSearched, setHasSearched] = useState(false);
   const [isFound, setIsFound] = useState(false);
@@ -162,6 +163,32 @@ export default function TrackBooking() {
       window.removeEventListener("storage", handleSync);
     };
   }, [isFound, booking?.reference_code, trackCode, executeTrack]);
+
+  // Kiosk Inactivity Reset: if left unattended on track page for 3 minutes, clear and return home
+  useEffect(() => {
+    let timeout;
+    const resetTrack = () => {
+      setTrackCode("");
+      setBooking(null);
+      setHasSearched(false);
+      setIsFound(false);
+      navigate("/");
+    };
+
+    const handleActivity = () => {
+      clearTimeout(timeout);
+      timeout = setTimeout(resetTrack, 3 * 60 * 1000);
+    };
+
+    timeout = setTimeout(resetTrack, 3 * 60 * 1000);
+    const events = ["mousedown", "mousemove", "keydown", "touchstart", "scroll"];
+    events.forEach(e => window.addEventListener(e, handleActivity, { passive: true }));
+
+    return () => {
+      clearTimeout(timeout);
+      events.forEach(e => window.removeEventListener(e, handleActivity));
+    };
+  }, [navigate]);
 
   // Real-time status update via Pusher WebSockets
   useEffect(() => {

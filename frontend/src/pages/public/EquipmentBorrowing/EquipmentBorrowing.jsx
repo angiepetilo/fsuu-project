@@ -582,12 +582,18 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
     setTimeout(() => setCopiedTrack(false), 2000);
   }, [referenceCode]);
 
-  // Kiosk Inactivity Reset: in public mode, if terminal is left unattended for 3 minutes, reset to Step 1
+  // Kiosk Inactivity Reset: in public mode, if terminal is left unattended for 3 minutes, reset form / return home
   useEffect(() => {
-    if (isPortal || showSuccess || activeStep === 1) return;
+    if (isPortal) return;
+    // Don't timer if still on step 1 with nothing submitted
+    if (!showSuccess && activeStep === 1) return;
 
     let timeout;
     const resetKiosk = () => {
+      if (showSuccess) {
+        navigate("/");
+        return;
+      }
       setActiveStep(1);
       setCompletedSteps([]);
       setSelectedItems([]);
@@ -616,7 +622,7 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
       clearTimeout(timeout);
       events.forEach(e => window.removeEventListener(e, handleActivity));
     };
-  }, [isPortal, showSuccess, activeStep]);
+  }, [isPortal, showSuccess, activeStep, navigate]);
 
   return (
     <div className="w-full flex flex-col items-center">

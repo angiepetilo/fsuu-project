@@ -128,6 +128,14 @@ class EquipmentBorrowingController extends Controller
     {
         $this->authorize('approve', $equipmentBorrowing);
 
+        if ($request->has('restricted_equipment')) {
+            $restricted = $request->input('restricted_equipment', []);
+            if (is_string($restricted)) {
+                try { $restricted = json_decode($restricted, true) ?: []; } catch (\Throwable $e) { $restricted = []; }
+            }
+            $equipmentBorrowing->forceFill(['restricted_equipment' => array_values(array_unique($restricted))])->save();
+        }
+
         $borrowing = $this->service->approve(
             $equipmentBorrowing,
             auth()->user(),
@@ -1090,6 +1098,22 @@ class EquipmentBorrowingController extends Controller
         $this->authorize('approve', $equipmentBorrowing);
         $borrowing = $this->service->override($equipmentBorrowing, auth()->user(), $request->all());
         return response()->json($borrowing);
+    }
+
+    public function restrictEquipment(\Illuminate\Http\Request $request, EquipmentBorrow $equipmentBorrowing): JsonResponse
+    {
+        $this->authorize('approve', $equipmentBorrowing);
+        $restricted = $request->input('restricted_equipment', []);
+        if (is_string($restricted)) {
+            try { $restricted = json_decode($restricted, true) ?: []; } catch (\Throwable $e) { $restricted = []; }
+        }
+        $equipmentBorrowing->forceFill(['restricted_equipment' => array_values(array_unique($restricted))])->save();
+
+        return response()->json([
+            'message' => 'Equipment restrictions updated successfully.',
+            'restricted_equipment' => $equipmentBorrowing->restricted_equipment,
+            'equipment_borrowing' => $equipmentBorrowing->fresh(['items.equipmentType', 'trackingNumber']),
+        ]);
     }
 
     public function notifyUrgent(\Illuminate\Http\Request $request, EquipmentBorrow $equipmentBorrowing): JsonResponse

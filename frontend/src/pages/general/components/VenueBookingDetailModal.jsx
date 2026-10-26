@@ -141,6 +141,71 @@ export default function VenueBookingDetailModal({
       }).catch(() => {});
   }, []);
 
+  // Restricted equipment categories state
+  const [restrictedCategories, setRestrictedCategories] = useState(() => {
+    const raw = selected?.restricted_equipment;
+    if (Array.isArray(raw)) return raw;
+    if (typeof raw === "string") {
+      try { return JSON.parse(raw); } catch { return []; }
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    const raw = selected?.restricted_equipment;
+    if (Array.isArray(raw)) {
+      setRestrictedCategories(raw);
+    } else if (typeof raw === "string") {
+      try { setRestrictedCategories(JSON.parse(raw)); } catch { setRestrictedCategories([]); }
+    } else {
+      setRestrictedCategories([]);
+    }
+  }, [selected?.id, selected?.restricted_equipment]);
+
+  const handleToggleRestrictCategory = async (catIdentifier) => {
+    if (!selected?.id) return;
+    const catName = typeof catIdentifier === "object"
+      ? (catIdentifier.category || catIdentifier.name || catIdentifier.equipment_types_name)
+      : catIdentifier;
+    if (!catName) return;
+
+    const isCurrentlyRestricted = restrictedCategories.some(
+      (c) => String(c).toLowerCase().trim() === String(catName).toLowerCase().trim()
+    );
+
+    let nextRestricted;
+    if (isCurrentlyRestricted) {
+      nextRestricted = restrictedCategories.filter(
+        (c) => String(c).toLowerCase().trim() !== String(catName).toLowerCase().trim()
+      );
+    } else {
+      nextRestricted = [...restrictedCategories, catName];
+    }
+
+    setRestrictedCategories(nextRestricted);
+
+    try {
+      await api.put(`/avr-venue-bookings/${selected.id}/restrict-equipment`, {
+        restricted_equipment: nextRestricted
+      });
+      if (setSelected) {
+        setSelected(prev => ({
+          ...prev,
+          restricted_equipment: nextRestricted
+        }));
+      }
+      notify.success(
+        isCurrentlyRestricted ? "Category Unrestricted" : "Category Restricted",
+        isCurrentlyRestricted
+          ? `"${catName}" has been unrestricted.`
+          : `"${catName}" is marked as restricted and will not be approved.`
+      );
+    } catch (err) {
+      setRestrictedCategories(restrictedCategories);
+      notify.error("Failed to update restriction", err.response?.data?.message || err.message);
+    }
+  };
+
   const handleSubmitIncomplete = async (e) => {
     if (e) e.preventDefault();
     if (!incompleteRemarks.trim() && selectedMissingItems.length === 0) {
@@ -1599,6 +1664,8 @@ export default function VenueBookingDetailModal({
                 getAvailableUnitsForCategory={getAvailableUnitsForCategory}
                 isOngoing={isOngoing}
                 isApproved={isApproved}
+                restrictedCategories={restrictedCategories}
+                onToggleRestrictCategory={handleToggleRestrictCategory}
               />
 
               {/* Vacant Venue Referral Option */}
@@ -1736,6 +1803,8 @@ export default function VenueBookingDetailModal({
                 getAvailableUnitsForCategory={getAvailableUnitsForCategory}
                 isOngoing={isOngoing}
                 isApproved={isApproved}
+                restrictedCategories={restrictedCategories}
+                onToggleRestrictCategory={handleToggleRestrictCategory}
               />
               <div className="w-full">
                 <VenueEquipmentChecklist
@@ -1762,6 +1831,7 @@ export default function VenueBookingDetailModal({
                   setOverrideQuantity={setOverrideQuantity}
                   dbEquipmentTypes={dbEquipmentTypes}
                   selected={selected}
+                  restrictedCategories={restrictedCategories}
                 />
               </div>
             </div>
@@ -1815,6 +1885,8 @@ export default function VenueBookingDetailModal({
                 getAvailableUnitsForCategory={getAvailableUnitsForCategory}
                 isOngoing={isOngoing}
                 isApproved={isApproved}
+                restrictedCategories={restrictedCategories}
+                onToggleRestrictCategory={handleToggleRestrictCategory}
               />
 
               {/* Single Inspection Row: Left = Equipment Return Inspection | Right = Venue Facility Post Inspection */}
@@ -1836,6 +1908,7 @@ export default function VenueBookingDetailModal({
                     isPreEvent={false}
                     dbEquipmentTypes={dbEquipmentTypes}
                     selected={selected}
+                    restrictedCategories={restrictedCategories}
                   />
                 </div>
                 <div className="lg:col-span-6">
@@ -2267,6 +2340,7 @@ export default function VenueBookingDetailModal({
           isPostInspectionSaved={isPostInspectionSaved}
           hasInspectionChanges={hasInspectionChanges}
           onRequestComplete={() => setShowCompleteConfirmModal(true)}
+          restrictedCategories={restrictedCategories}
         />
 
         {/* Lightbox Modal */}

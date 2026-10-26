@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { PackageOpen, Wrench, Check, Search, ChevronDown, X, CheckCircle2, Plus, Minus, CheckCircle } from "lucide-react";
+import { PackageOpen, Wrench, Check, Search, ChevronDown, X, CheckCircle2, Plus, Minus, CheckCircle, Ban } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 
 /**
@@ -325,6 +325,7 @@ export default function VenueEquipmentChecklist({
   setOverrideQuantity,
   dbEquipmentTypes = [],
   selected = null,
+  restrictedCategories = [],
 }) {
   const isAssignmentMode = isApproved || isPreEvent || !isSideBySide;
 
@@ -532,11 +533,16 @@ export default function VenueEquipmentChecklist({
     }
   };
 
-  // Check how many units have been assigned
+  // Check how many units have been assigned (excluding restricted categories)
   let totalRequestedUnits = 0;
   let totalAssignedUnits = 0;
 
   categoriesToRender.forEach((catObj, catIdx) => {
+    const isCatRestricted = restrictedCategories.some(
+      (c) => String(c).toLowerCase().trim() === String(catObj.category).toLowerCase().trim()
+    );
+    if (isCatRestricted) return;
+
     const reqQty = parseInt(catObj.quantity, 10) || 1;
     totalRequestedUnits += reqQty;
     for (let uIdx = 0; uIdx < reqQty; uIdx++) {
@@ -612,17 +618,27 @@ export default function VenueEquipmentChecklist({
       ) : (
         <div className="space-y-3">
           {categoriesToRender.map((item, catIdx) => {
+            const isRestricted = restrictedCategories.some(
+              (c) => String(c).toLowerCase().trim() === String(item.category).toLowerCase().trim()
+            );
             const reqQty = Math.max(1, item.quantity || 1);
             const availableUnits = getAvailableUnitsForCategory ? getAvailableUnitsForCategory(item.category, item.equipment_type_id) : [];
             const hasStock = availableUnits.length > 0;
 
             return (
-              <div key={`cat-card-${catIdx}`} className="p-3.5 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-blue-900/50 rounded-lg space-y-3">
+              <div
+                key={`cat-card-${catIdx}`}
+                className={`p-3.5 rounded-lg space-y-3 border transition-all ${
+                  isRestricted
+                    ? "bg-slate-100/80 dark:bg-slate-800/60 border-slate-300 dark:border-slate-700 opacity-75"
+                    : "bg-white dark:bg-slate-900/80 border-slate-200 dark:border-blue-900/50"
+                }`}
+              >
                 {/* Category Selection & Quantity Row */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 dark:border-blue-900/50 pb-2.5 gap-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Category:</span>
-                    {canOverride && setOverrideCategories && isAssignmentMode ? (
+                    {canOverride && setOverrideCategories && isAssignmentMode && !isRestricted ? (
                       <select
                         value={item.category}
                         onChange={(e) => handleUpdateOverrideItem(catIdx, "category", e.target.value)}
@@ -638,7 +654,14 @@ export default function VenueEquipmentChecklist({
                         ))}
                       </select>
                     ) : (
-                      <span className="text-xs font-bold text-slate-900 dark:text-white font-mono">{item.category}</span>
+                      <span className={`text-xs font-bold font-mono ${isRestricted ? "line-through text-slate-500 dark:text-slate-400" : "text-slate-900 dark:text-white"}`}>
+                        {item.category}
+                      </span>
+                    )}
+                    {isRestricted && (
+                      <span className="px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900 text-[10px] font-black uppercase tracking-wider">
+                        Restricted / Not Approved
+                      </span>
                     )}
                   </div>
 
@@ -683,7 +706,12 @@ export default function VenueEquipmentChecklist({
                   </div>
                 </div>
 
-                {!isAssignmentMode ? (
+                {isRestricted ? (
+                  <div className="p-2.5 bg-slate-200/60 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-xl text-[11px] font-bold text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                    <Ban size={14} className="text-rose-500 shrink-0" />
+                    <span>This equipment category was restricted during review and is not approved for this venue booking.</span>
+                  </div>
+                ) : !isAssignmentMode ? (
                   /* RETURNED UNIT CONDITION CHECKLIST (Post-event / side-by-side mode) */
                   <div className="space-y-2 pt-1">
                     {Array.from({ length: reqQty }).map((_, uIdx) => {
