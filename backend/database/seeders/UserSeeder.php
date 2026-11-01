@@ -33,18 +33,20 @@ class UserSeeder extends Seeder
                 'permissions' => [],
             ]
         );
-        $defaultPassword = Hash::make(env('INITIAL_SUPERADMIN_PASSWORD', 'password123'));
+        $adminEmail = env('ADMIN_EMAIL', env('INITIAL_SUPERADMIN_EMAIL', 'admin@urios.edu.ph'));
+        $adminPassword = Hash::make(env('ADMIN_PASSWORD', env('INITIAL_SUPERADMIN_PASSWORD', 'password123')));
+        $adminName = env('ADMIN_NAME', 'System Administrator');
 
-        // 1. Super Administrator
+        // Primary Administrator (short as 'admin')
         User::withTrashed()->updateOrCreate(
-            ['email' => 'superadmin@urios.edu.ph'],
+            ['email' => $adminEmail],
             [
-                'name'           => 'Super Administrator',
-                'first_name'     => 'Super',
-                'last_name'      => 'Administrator',
-                'email_address'  => 'superadmin@urios.edu.ph',
-                'email'          => 'superadmin@urios.edu.ph',
-                'password'       => $defaultPassword,
+                'name'           => $adminName,
+                'first_name'     => 'System',
+                'last_name'      => 'Admin',
+                'email_address'  => $adminEmail,
+                'email'          => $adminEmail,
+                'password'       => $adminPassword,
                 'role_id'        => $superAdminRole->id,
                 'created_by'     => null,
                 'is_active'      => true,
