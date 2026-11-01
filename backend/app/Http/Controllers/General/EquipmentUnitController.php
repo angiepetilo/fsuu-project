@@ -1247,7 +1247,7 @@ class EquipmentUnitController extends Controller
                 };
 
                 $rawStatus = strtolower(trim((string)($row['status'] ?? 'available')));
-                if (!in_array($rawStatus, ['available', 'maintenance', 'archived', 'unavailable', 'damaged', 'lost'])) {
+                if (!in_array($rawStatus, ['available', 'built-in', 'built_in', 'maintenance', 'archived', 'unavailable', 'damaged', 'lost'])) {
                     $rawStatus = 'available';
                 }
 
@@ -1283,6 +1283,121 @@ class EquipmentUnitController extends Controller
                 ]);
 
                 $createdUnits[] = $unit;
+            }
+
+            // Pass 2: Automatically resolve and link Built-In Units across newly imported & existing inventory
+            $hasBuiltInColumn = \Illuminate\Support\Facades\Schema::hasColumn('equipment_units', 'built_in_units');
+            if ($hasBuiltInColumn) {
+                $allActiveUnits = EquipmentUnit::with('equipmentType')->whereNull('archived_at')->get();
+                $unitByCode = [];
+                $unitByCatSeq = [];
+                $unitsByCategory = [];
+                $claimedChildCodes = [];
+
+                foreach ($allActiveUnits as $au) {
+                    $bc = strtolower(trim((string)($au->barcode ?: $au->serial_number ?: '')));
+                    $sn = strtolower(trim((string)($au->serial_number ?: $au->barcode ?: '')));
+                    if ($bc !== '') $unitByCode[$bc] = $au;
+                    if ($sn !== '') $unitByCode[$sn] = $au;
+
+                    $cName = strtolower(trim((string)($au->equipmentType?->eq_name ?? $au->equipmentType?->name ?? '')));
+                    $seqRaw = strtolower(trim((string)($au->seq_no ?? '')));
+                    if ($cName !== '' && $seqRaw !== '') {
+                        $seqWithHash = str_starts_with($seqRaw, '#') ? $seqRaw : ('#' . $seqRaw);
+                        $seqNoHash = ltrim($seqRaw, '#');
+                        $unitByCatSeq[$cName . ' ' . $seqWithHash] = $au;
+                        $unitByCatSeq[$cName . ' ' . $seqNoHash] = $au;
+                    }
+                    if ($cName !== '') {
+                        $unitsByCategory[$cName][] = $au;
+                    }
+
+                    $existingBuiltIn = is_array($au->built_in_units)
+                        ? $au->built_in_units
+                        : (is_string($au->built_in_units) ? json_decode($au->built_in_units, true) : []);
+                    if (is_array($existingBuiltIn)) {
+                        foreach ($existingBuiltIn as $ebRef) {
+                            $ebKey = strtolower(trim((string)$ebRef));
+                            if ($ebKey !== '') $claimedChildCodes[$ebKey] = $au->id;
+                        }
+                    }
+                }
+
+                $resolveTokenToUnit = function (string $token, int $excludeParentId) use (&$unitByCode, &$unitByCatSeq, &$unitsByCategory, &$claimedChildCodes) {
+                    $clean = strtolower(trim($token));
+                    if ($clean === '') return null;
+
+                    if (isset($unitByCode[$clean]) && $unitByCode[$clean]->id !== $excludeParentId) {
+                        return $unitByCode[$clean];
+                    }
+                    $normSpace = preg_replace('/\s+/', ' ', $clean);
+                    if (isset($unitByCatSeq[$normSpace]) && $unitByCatSeq[$normSpace]->id !== $excludeParentId) {
+                        return $unitByCatSeq[$normSpace];
+                    }
+                    if (isset($unitsByCategory[$normSpace])) {
+                        foreach ($unitsByCategory[$normSpace] as $cand) {
+                            $candCode = strtolower(trim((string)($cand->barcode ?: $cand->serial_number ?: '')));
+                            if ($cand->id !== $excludeParentId && $candCode !== '' && !isset($claimedChildCodes[$candCode])) {
+                                return $cand;
+                            }
+                        }
+                    }
+                    return null;
+                };
+
+                $parentLinksMap = [];
+
+                foreach ($rawUnits as $index => $row) {
+                    $currentUnit = $createdUnits[$index] ?? null;
+                    if (!$currentUnit) continue;
+
+                    // Option A: Parent row specifies "built_in_units" (comma or semicolon separated)
+                    $rawBuiltIn = $row['built_in_units'] ?? '';
+                    $tokens = is_array($rawBuiltIn)
+                        ? $rawBuiltIn
+                        : preg_split('/[,;]+/', (string)$rawBuiltIn, -1, PREG_SPLIT_NO_EMPTY);
+
+                    foreach ($tokens as $tok) {
+                        $childUnit = $resolveTokenToUnit((string)$tok, $currentUnit->id);
+                        if ($childUnit) {
+                            $childCode = $childUnit->barcode ?: $childUnit->serial_number ?: (string)$childUnit->id;
+                            $childKey = strtolower(trim((string)$childCode));
+                            if (!isset($claimedChildCodes[$childKey]) || $claimedChildCodes[$childKey] === $currentUnit->id) {
+                                $claimedChildCodes[$childKey] = $currentUnit->id;
+                                $parentLinksMap[$currentUnit->id][] = $childCode;
+                                $affectedCategoryIds[$childUnit->equipment_type_id] = true;
+                            }
+                        }
+                    }
+
+                    // Option B: Child row specifies "parent_unit" / "built_in_to"
+                    $rawParentRef = trim((string)($row['parent_unit'] ?? $row['built_in_to'] ?? ''));
+                    if ($rawParentRef !== '') {
+                        $parentUnit = $resolveTokenToUnit($rawParentRef, $currentUnit->id);
+                        if ($parentUnit) {
+                            $childCode = $currentUnit->barcode ?: $currentUnit->serial_number ?: (string)$currentUnit->id;
+                            $childKey = strtolower(trim((string)$childCode));
+                            if (!isset($claimedChildCodes[$childKey]) || $claimedChildCodes[$childKey] === $parentUnit->id) {
+                                $claimedChildCodes[$childKey] = $parentUnit->id;
+                                $parentLinksMap[$parentUnit->id][] = $childCode;
+                                $affectedCategoryIds[$parentUnit->equipment_type_id] = true;
+                            }
+                        }
+                    }
+                }
+
+                foreach ($parentLinksMap as $parentId => $childCodes) {
+                    $parentModel = EquipmentUnit::find($parentId);
+                    if (!$parentModel) continue;
+
+                    $existing = is_array($parentModel->built_in_units)
+                        ? $parentModel->built_in_units
+                        : (is_string($parentModel->built_in_units) ? json_decode($parentModel->built_in_units, true) : []);
+                    $merged = array_values(array_unique(array_merge(is_array($existing) ? $existing : [], $childCodes)));
+
+                    $parentModel->update(['built_in_units' => $merged]);
+                    $this->resolveParentAndChildrenStatus($parentModel);
+                }
             }
 
             // Sync stock for all affected categories

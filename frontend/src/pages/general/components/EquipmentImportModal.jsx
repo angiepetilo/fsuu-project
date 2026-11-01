@@ -79,6 +79,8 @@ export default function EquipmentImportModal({ isOpen, onClose, onSuccess }) {
           seq_no: findVal("seqno", "sequenceno", "seq", "sequence", "unitseqno", "unitno", "unit", "itemno") || "",
           serial_number: findVal("serialnumber", "serialno", "serial", "barcode", "sn") || "",
           barcode: findVal("barcode", "serialnumber") || "",
+          built_in_units: findVal("builtinunits", "builtin", "builtins", "childunits", "attachedunits", "components") || "",
+          parent_unit: findVal("builtinto", "parentunit", "parent", "parentbarcode", "parentserial") || "",
           status: findVal("status") || "available",
           condition: findVal("condition") || "Good",
           purchased_at: findVal("datepurchased", "purchasedat", "purchasedate", "dateacquired") || "",
@@ -119,7 +121,7 @@ export default function EquipmentImportModal({ isOpen, onClose, onSuccess }) {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-slate-900 w-full max-w-3xl rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4.5 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-3">
@@ -131,7 +133,7 @@ export default function EquipmentImportModal({ isOpen, onClose, onSuccess }) {
                 Batch Import Equipment Units
               </h2>
               <p className="text-xs text-slate-500 font-medium">
-                Upload Excel or CSV file to register physical equipment in bulk.
+                Upload Excel or CSV file to register physical equipment and auto-link built-in units in bulk.
               </p>
             </div>
           </div>
@@ -152,7 +154,7 @@ export default function EquipmentImportModal({ isOpen, onClose, onSuccess }) {
                 Step 1: Download sample format
               </span>
               <p className="text-[11px] text-blue-700/80 dark:text-blue-400 font-medium">
-                Use our pre-formatted spreadsheet template to avoid format errors.
+                Use the Built-In Units column (e.g. SN-2026-PWR-001 or Power Cable #001) to automatically attach built-in accessories.
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -273,6 +275,7 @@ export default function EquipmentImportModal({ isOpen, onClose, onSuccess }) {
                       <th className="py-2 px-3">Model</th>
                       <th className="py-2 px-3">Seq No</th>
                       <th className="py-2 px-3">Serial / Barcode</th>
+                      <th className="py-2 px-3">Built-In Units</th>
                       <th className="py-2 px-3">Condition</th>
                       <th className="py-2 px-3">Status</th>
                     </tr>
@@ -290,13 +293,30 @@ export default function EquipmentImportModal({ isOpen, onClose, onSuccess }) {
                         <td className="py-2 px-3 font-mono text-[11px]">
                           {u.serial_number || "(Auto-generate)"}
                         </td>
+                        <td className="py-2 px-3 text-[11px]">
+                          {u.built_in_units ? (
+                            <span className="font-semibold text-violet-600 dark:text-violet-400">
+                              {u.built_in_units}
+                            </span>
+                          ) : u.parent_unit ? (
+                            <span className="font-semibold text-indigo-600 dark:text-indigo-400">
+                              In: {u.parent_unit}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 dark:text-slate-600">—</span>
+                          )}
+                        </td>
                         <td className="py-2 px-3">
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">
                             {u.condition}
                           </span>
                         </td>
                         <td className="py-2 px-3">
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            String(u.status).toLowerCase().includes("built")
+                              ? "bg-violet-50 text-violet-700"
+                              : "bg-emerald-50 text-emerald-700"
+                          }`}>
                             {u.status}
                           </span>
                         </td>

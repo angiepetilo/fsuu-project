@@ -12,6 +12,7 @@ const EQUIPMENT_COLUMNS = [
   { header: "Sequence No", key: "seq_no", width: 16 },
   { header: "Serial Number", key: "serial_number", width: 26 },
   { header: "Barcode", key: "barcode", width: 26 },
+  { header: "Built-In Units", key: "built_in_units", width: 30 },
   { header: "Status", key: "status", width: 16 },
   { header: "Condition", key: "condition", width: 16 },
   { header: "Date Purchased", key: "purchased_at", width: 18 },
@@ -34,6 +35,19 @@ export async function exportEquipmentList(units, format = "xlsx") {
     const datePurchased = u.purchased_at || u.date_purchased || "";
     const cleanDate = typeof datePurchased === "string" ? datePurchased.split("T")[0] : "";
     const lifespan = u.eq_lifespan || u.lifespan_years || 5;
+    let builtInStr = "";
+    if (Array.isArray(u.built_in_units)) {
+      builtInStr = u.built_in_units.filter(Boolean).join(", ");
+    } else if (typeof u.built_in_units === "string" && u.built_in_units.trim().startsWith("[")) {
+      try {
+        const parsed = JSON.parse(u.built_in_units);
+        if (Array.isArray(parsed)) builtInStr = parsed.filter(Boolean).join(", ");
+      } catch {
+        builtInStr = u.built_in_units;
+      }
+    } else if (typeof u.built_in_units === "string") {
+      builtInStr = u.built_in_units;
+    }
 
     return [
       catName,
@@ -42,6 +56,7 @@ export async function exportEquipmentList(units, format = "xlsx") {
       seq,
       sn,
       bc,
+      builtInStr,
       u.status || "available",
       u.condition || "Good",
       cleanDate,
@@ -63,7 +78,7 @@ export async function exportEquipmentList(units, format = "xlsx") {
   const worksheet = workbook.addWorksheet("Equipment Inventory");
 
   // Title Row
-  worksheet.mergeCells("A1:K1");
+  worksheet.mergeCells("A1:L1");
   const titleCell = worksheet.getCell("A1");
   titleCell.value = "FSUU BOOKING SYSTEM - EQUIPMENT INVENTORY";
   titleCell.font = { bold: true, size: 14, color: { argb: "FFFFFFFF" } };
@@ -76,7 +91,7 @@ export async function exportEquipmentList(units, format = "xlsx") {
   worksheet.getRow(1).height = 36;
 
   // Subtitle Row
-  worksheet.mergeCells("A2:K2");
+  worksheet.mergeCells("A2:L2");
   const subCell = worksheet.getCell("A2");
   subCell.value = `Exported on: ${new Date().toLocaleString()} | Total Records: ${units.length}`;
   subCell.font = { italic: true, size: 10, color: { argb: "FF475569" } };
@@ -117,7 +132,7 @@ export async function exportEquipmentList(units, format = "xlsx") {
       cell.font = { size: 10 };
       cell.alignment = {
         vertical: "middle",
-        horizontal: colIdx === 0 || colIdx === 1 || colIdx === 2 || colIdx === 10 ? "left" : "center",
+        horizontal: colIdx === 0 || colIdx === 1 || colIdx === 2 || colIdx === 6 || colIdx === 11 ? "left" : "center",
       };
       cell.border = {
         bottom: { style: "thin", color: { argb: "FFE2E8F0" } },
@@ -144,43 +159,60 @@ export async function downloadEquipmentTemplate(format = "xlsx") {
 
   const sampleRows = [
     [
-      "LCD Projector",
+      "Standard LCD Projector",
       "Epson",
       "EB-E01",
       "#001",
       "SN-2026-EPS-001",
       "SN-2026-EPS-001",
+      "SN-2026-PWR-001, SN-2026-HDMI-001",
       "available",
       "Good",
       "2026-01-15",
       5,
-      "Standard classroom projector with HDMI cable",
+      "Parent unit with automatic built-in Power Cable & HDMI Cable",
     ],
     [
-      "Wireless Microphone",
-      "Shure",
-      "PGXD24",
+      "Power Cable",
+      "Universal",
+      "PWR-STD",
       "#001",
-      "SN-2026-SHU-001",
-      "SN-2026-SHU-001",
-      "available",
+      "SN-2026-PWR-001",
+      "SN-2026-PWR-001",
+      "",
+      "built-in",
       "Good",
-      "2026-02-10",
+      "2026-01-15",
+      5,
+      "Automatically linked as built-in to Standard LCD Projector #001",
+    ],
+    [
+      "1.5 Meters HDMI Signal",
+      "UGREEN",
+      "HD-1.5M",
+      "#001",
+      "SN-2026-HDMI-001",
+      "SN-2026-HDMI-001",
+      "",
+      "built-in",
+      "Good",
+      "2026-01-15",
       3,
-      "Dual microphone with receiver set",
+      "Automatically linked as built-in to Standard LCD Projector #001",
     ],
     [
       "Tripod Screen 84\"",
       "Apollo",
       "TS-84",
-      "", // Leave blank to test auto-sequence number
-      "", // Leave blank to test auto-serial number
+      "",
+      "",
+      "",
       "",
       "available",
       "Good",
       "2026-03-01",
       5,
-      "Portable projector tripod screen (auto seq & serial)",
+      "Standalone unit (leave Seq & Serial blank to auto-generate)",
     ],
   ];
 
@@ -196,7 +228,7 @@ export async function downloadEquipmentTemplate(format = "xlsx") {
   const worksheet = workbook.addWorksheet("Equipment Template");
 
   // Instructions header banner
-  worksheet.mergeCells("A1:K1");
+  worksheet.mergeCells("A1:L1");
   const h1 = worksheet.getCell("A1");
   h1.value = "EQUIPMENT BATCH IMPORT TEMPLATE";
   h1.font = { bold: true, size: 13, color: { argb: "FFFFFFFF" } };
@@ -208,10 +240,10 @@ export async function downloadEquipmentTemplate(format = "xlsx") {
   h1.alignment = { vertical: "middle", horizontal: "center" };
   worksheet.getRow(1).height = 32;
 
-  worksheet.mergeCells("A2:K2");
+  worksheet.mergeCells("A2:L2");
   const h2 = worksheet.getCell("A2");
   h2.value =
-    "Notes: 'Category' is required. 'Serial Number' and 'Sequence No' will be auto-generated if left blank. 'Condition': Good, Damaged, Lost, Under Repair, Minor Wear.";
+    "Notes: 'Category' is required. 'Built-In Units' accepts comma-separated child Serial Numbers (e.g. SN-2026-PWR-001) or Category #SeqNo (e.g. Power Cable #001) to auto-link built-in accessories.";
   h2.font = { italic: true, size: 9, color: { argb: "FF475569" } };
   h2.alignment = { vertical: "middle", horizontal: "center" };
   worksheet.getRow(2).height = 20;
@@ -244,7 +276,7 @@ export async function downloadEquipmentTemplate(format = "xlsx") {
       cell.font = { size: 10 };
       cell.alignment = {
         vertical: "middle",
-        horizontal: colIdx === 0 || colIdx === 1 || colIdx === 2 || colIdx === 10 ? "left" : "center",
+        horizontal: colIdx === 0 || colIdx === 1 || colIdx === 2 || colIdx === 6 || colIdx === 11 ? "left" : "center",
       };
       cell.border = {
         bottom: { style: "thin", color: { argb: "FFE2E8F0" } },
