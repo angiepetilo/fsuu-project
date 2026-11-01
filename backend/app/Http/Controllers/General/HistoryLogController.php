@@ -72,11 +72,25 @@ class HistoryLogController extends Controller
         }
     }
 
+    private function canModifyHistory(Request $request): bool
+    {
+        $user = $request->user();
+        if (!$user) {
+            return false;
+        }
+        return $user->isSuperAdmin()
+            || $user->isAdmin()
+            || $user->hasPermission('history');
+    }
+
     /**
      * DELETE /general/history-log/venue/{id} — soft delete a venue booking record
      */
-    public function destroyVenue($id): JsonResponse
+    public function destroyVenue(Request $request, $id): JsonResponse
     {
+        if (!$this->canModifyHistory($request)) {
+            return response()->json(['message' => 'Unauthorized to archive history records.'], 403);
+        }
         try {
             DB::table('venue_bookings')->where('id', $id)->update(['archived_at' => now()]);
             return response()->json(['message' => 'Venue history record archived.']);
@@ -88,8 +102,11 @@ class HistoryLogController extends Controller
     /**
      * DELETE /general/history-log/equipment/{id} — soft delete an equipment borrow record
      */
-    public function destroyEquipment($id): JsonResponse
+    public function destroyEquipment(Request $request, $id): JsonResponse
     {
+        if (!$this->canModifyHistory($request)) {
+            return response()->json(['message' => 'Unauthorized to archive history records.'], 403);
+        }
         try {
             DB::table('equipment_borrows')->where('id', $id)->update(['archived_at' => now()]);
             return response()->json(['message' => 'Equipment history record archived.']);
@@ -103,6 +120,9 @@ class HistoryLogController extends Controller
      */
     public function clear(Request $request): JsonResponse
     {
+        if (!$this->canModifyHistory($request)) {
+            return response()->json(['message' => 'Unauthorized to clear history logs.'], 403);
+        }
         try {
             $type = $request->input('type', 'all'); // 'venue' | 'equipment' | 'all'
             $termId = $request->input('academic_term_id');

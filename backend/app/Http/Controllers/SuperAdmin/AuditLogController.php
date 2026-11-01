@@ -608,6 +608,10 @@ class AuditLogController extends Controller
      */
     public function clear(Request $request): JsonResponse
     {
+        $user = $request->user();
+        if (!$user || (!$user->isSuperAdmin() && !$user->isAdmin())) {
+            return response()->json(['message' => 'Unauthorized. Only Super Administrators can clear the activity audit trail.'], 403);
+        }
         try {
             DB::table('audit_logs')->delete();
             return response()->json(['message' => 'Activity audit trail cleared successfully.']);

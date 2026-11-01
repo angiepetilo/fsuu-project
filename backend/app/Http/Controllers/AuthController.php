@@ -363,7 +363,15 @@ class AuthController extends Controller
         // Track failed/total attempts per user and module in cache
         $moduleSlug = Str::slug($module ?: 'security');
         $cacheKey = "verify_pw_attempts_" . ($user?->id ?? 'guest') . "_{$moduleSlug}";
-        $attemptCount = (int)\Illuminate\Support\Facades\Cache::get($cacheKey, 0) + 1;
+        $existingAttempts = (int)\Illuminate\Support\Facades\Cache::get($cacheKey, 0);
+        if ($existingAttempts >= 5) {
+            return response()->json([
+                'valid'         => false,
+                'message'       => 'Maximum security challenge attempts reached. Module unlock is temporarily locked for 30 minutes.',
+                'attempt_count' => $existingAttempts,
+            ], 429);
+        }
+        $attemptCount = $existingAttempts + 1;
 
         $isValid = false;
 
@@ -752,7 +760,7 @@ class AuthController extends Controller
         }
 
         $submittedHash = hash('sha256', $code);
-        if ($record->otp_hash !== $submittedHash) {
+        if (!hash_equals((string)$record->otp_hash, $submittedHash)) {
             $record->recordFailedAttempt();
             $remaining = 5 - $record->attempts;
             return response()->json([

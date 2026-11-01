@@ -41,11 +41,26 @@ class AcademicTermController extends Controller
         return response()->json(array_merge($active->toArray(), $stats));
     }
 
+    private function canManageTerms(Request $request): bool
+    {
+        $user = $request->user();
+        if (!$user) {
+            return false;
+        }
+        return $user->isSuperAdmin()
+            || $user->isAdmin()
+            || $user->hasPermission('settings', 'terms')
+            || $user->hasPermission('settings.terms');
+    }
+
     /**
      * Create a new academic term.
      */
     public function store(Request $request): JsonResponse
     {
+        if (!$this->canManageTerms($request)) {
+            return response()->json(['message' => 'Unauthorized to create academic terms.'], 403);
+        }
         $validated = $request->validate([
             'academic_year' => 'required|string|max:50',
             'semester'      => 'required|string|max:50',
@@ -80,6 +95,9 @@ class AcademicTermController extends Controller
      */
     public function update(Request $request, $id): JsonResponse
     {
+        if (!$this->canManageTerms($request)) {
+            return response()->json(['message' => 'Unauthorized to update academic terms.'], 403);
+        }
         $term = AcademicTerm::findOrFail($id);
 
         $validated = $request->validate([
@@ -113,8 +131,11 @@ class AcademicTermController extends Controller
     /**
      * Activate a specific academic term.
      */
-    public function activate($id): JsonResponse
+    public function activate(Request $request, $id): JsonResponse
     {
+        if (!$this->canManageTerms($request)) {
+            return response()->json(['message' => 'Unauthorized to activate academic terms.'], 403);
+        }
         $term = AcademicTerm::findOrFail($id);
 
         AcademicTerm::where('is_active', true)->update(['is_active' => false]);
@@ -129,8 +150,11 @@ class AcademicTermController extends Controller
     /**
      * Delete an academic term.
      */
-    public function destroy($id): JsonResponse
+    public function destroy(Request $request, $id): JsonResponse
     {
+        if (!$this->canManageTerms($request)) {
+            return response()->json(['message' => 'Unauthorized to delete academic terms.'], 403);
+        }
         $term = AcademicTerm::findOrFail($id);
 
         if ($term->is_active) {

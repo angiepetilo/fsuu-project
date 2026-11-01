@@ -27,11 +27,17 @@ class TrackingController extends Controller
 
         $refLower = strtolower($referenceCode);
 
+        // Prevent bare numeric ID enumeration (e.g. "1", "2", "3"); require a real tracking code format
+        $hasPrefix = str_starts_with($refLower, 'trk-') || str_starts_with($refLower, 'eq-') || str_starts_with($refLower, 'vb-') || str_starts_with($refLower, 'eb-');
+        $fallbackId = $hasPrefix ? str_replace(['trk-avr', 'trk-', 'eq-2026-', 'eq-'], '', $refLower) : null;
+
         // 1. Search in tracking_numbers table (case-insensitive)
-        $tracking = \Illuminate\Support\Facades\DB::table('tracking_numbers')
-            ->whereRaw('LOWER(reference_code) = ?', [$refLower])
-            ->orWhere('id', str_replace(['trk-avr', 'trk-', 'eq-2026-', 'eq-'], '', $refLower))
-            ->first();
+        $trackingQuery = \Illuminate\Support\Facades\DB::table('tracking_numbers')
+            ->whereRaw('LOWER(reference_code) = ?', [$refLower]);
+        if ($fallbackId !== null && is_numeric($fallbackId)) {
+            $trackingQuery->orWhere('id', (int) $fallbackId);
+        }
+        $tracking = $trackingQuery->first();
 
         if ($tracking) {
             if (in_array($tracking->reservation_type, ['equipment_borrow', 'equipment_borrowing'])) {
@@ -44,18 +50,22 @@ class TrackingController extends Controller
 
         // 2. Direct fallback on EquipmentBorrow
         if (!$booking) {
-            $booking = EquipmentBorrow::with(['items.equipmentType', 'trackingNumber', 'department', 'inspections'])
-                ->whereHas('trackingNumber', fn($q) => $q->whereRaw('LOWER(reference_code) = ?', [$refLower]))
-                ->orWhere('id', str_replace(['eq-2026-', 'eq-'], '', $refLower))
-                ->first();
+            $ebQuery = EquipmentBorrow::with(['items.equipmentType', 'trackingNumber', 'department', 'inspections'])
+                ->whereHas('trackingNumber', fn($q) => $q->whereRaw('LOWER(reference_code) = ?', [$refLower]));
+            if (str_starts_with($refLower, 'eq-') && $fallbackId !== null && is_numeric($fallbackId)) {
+                $ebQuery->orWhere('id', (int) $fallbackId);
+            }
+            $booking = $ebQuery->first();
         }
 
         // 3. Direct fallback on VenueBooking
         if (!$booking) {
-            $booking = VenueBooking::with(['venue', 'trackingNumber', 'department', 'inspections'])
-                ->whereRaw('LOWER(reference_code) = ?', [$refLower])
-                ->orWhere('id', str_replace(['trk-avr', 'trk-'], '', $refLower))
-                ->first();
+            $vbQuery = VenueBooking::with(['venue', 'trackingNumber', 'department', 'inspections'])
+                ->whereHas('trackingNumber', fn($q) => $q->whereRaw('LOWER(reference_code) = ?', [$refLower]));
+            if (str_starts_with($refLower, 'trk-') && $fallbackId !== null && is_numeric($fallbackId)) {
+                $vbQuery->orWhere('id', (int) $fallbackId);
+            }
+            $booking = $vbQuery->first();
         }
 
         $errorMessage = 'We could not find a booking matching this reference code.';

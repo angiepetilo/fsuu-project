@@ -52,6 +52,10 @@ class CommunicationLogController extends Controller
      */
     public function clear(Request $request): JsonResponse
     {
+        $user = $request->user();
+        if (!$user || (!$user->isSuperAdmin() && !$user->isAdmin() && !$user->hasPermission('settings', 'communications') && !$user->hasPermission('settings.communications'))) {
+            return response()->json(['message' => 'Unauthorized to clear communication logs.'], 403);
+        }
         try {
             CommunicationLog::query()->delete();
             return response()->json(['message' => 'Communication logs cleared successfully.']);
