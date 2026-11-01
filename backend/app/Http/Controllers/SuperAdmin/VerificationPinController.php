@@ -34,9 +34,14 @@ class VerificationPinController extends Controller
             ]);
         }
 
+        $canManagePin = $authUser->isSuperAdmin()
+            || $authUser->isAdmin()
+            || $authUser->hasPermission('settings', 'pin')
+            || $authUser->hasPermission('settings.pin');
+
         return response()->json([
             'id'                          => $setting->id,
-            'masterPin'                   => $setting->master_pin,
+            'masterPin'                   => $canManagePin ? $setting->master_pin : null,
             'isEnabled'                   => (bool) $setting->is_enabled,
             'requirePinOutsideHours'      => (bool) $setting->require_outside_hours,
             'requirePinMultiDayVenue'     => (bool) $setting->require_multi_day_venue,
@@ -64,8 +69,14 @@ class VerificationPinController extends Controller
     public function update(Request $request): JsonResponse
     {
         $authUser = $request->user();
-        if (!$authUser) {
-            return response()->json(['message' => 'Unauthorized.'], 403);
+        if (
+            !$authUser ||
+            (!$authUser->isSuperAdmin() &&
+             !$authUser->isAdmin() &&
+             !$authUser->hasPermission('settings', 'pin') &&
+             !$authUser->hasPermission('settings.pin'))
+        ) {
+            return response()->json(['message' => 'Unauthorized to modify verification PIN settings.'], 403);
         }
 
         $validated = $request->validate([

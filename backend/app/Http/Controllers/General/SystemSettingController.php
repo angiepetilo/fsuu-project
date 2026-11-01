@@ -38,14 +38,32 @@ class SystemSettingController extends Controller
     }
 
     /**
+     * Check if the authenticated user is authorized to manage sensitive system/SMTP settings.
+     */
+    private function canManageSystemSettings(Request $request): bool
+    {
+        $user = $request->user();
+        if (!$user) {
+            return false;
+        }
+        return $user->isSuperAdmin()
+            || $user->isAdmin()
+            || $user->hasPermission('settings', 'system')
+            || $user->hasPermission('settings.system');
+    }
+
+    /**
      * GET /api/general/system-settings
      * Settings endpoint returning full settings including SMTP configuration.
      */
-    public function show(): JsonResponse
+    public function show(Request $request): JsonResponse
     {
         SystemSetting::configureMailer();
         \Illuminate\Support\Facades\Cache::forget('system_settings_singleton');
         $settings = SystemSetting::getSettings();
+        if (!$this->canManageSystemSettings($request)) {
+            $settings->makeHidden(['smtp_password', 'sms_api_key', 'abstract_email_api_key']);
+        }
         return response()->json($settings);
     }
 
@@ -55,6 +73,9 @@ class SystemSettingController extends Controller
      */
     public function update(Request $request): JsonResponse
     {
+        if (!$this->canManageSystemSettings($request)) {
+            return response()->json(['message' => 'Unauthorized to modify system settings.'], 403);
+        }
         $validated = $request->validate([
             'system_name'                    => 'nullable|string|max:255',
             'organization_name'              => 'nullable|string|max:255',
@@ -140,6 +161,9 @@ class SystemSettingController extends Controller
      */
     public function testSmtp(Request $request): JsonResponse
     {
+        if (!$this->canManageSystemSettings($request)) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
         $validated = $request->validate([
             'test_email' => 'required|email',
         ]);
@@ -206,6 +230,9 @@ class SystemSettingController extends Controller
      */
     public function testSms(Request $request): JsonResponse
     {
+        if (!$this->canManageSystemSettings($request)) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
         $validated = $request->validate([
             'test_phone' => 'required|string|min:10|max:20',
         ]);
@@ -274,6 +301,9 @@ class SystemSettingController extends Controller
      */
     public function testAbstractApi(Request $request): JsonResponse
     {
+        if (!$this->canManageSystemSettings($request)) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
         $key = $request->input('api_key');
         if (!$key) {
             $settings = SystemSetting::getSettings();

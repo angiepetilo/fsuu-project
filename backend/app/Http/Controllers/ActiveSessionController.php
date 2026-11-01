@@ -16,8 +16,23 @@ class ActiveSessionController extends Controller
      * List all active sessions with user, role, timing, and real-time status.
      * Columns: User / Account | Role | Session Started | Last Active | Session Status | Action
      */
+    private function canManageSessions(Request $request): bool
+    {
+        $user = $request->user();
+        if (!$user) {
+            return false;
+        }
+        return $user->isSuperAdmin()
+            || $user->isAdmin()
+            || $user->hasPermission('settings', 'sessions')
+            || $user->hasPermission('settings.sessions');
+    }
+
     public function index(Request $request): JsonResponse
     {
+        if (!$this->canManageSessions($request)) {
+            return response()->json(['message' => 'Unauthorized to view active sessions.'], 403);
+        }
         $query = PersonalAccessToken::query()
             ->where('tokenable_type', User::class)
             ->with(['tokenable.role'])
@@ -124,6 +139,9 @@ class ActiveSessionController extends Controller
      */
     public function terminate(Request $request, $id): JsonResponse
     {
+        if (!$this->canManageSessions($request)) {
+            return response()->json(['message' => 'Unauthorized to terminate sessions.'], 403);
+        }
         $token = PersonalAccessToken::find($id);
 
         if (!$token) {

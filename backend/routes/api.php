@@ -455,12 +455,15 @@ Route::prefix('public')->group(function () {
 });
 
 
-// ─── Diagnostic Endpoint (no shell needed) ────────────────────────────────────
-Route::get('/diagnostic/email-queue', function (Request $request) {
-    // Check authorization - use APP_KEY as secret
-    $secret = $request->query('secret');
-    if ($secret !== substr(config('app.key'), 7, 20)) { // Use part of APP_KEY as secret
-        return response()->json(['error' => 'Unauthorized. Add ?secret=YOUR_SECRET'], 403);
+// ─── Diagnostic Endpoint (SuperAdmin or Timing-Safe Secret, Rate-Limited) ────
+Route::middleware('throttle:10,1')->get('/diagnostic/email-queue', function (Request $request) {
+    $authUser = $request->user('sanctum');
+    $secret = (string) $request->query('secret', '');
+    $expectedSecret = substr((string) config('app.key'), 7, 20);
+    $hasValidSecret = !empty($expectedSecret) && !empty($secret) && hash_equals($expectedSecret, $secret);
+
+    if ((!$authUser || !$authUser->isSuperAdmin()) && !$hasValidSecret) {
+        return response()->json(['error' => 'Unauthorized.'], 403);
     }
 
     $report = [];

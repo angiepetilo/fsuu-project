@@ -109,13 +109,16 @@ class SystemSetting extends Model
 
             $envContent = file_get_contents($envPath);
             foreach ($values as $key => $val) {
-                $key = trim($key);
-                $val = trim((string)$val);
-                if (str_contains($val, ' ') || str_contains($val, '#') || str_contains($val, '$')) {
-                    $val = '"' . addcslashes($val, '"\\') . '"';
+                $key = preg_replace('/[^A-Z0-9_]/', '', strtoupper(trim((string)$key)));
+                if (empty($key)) {
+                    continue;
+                }
+                $val = str_replace(["\r", "\n", "\0"], '', trim((string)$val));
+                if (str_contains($val, ' ') || str_contains($val, '#') || str_contains($val, '$') || str_contains($val, '"')) {
+                    $val = '"' . addcslashes($val, '"\\$') . '"';
                 }
                 if (preg_match("/^{$key}=.*/m", $envContent)) {
-                    $envContent = preg_replace("/^{$key}=.*/m", "{$key}={$val}", $envContent);
+                    $envContent = preg_replace_callback("/^{$key}=.*/m", fn () => "{$key}={$val}", $envContent);
                 } else {
                     $envContent .= "\n{$key}={$val}";
                 }

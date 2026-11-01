@@ -27,6 +27,14 @@ class AuthController extends Controller
             ]);
         }
 
+        // Enforce 15-minute brute-force lockout after 5 failed attempts
+        $lockoutCacheKey = 'failed_login_' . md5($loginInput . '_' . $request->ip());
+        if ((int)\Illuminate\Support\Facades\Cache::get($lockoutCacheKey, 0) >= 5) {
+            throw ValidationException::withMessages([
+                'email' => ['Too many failed login attempts. Please wait 15 minutes before trying again.'],
+            ])->status(429);
+        }
+
         // Case-insensitive user lookup by primary email or email_address
         $user = \App\Models\User::where(function ($query) use ($loginInput) {
             $lower = strtolower($loginInput);

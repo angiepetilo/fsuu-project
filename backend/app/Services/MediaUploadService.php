@@ -133,7 +133,26 @@ class MediaUploadService
             @list($type, $data) = explode(';', $base64Data);
             @list(, $data)      = explode(',', $data);
 
-            $mimeType = str_replace('data:', '', $type);
+            $decoded = base64_decode((string)$data, true);
+            if ($decoded === false || strlen($decoded) === 0 || strlen($decoded) > 5 * 1024 * 1024) {
+                throw new \InvalidArgumentException('Invalid or oversized Base64 image payload.');
+            }
+
+            $detectedMime = null;
+            if (function_exists('finfo_open')) {
+                $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                if ($finfo) {
+                    $detectedMime = finfo_buffer($finfo, $decoded);
+                    finfo_close($finfo);
+                }
+            }
+
+            $mimeType = $detectedMime ?: str_replace('data:', '', (string)$type);
+            $allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+            if (!in_array($mimeType, $allowedMimes, true)) {
+                throw new \InvalidArgumentException('Unsupported Base64 image MIME type.');
+            }
+
             $extension = match ($mimeType) {
                 'image/png'  => 'png',
                 'image/gif'  => 'gif',
@@ -141,14 +160,15 @@ class MediaUploadService
                 default      => 'jpg',
             };
 
-            $fileName = $folder . '_' . time() . '_' . Str::random(8) . '.' . $extension;
-            $filePath = $folder . '/' . $fileName;
+            $cleanFolder = preg_replace('/[^a-zA-Z0-9_-]/', '', $folder) ?: 'general';
+            $fileName = $cleanFolder . '_' . time() . '_' . Str::random(8) . '.' . $extension;
+            $filePath = $cleanFolder . '/' . $fileName;
 
-            Storage::disk('public')->put($filePath, base64_decode($data));
+            Storage::disk('public')->put($filePath, $decoded);
 
             return url(Storage::url($filePath));
         } catch (\Throwable $e) {
-            return $base64Data;
+            return '';
         }
     }
 }
