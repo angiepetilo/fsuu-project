@@ -616,7 +616,8 @@ class AuditLogController extends Controller
             DB::table('audit_logs')->delete();
             return response()->json(['message' => 'Activity audit trail cleared successfully.']);
         } catch (\Throwable $e) {
-            return response()->json(['message' => 'Failed to clear audit trail: ' . $e->getMessage()], 500);
+            \Illuminate\Support\Facades\Log::error('Failed to clear audit trail: ' . $e->getMessage());
+            return response()->json(['message' => 'Failed to clear audit trail. Please try again.'], 500);
         }
     }
 }

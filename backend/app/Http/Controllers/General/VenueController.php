@@ -114,7 +114,7 @@ class VenueController extends Controller
             $venue = Venue::create($safeData);
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('VenueController store error: ' . $e->getMessage());
-            return response()->json(['message' => 'Failed to save venue: ' . $e->getMessage()], 500);
+            return response()->json(['message' => 'Failed to save venue. Please verify your input and try again.'], 500);
         }
 
         try {
@@ -190,7 +190,7 @@ class VenueController extends Controller
             $venue->update($safeData);
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('VenueController update error: ' . $e->getMessage());
-            return response()->json(['message' => 'Failed to update venue: ' . $e->getMessage()], 500);
+            return response()->json(['message' => 'Failed to update venue. Please verify your input and try again.'], 500);
         }
 
         try {
@@ -316,8 +316,8 @@ class VenueController extends Controller
             \Illuminate\Support\Facades\DB::rollBack();
             \Illuminate\Support\Facades\Log::error('VenueController bulkImport failed: ' . $e->getMessage());
             return response()->json([
-                'message' => 'Failed to import venues: ' . $e->getMessage()
-            ], 500);
+                'message' => 'Failed to import venues. Please verify the spreadsheet format and try again.'
+            ], 422);
         }
 
         try {

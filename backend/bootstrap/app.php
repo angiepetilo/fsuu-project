@@ -68,6 +68,14 @@ return Application::configure(basePath: dirname(__DIR__))
                         'message'    => 'The uploaded image or file is too large. Please select a photo or document under 10MB.',
                     ], 413, $corsHeaders);
                 }
+                if ($e instanceof \Illuminate\Database\QueryException || $e instanceof \PDOException) {
+                    \Illuminate\Support\Facades\Log::error('Database Error: ' . $e->getMessage());
+                    return response()->json([
+                        'success'    => false,
+                        'error_code' => 'DATABASE_ERROR',
+                        'message'    => 'A database error occurred while processing your request. Please try again or contact system support.',
+                    ], 500, $corsHeaders);
+                }
                 if ($e instanceof \Illuminate\Validation\ValidationException) {
                     return response()->json([
                         'success'    => false,

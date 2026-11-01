@@ -74,6 +74,45 @@ api.get = function(url, config = {}) {
   return originalGet(url, config);
 };
 
+// Clean, human-friendly error message translator
+function humanizeErrorMessage(error) {
+  const status = error.response?.status;
+  const rawMsg = error.response?.data?.message || error.response?.data?.error || '';
+  const str = String(rawMsg).toLowerCase();
+
+  // 1. Upload size limits (PHP PostTooLargeException / 413)
+  if (status === 413 || str.includes('too large') || str.includes('post data') || str.includes('max_filesize')) {
+    return 'The uploaded image or file is too large. Please select a photo or file under 10MB.';
+  }
+
+  // 2. Database & SQL errors (SQLSTATE, PDOException, QueryException)
+  if (str.includes('sqlstate') || str.includes('syntax error') || str.includes('queryexception') || str.includes('integrity constraint') || str.includes('foreign key constraint')) {
+    return 'A database error occurred while processing your request. Please refresh the page and try again.';
+  }
+
+  // 3. Network & Connection errors
+  if (error.code === 'ERR_NETWORK' || error.message === 'Network Error' || !error.response) {
+    return 'Unable to connect to the server. Please check your internet connection.';
+  }
+
+  // 4. Rate Limiting (429)
+  if (status === 429) {
+    return rawMsg || 'Too many requests. Please wait a moment before trying again.';
+  }
+
+  // 5. Gateway & Server downtime (502, 503, 504)
+  if (status === 502 || status === 503 || status === 504) {
+    return 'The server is temporarily unavailable or restarting. Please wait a moment and try again.';
+  }
+
+  // 6. Generic 500 Server error with code traces
+  if (status >= 500 && (str.includes('exception') || str.includes('stack trace') || str.includes('.php') || str.includes('call to undefined'))) {
+    return 'An unexpected server error occurred. Please try again or contact system support.';
+  }
+
+  return rawMsg;
+}
+
 // Response interceptor: auto-clear cache on mutations & handle 401s
 api.interceptors.response.use(
   (response) => {
@@ -99,6 +138,15 @@ api.interceptors.response.use(
         window.location.href = '/login';
       }
     }
+
+    // Automatically translate technical errors into human-readable messages across all pages & modals
+    if (error.response?.data) {
+      const friendly = humanizeErrorMessage(error);
+      if (friendly) {
+        error.response.data.message = friendly;
+      }
+    }
+
     return Promise.reject(error);
   }
 );

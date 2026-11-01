@@ -60,7 +60,8 @@ class CommunicationLogController extends Controller
             CommunicationLog::query()->delete();
             return response()->json(['message' => 'Communication logs cleared successfully.']);
         } catch (\Throwable $e) {
-            return response()->json(['message' => 'Failed to clear communication logs: ' . $e->getMessage()], 500);
+            \Illuminate\Support\Facades\Log::error('Failed to clear communication logs: ' . $e->getMessage());
+            return response()->json(['message' => 'Failed to clear communication logs. Please try again.'], 500);
         }
     }
 }

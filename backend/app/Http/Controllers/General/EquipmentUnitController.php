@@ -1410,8 +1410,8 @@ class EquipmentUnitController extends Controller
             DB::rollBack();
             \Illuminate\Support\Facades\Log::error('EquipmentUnitController bulkImport failed: ' . $e->getMessage());
             return response()->json([
-                'message' => 'Failed to import equipment units: ' . $e->getMessage()
-            ], 500);
+                'message' => 'Failed to import equipment units. Please check your spreadsheet data format and try again.'
+            ], 422);
         }
 
         try {

@@ -55,7 +55,7 @@ class EquipmentBorrowingController extends Controller
                 'exception' => $e,
             ]);
             return response()->json([
-                'message' => 'An unexpected server error occurred while processing your borrowing request: ' . $e->getMessage(),
+                'message' => 'An unexpected error occurred while processing your borrowing request. Please try again or contact support.',
             ], 500);
         }
 

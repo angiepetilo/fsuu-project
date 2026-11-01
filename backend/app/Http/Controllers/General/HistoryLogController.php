@@ -157,7 +157,8 @@ class HistoryLogController extends Controller
 
             return response()->json(['message' => 'History log cleared successfully.']);
         } catch (\Throwable $e) {
-            return response()->json(['message' => 'Failed to clear history log: ' . $e->getMessage()], 500);
+            \Illuminate\Support\Facades\Log::error('Failed to clear history log: ' . $e->getMessage());
+            return response()->json(['message' => 'Failed to clear history log. Please try again.'], 500);
         }
     }
 }
