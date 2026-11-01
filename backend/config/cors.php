@@ -18,15 +18,16 @@ return [
     // Restrict to the deployed frontend origin. In local dev, FRONTEND_URL
     // is typically http://localhost:5173 (Vite). Set this env var in
     // production to the actual domain (e.g. https://reserve.fsuu.edu.ph).
-    'paths' => ['api/*', 'sanctum/csrf-cookie'],
+    'paths' => ['api/*', 'sanctum/csrf-cookie', 'diagnostic/*'],
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => [
-        env('FRONTEND_URL', 'http://localhost:5173'),
-    ],
+    'allowed_origins' => array_filter(array_map('trim', explode(',', env('FRONTEND_URL', 'http://localhost:5173')))),
 
-    'allowed_origins_patterns' => [],
+    'allowed_origins_patterns' => [
+        '#^https?://.*\.pages\.dev$#',
+        '#^https?://.*\.vercel\.app$#',
+    ],
 
     'allowed_headers' => ['*'],
 
