@@ -109,9 +109,41 @@ export default function EquipmentCategoriesTab({ showMsg }) {
   const handlePhotoUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
+    if (file.size > 15 * 1024 * 1024) {
+      setFormError("The selected image is too large (over 15MB). Please choose a smaller photo.");
+      return;
+    }
+
     const reader = new FileReader();
-    reader.onloadend = () => {
-      updateForm((prev) => ({ ...prev, photo: reader.result, avatar: reader.result }));
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 1600;
+        let width = img.width;
+        let height = img.height;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+        const optimized = canvas.toDataURL("image/jpeg", 0.85);
+        updateForm((prev) => ({ ...prev, photo: optimized, avatar: optimized }));
+        setFormError("");
+      };
+      img.onerror = () => {
+        updateForm((prev) => ({ ...prev, photo: event.target.result, avatar: event.target.result }));
+      };
+      img.src = event.target.result;
     };
     reader.readAsDataURL(file);
   };

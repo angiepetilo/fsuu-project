@@ -61,6 +61,13 @@ return Application::configure(basePath: dirname(__DIR__))
                         'message'    => 'Unauthenticated. Please log in to proceed.',
                     ], 401, $corsHeaders);
                 }
+                if ($e instanceof \Illuminate\Http\Exceptions\PostTooLargeException || ($e instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface && $e->getStatusCode() === 413)) {
+                    return response()->json([
+                        'success'    => false,
+                        'error_code' => 'PAYLOAD_TOO_LARGE',
+                        'message'    => 'The uploaded image or file is too large. Please select a photo or document under 10MB.',
+                    ], 413, $corsHeaders);
+                }
                 if ($e instanceof \Illuminate\Validation\ValidationException) {
                     return response()->json([
                         'success'    => false,

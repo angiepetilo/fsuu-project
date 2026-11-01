@@ -35,6 +35,7 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
 
 # Copy OPcache configuration
 COPY docker/php/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
+COPY docker/php/uploads.ini /usr/local/etc/php/conf.d/uploads.ini
 
 # Install Composer
 COPY --from=composer:2.7 /usr/bin/composer /usr/bin/composer

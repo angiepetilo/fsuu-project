@@ -169,9 +169,41 @@ export default function VenuesTab({ showMsg }) {
   const handlePhotoUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
+    if (file.size > 15 * 1024 * 1024) {
+      setFormError("The selected image is too large (over 15MB). Please choose a smaller photo.");
+      return;
+    }
+
     const reader = new FileReader();
-    reader.onloadend = () => {
-      updateForm((prev) => ({ ...prev, photo: reader.result, avatar: reader.result }));
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 1600;
+        let width = img.width;
+        let height = img.height;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+        const optimized = canvas.toDataURL("image/jpeg", 0.85);
+        updateForm((prev) => ({ ...prev, photo: optimized, avatar: optimized }));
+        setFormError("");
+      };
+      img.onerror = () => {
+        updateForm((prev) => ({ ...prev, photo: event.target.result, avatar: event.target.result }));
+      };
+      img.src = event.target.result;
     };
     reader.readAsDataURL(file);
   };
@@ -216,7 +248,10 @@ export default function VenuesTab({ showMsg }) {
         setIsFormDirty(false);
         setShowModal(false);
       } catch (err) {
-        const errMsg = err.response?.data?.errors?.name?.[0] || err.response?.data?.message || "Failed to update venue.";
+        let errMsg = err.response?.data?.errors?.name?.[0] || err.response?.data?.message || "Failed to update venue.";
+        if (err.response?.status === 413 || String(errMsg).toLowerCase().includes("too large") || String(errMsg).toLowerCase().includes("post data")) {
+          errMsg = "The uploaded photo is too large. Please select an image under 10MB or choose a compressed photo.";
+        }
         setFormError(errMsg);
       } finally {
         setFormLoading(false);
@@ -239,7 +274,10 @@ export default function VenuesTab({ showMsg }) {
         setIsFormDirty(false);
         setShowModal(false);
       } catch (err) {
-        const errMsg = err.response?.data?.errors?.name?.[0] || err.response?.data?.message || "Failed to create venue.";
+        let errMsg = err.response?.data?.errors?.name?.[0] || err.response?.data?.message || "Failed to create venue.";
+        if (err.response?.status === 413 || String(errMsg).toLowerCase().includes("too large") || String(errMsg).toLowerCase().includes("post data")) {
+          errMsg = "The uploaded photo is too large. Please select an image under 10MB or choose a compressed photo.";
+        }
         setFormError(errMsg);
       } finally {
         setFormLoading(false);
