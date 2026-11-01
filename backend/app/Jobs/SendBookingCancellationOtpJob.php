@@ -157,3 +157,4 @@ class SendBookingCancellationOtpJob implements ShouldQueue
 HTML;
     }
 }
+
