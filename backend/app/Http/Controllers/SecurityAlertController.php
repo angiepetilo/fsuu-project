@@ -8,8 +8,22 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
-class SecurityAlertController extends Controller
+use App\Http\Middleware\EnsureCanManageSettings;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
+
+class SecurityAlertController extends Controller implements HasMiddleware
 {
+    /**
+     * Settings write actions require Super Admin, Staff/Admin, or 'settings' permission.
+     */
+    public static function middleware(): array
+    {
+        return [
+            new Middleware(EnsureCanManageSettings::class),
+        ];
+    }
+
     /**
      * List all security alerts and abnormal activities with filters and summary stats.
      */

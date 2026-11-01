@@ -7,8 +7,22 @@ use App\Models\Department;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-class DepartmentController extends Controller
+use App\Http\Middleware\EnsureCanManageSettings;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
+
+class DepartmentController extends Controller implements HasMiddleware
 {
+    /**
+     * Settings write actions require Super Admin, Staff/Admin, or 'settings' permission.
+     */
+    public static function middleware(): array
+    {
+        return [
+            new Middleware(EnsureCanManageSettings::class, except: ['index']),
+        ];
+    }
+
     public function index(Request $request): JsonResponse
     {
         $query = Department::latest();

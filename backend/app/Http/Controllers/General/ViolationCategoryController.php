@@ -7,8 +7,22 @@ use App\Models\ViolationCategory;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-class ViolationCategoryController extends Controller
+use App\Http\Middleware\EnsureCanManageSettings;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
+
+class ViolationCategoryController extends Controller implements HasMiddleware
 {
+    /**
+     * Settings write actions require Super Admin, Staff/Admin, or 'settings' permission.
+     */
+    public static function middleware(): array
+    {
+        return [
+            new Middleware(EnsureCanManageSettings::class, except: ['index']),
+        ];
+    }
+
     public function index(): JsonResponse
     {
         $categories = ViolationCategory::where('is_active', true)->orderBy('id')->get();

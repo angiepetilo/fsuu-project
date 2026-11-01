@@ -7,8 +7,22 @@ use App\Models\BookingRequirement;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-class BookingRequirementController extends Controller
+use App\Http\Middleware\EnsureCanManageSettings;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
+
+class BookingRequirementController extends Controller implements HasMiddleware
 {
+    /**
+     * Settings write actions require Super Admin, Staff/Admin, or 'settings' permission.
+     */
+    public static function middleware(): array
+    {
+        return [
+            new Middleware(EnsureCanManageSettings::class, except: ['publicIndex', 'index']),
+        ];
+    }
+
     /**
      * Public endpoint for landing page & public venue booking
      */

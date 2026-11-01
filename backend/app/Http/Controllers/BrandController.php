@@ -9,8 +9,22 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
-class BrandController extends Controller
+use App\Http\Middleware\EnsureCanManageSettings;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
+
+class BrandController extends Controller implements HasMiddleware
 {
+    /**
+     * Settings write actions require Super Admin, Staff/Admin, or 'settings' permission.
+     */
+    public static function middleware(): array
+    {
+        return [
+            new Middleware(EnsureCanManageSettings::class, except: ['index']),
+        ];
+    }
+
     /**
      * Ensure table and columns exist before querying.
      */

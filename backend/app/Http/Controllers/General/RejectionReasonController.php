@@ -6,8 +6,22 @@ use App\Http\Controllers\Controller;
 use App\Models\RejectionReason;
 use Illuminate\Http\Request;
 
-class RejectionReasonController extends Controller
+use App\Http\Middleware\EnsureCanManageSettings;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
+
+class RejectionReasonController extends Controller implements HasMiddleware
 {
+    /**
+     * Settings write actions require Super Admin, Staff/Admin, or 'settings' permission.
+     */
+    public static function middleware(): array
+    {
+        return [
+            new Middleware(EnsureCanManageSettings::class, except: ['index']),
+        ];
+    }
+
     public function index()
     {
         return response()->json(RejectionReason::orderBy('name')->get());

@@ -7,8 +7,22 @@ use App\Models\OperatingHour;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-class OperatingHoursController extends Controller
+use App\Http\Middleware\EnsureCanManageSettings;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
+
+class OperatingHoursController extends Controller implements HasMiddleware
 {
+    /**
+     * Settings write actions require Super Admin, Staff/Admin, or 'settings' permission.
+     */
+    public static function middleware(): array
+    {
+        return [
+            new Middleware(EnsureCanManageSettings::class, except: ['publicShow', 'show']),
+        ];
+    }
+
     private function formatTo12Hour(?string $timeStr): string
     {
         if (!$timeStr) return '';

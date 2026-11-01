@@ -7,8 +7,22 @@ use App\Models\FeeMatrix;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-class FeeMatrixController extends Controller
+use App\Http\Middleware\EnsureCanManageSettings;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
+
+class FeeMatrixController extends Controller implements HasMiddleware
 {
+    /**
+     * Settings write actions require Super Admin, Staff/Admin, or 'settings' permission.
+     */
+    public static function middleware(): array
+    {
+        return [
+            new Middleware(EnsureCanManageSettings::class, except: ['index']),
+        ];
+    }
+
     /**
      * Display a listing of fee matrices or fee matrix for a specific venue.
      */
