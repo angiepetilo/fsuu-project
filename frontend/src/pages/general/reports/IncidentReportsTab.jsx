@@ -15,8 +15,8 @@ export default function IncidentReportsTab({
 }) {
   const navigate = useNavigate();
   const basePath = typeof window !== "undefined" && window.location.pathname.startsWith("/sysad") ? "/sysad" : "/general";
-  const [reports, setReports] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [reports, setReports] = useState(() => { try { return JSON.parse(sessionStorage.getItem("fsuu_cache_incident_reports") || "[]"); } catch { return []; } });
+  const [loading, setLoading] = useState(() => !sessionStorage.getItem("fsuu_cache_incident_reports"));
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [conditionFilter, setConditionFilter] = useState("all");
@@ -95,7 +95,7 @@ export default function IncidentReportsTab({
         }
         return isDamagedOrLost || (cond !== "good" && cond !== "satisfactory" && cond !== "clean");
       });
-      setReports(incidentAndDamageList);
+      setReports(incidentAndDamageList); try { sessionStorage.setItem("fsuu_cache_incident_reports", JSON.stringify(incidentAndDamageList)); } catch {}
     } catch (err) {
       console.error("Failed to load incident reports:", err);
     } finally {

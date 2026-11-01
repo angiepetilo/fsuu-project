@@ -46,26 +46,38 @@ class DashboardStatsController extends Controller
     public function analyticsCharts(Request $request)
     {
         try {
+            $activeTermId = DB::table('academic_terms')
+                ->where('is_active', true)
+                ->value('id');
+
             // Chart 1: User Demographics / Roles
-            $vRoles = DB::table('venue_bookings')
-                ->whereNull('archived_at')
-                ->selectRaw('LOWER(TRIM(COALESCE(classification, "student"))) as role, count(*) as count')
-                ->groupBy('role')
+            $vRolesQuery = DB::table('venue_bookings')
+                ->whereNull('archived_at');
+            if ($activeTermId) {
+                $vRolesQuery->where('academic_term_id', $activeTermId);
+            }
+            $vRoles = $vRolesQuery
+                ->selectRaw("LOWER(TRIM(COALESCE(classification, 'student'))) as role, count(*) as count")
+                ->groupByRaw("LOWER(TRIM(COALESCE(classification, 'student')))")
                 ->pluck('count', 'role')
                 ->toArray();
 
-            $eRoles = DB::table('equipment_borrows')
-                ->whereNull('archived_at')
-                ->selectRaw('LOWER(TRIM(COALESCE(classification, "student"))) as role, count(*) as count')
-                ->groupBy('role')
+            $eRolesQuery = DB::table('equipment_borrows')
+                ->whereNull('archived_at');
+            if ($activeTermId) {
+                $eRolesQuery->where('academic_term_id', $activeTermId);
+            }
+            $eRoles = $eRolesQuery
+                ->selectRaw("LOWER(TRIM(COALESCE(classification, 'student'))) as role, count(*) as count")
+                ->groupByRaw("LOWER(TRIM(COALESCE(classification, 'student')))")
                 ->pluck('count', 'role')
                 ->toArray();
 
             $mergedRoles = [
-                'Students'           => ($vRoles['student'] ?? 0) + ($eRoles['student'] ?? 0),
+                'Students'           => ($vRoles['student'] ?? 0) + ($eRoles['student'] ?? 0) + ($vRoles['students'] ?? 0) + ($eRoles['students'] ?? 0),
                 'Faculty'            => ($vRoles['faculty'] ?? 0) + ($eRoles['faculty'] ?? 0),
-                'Staff'              => ($vRoles['staff'] ?? 0) + ($eRoles['staff'] ?? 0),
-                'Student Assistants' => ($vRoles['student assistant'] ?? 0) + ($eRoles['student assistant'] ?? 0) + ($vRoles['student_assistant'] ?? 0) + ($eRoles['student_assistant'] ?? 0),
+                'Staff'              => ($vRoles['staff'] ?? 0) + ($eRoles['staff'] ?? 0) + ($vRoles['employee'] ?? 0) + ($eRoles['employee'] ?? 0),
+                'Student Assistants' => ($vRoles['student assistant'] ?? 0) + ($eRoles['student assistant'] ?? 0) + ($vRoles['student_assistant'] ?? 0) + ($eRoles['student_assistant'] ?? 0) + ($vRoles['external'] ?? 0) + ($eRoles['external'] ?? 0),
             ];
 
             $totalRoleCount = max(1, array_sum($mergedRoles));
@@ -87,21 +99,29 @@ class DashboardStatsController extends Controller
             }
 
             // Chart 2: Department / College Utilization (Rotated Bar Chart)
-            $vDepts = DB::table('venue_bookings')
+            $vDeptsQuery = DB::table('venue_bookings')
                 ->whereNull('archived_at')
                 ->whereNotNull('program_office')
-                ->where('program_office', '!=', '')
+                ->where('program_office', '!=', '');
+            if ($activeTermId) {
+                $vDeptsQuery->where('academic_term_id', $activeTermId);
+            }
+            $vDepts = $vDeptsQuery
                 ->selectRaw('TRIM(program_office) as dept, count(*) as count')
-                ->groupBy('dept')
+                ->groupByRaw('TRIM(program_office)')
                 ->pluck('count', 'dept')
                 ->toArray();
 
-            $eDepts = DB::table('equipment_borrows')
+            $eDeptsQuery = DB::table('equipment_borrows')
                 ->whereNull('archived_at')
                 ->whereNotNull('program_office')
-                ->where('program_office', '!=', '')
+                ->where('program_office', '!=', '');
+            if ($activeTermId) {
+                $eDeptsQuery->where('academic_term_id', $activeTermId);
+            }
+            $eDepts = $eDeptsQuery
                 ->selectRaw('TRIM(program_office) as dept, count(*) as count')
-                ->groupBy('dept')
+                ->groupByRaw('TRIM(program_office)')
                 ->pluck('count', 'dept')
                 ->toArray();
 
@@ -121,19 +141,27 @@ class DashboardStatsController extends Controller
             }
 
             // Chart 3: Operational Overview / Status Distribution
-            $vStatuses = DB::table('venue_bookings')
+            $vStatusesQuery = DB::table('venue_bookings')
                 ->leftJoin('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
-                ->whereNull('venue_bookings.archived_at')
-                ->selectRaw('LOWER(COALESCE(tracking_numbers.status, venue_bookings.status, "pending")) as st, count(*) as count')
-                ->groupBy('st')
+                ->whereNull('venue_bookings.archived_at');
+            if ($activeTermId) {
+                $vStatusesQuery->where('venue_bookings.academic_term_id', $activeTermId);
+            }
+            $vStatuses = $vStatusesQuery
+                ->selectRaw("LOWER(TRIM(COALESCE(tracking_numbers.status, venue_bookings.status, 'pending'))) as st, count(*) as count")
+                ->groupByRaw("LOWER(TRIM(COALESCE(tracking_numbers.status, venue_bookings.status, 'pending')))")
                 ->pluck('count', 'st')
                 ->toArray();
 
-            $eStatuses = DB::table('equipment_borrows')
+            $eStatusesQuery = DB::table('equipment_borrows')
                 ->leftJoin('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
-                ->whereNull('equipment_borrows.archived_at')
-                ->selectRaw('LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status, "pending")) as st, count(*) as count')
-                ->groupBy('st')
+                ->whereNull('equipment_borrows.archived_at');
+            if ($activeTermId) {
+                $eStatusesQuery->where('equipment_borrows.academic_term_id', $activeTermId);
+            }
+            $eStatuses = $eStatusesQuery
+                ->selectRaw("LOWER(TRIM(COALESCE(tracking_numbers.status, equipment_borrows.status, 'pending'))) as st, count(*) as count")
+                ->groupByRaw("LOWER(TRIM(COALESCE(tracking_numbers.status, equipment_borrows.status, 'pending')))")
                 ->pluck('count', 'st')
                 ->toArray();
 

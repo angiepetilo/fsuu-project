@@ -581,6 +581,7 @@ export default function Reports() {
           <div className={activeTab === "inventory" ? "block" : "hidden"}>
             <EquipmentStockTab
               filteredInventory={filteredInventoryItems}
+              equipmentUnits={equipmentUnits}
               setInventoryItems={setInventoryItems}
               loading={loading && filteredInventoryItems.length === 0}
               fetchReportsData={fetchReportsData}

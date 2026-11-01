@@ -235,7 +235,17 @@ export default function StaffAnalyticsDashboard({
       )}
 
       {/* ── 3.5 Visual Analytics Charts (Demographics, College Utilization, Statuses, Hourly Peak Bands) ── */}
-      {canAnalytics && <DashboardAnalyticsCharts />}
+      {canAnalytics && (
+        <DashboardAnalyticsCharts
+          topBookedDepartments={topBookedDepartments}
+          venueBookings={venueBookings}
+          equipBorrowings={equipBorrowings}
+          totalVenueBookings={totalVenueBookings}
+          totalEquipBorrows={totalEquipBorrows}
+          pendingApproval={pendingApproval}
+          postInspectionPending={postInspectionPending}
+        />
+      )}
 
       {/* ── 4. Equipment Inventory Status & Recent Inventory Changes ── */}
       {(canInventoryStatus || canInventoryChanges) && (

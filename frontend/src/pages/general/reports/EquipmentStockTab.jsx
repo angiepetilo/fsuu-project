@@ -15,6 +15,7 @@ import FilterDropdown from "@/components/ui/FilterDropdown";
 
 export default function EquipmentStockTab({
   filteredInventory = [],
+  equipmentUnits = [],
   setInventoryItems,
   loading = false,
   fetchReportsData,
@@ -68,9 +69,128 @@ export default function EquipmentStockTab({
   }, [filteredInventory]);
 
   // ── Bottom Table (Physical Equipment Units) — declared early so handleSubmitInventoryReport can call fetchUnits ──
-  const [units, setUnits] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [unitsLoading, setUnitsLoading] = useState(true);
+  const mapRawUnitsToStockRows = useCallback((unitData, catList) => {
+    const childIdSet = new Set();
+    const parentUnitLookup = new Map();
+    unitData.forEach(p => {
+      let raw = p.built_in_units;
+      if (typeof raw === 'string') {
+        try { raw = JSON.parse(raw); } catch { raw = []; }
+      }
+      if (Array.isArray(raw)) {
+        raw.forEach(id => {
+          if (id) {
+            const childKey = (typeof id === 'object' && id !== null && id.id)
+              ? String(id.id).trim().toLowerCase()
+              : String(id).trim().toLowerCase();
+            childIdSet.add(childKey);
+            parentUnitLookup.set(childKey, p);
+          }
+        });
+      }
+    });
+
+    return unitData.map((u, idx) => {
+      const bCode = String(u.barcode || `BC-EQP-2026-00${idx + 1}`).trim();
+      const dbStatusRaw = (u.status || 'available').toLowerCase();
+      const dbCondition = u.condition || '';
+      const condLower = dbCondition.toLowerCase();
+
+      let conditionLabel;
+      if (condLower === 'good' || condLower === 'good condition') conditionLabel = 'Good';
+      else if (condLower === 'damaged') conditionLabel = 'Damaged';
+      else if (condLower === 'lost') conditionLabel = 'Lost';
+      else if (condLower === 'maintenance' || condLower === 'under_maintenance' || condLower === 'under repair') conditionLabel = 'Under Repair';
+      else if (condLower === 'worn' || condLower === 'minor wear') conditionLabel = 'Minor Wear';
+      else if (dbStatusRaw === 'damaged') conditionLabel = 'Damaged';
+      else if (dbStatusRaw === 'maintenance' || dbStatusRaw === 'under_maintenance') conditionLabel = 'Under Repair';
+      else if (dbStatusRaw === 'decommissioned' || dbStatusRaw === 'lost') conditionLabel = 'Lost';
+      else conditionLabel = 'Good';
+
+      const childKey1 = String(u.id).toLowerCase();
+      const childKey2 = u.barcode ? String(u.barcode).trim().toLowerCase() : null;
+      const childKey3 = u.serial_number ? String(u.serial_number).trim().toLowerCase() : null;
+      const parentUnitObj = parentUnitLookup.get(childKey1) || (childKey2 ? parentUnitLookup.get(childKey2) : null) || (childKey3 ? parentUnitLookup.get(childKey3) : null);
+
+      const isChild = childIdSet.has(childKey1) ||
+        (childKey2 && childIdSet.has(childKey2)) ||
+        (childKey3 && childIdSet.has(childKey3));
+
+      let dbStatus = dbStatusRaw;
+      if (
+        ['lost', 'damaged', 'under repair', 'worn', 'minor wear'].includes(conditionLabel.toLowerCase()) ||
+        ['damaged', 'maintenance', 'under_maintenance', 'decommissioned', 'unavailable', 'lost'].includes(dbStatusRaw)
+      ) {
+        dbStatus = 'unavailable';
+      } else if (isChild || dbStatusRaw === 'built-in' || dbStatusRaw === 'built_in') {
+        const parentSt = parentUnitObj ? String(parentUnitObj.status || '').toLowerCase() : '';
+        const isParentOut = ['released', 'in_use', 'in-use', 'borrowed', 'checked_out'].includes(parentSt);
+        if (isParentOut || ['released', 'in_use', 'in-use', 'borrowed'].includes(dbStatusRaw)) {
+          dbStatus = 'Released';
+        } else {
+          dbStatus = 'Built-in';
+        }
+      } else if (dbStatusRaw === 'released' || dbStatusRaw === 'in-use' || dbStatusRaw === 'released / in-use' || dbStatusRaw === 'release / in - use') {
+        dbStatus = 'Released';
+      } else if (dbStatusRaw === 'reserved') {
+        dbStatus = 'Reserved';
+      } else {
+        dbStatus = 'Available';
+      }
+
+      const eqType = u.equipment_type || u.equipmentType || catList.find(c => String(c.id) === String(u.equipment_type_id));
+      const catName = eqType?.eq_name || eqType?.name || eqType?.eq_type || 'AV Equipment';
+      const brandModel = [u.brand, u.model].filter(Boolean).join(' ');
+      const derivedName = brandModel || catName || 'Equipment Unit';
+
+      return {
+        id: u.id || idx + 1,
+        equipment_type_id: u.equipment_type_id,
+        brand: u.brand || '',
+        model: u.model || '',
+        serial_number: u.serial_number || u.barcode || bCode,
+        barcode: bCode,
+        name: derivedName,
+        category: catName,
+        office_id: eqType?.office_id || u.office_id || null,
+        office_name: eqType?.office?.name || 'AVR Office I',
+        status: dbStatus,
+        condition: conditionLabel,
+        is_child: isChild,
+        is_disabled: !!u.is_disabled,
+        available_count: dbStatus === 'Available' ? 1 : 0,
+        total_count: 1,
+        date_purchased: u.purchased_at ? u.purchased_at.substring(0, 10) : '2026-01-15',
+        lifespan_years: u.eq_lifespan || 5,
+        description: u.description || '',
+        raw_status: dbStatusRaw,
+        raw_condition: dbCondition,
+        built_in_units: Array.isArray(u.built_in_units)
+          ? u.built_in_units
+          : (typeof u.built_in_units === 'string'
+              ? (() => { try { return JSON.parse(u.built_in_units); } catch { return []; } })()
+              : []),
+      };
+    });
+  }, []);
+
+  const [units, setUnits] = useState(() =>
+    Array.isArray(equipmentUnits) && equipmentUnits.length > 0
+      ? mapRawUnitsToStockRows(equipmentUnits, filteredInventory)
+      : []
+  );
+  const [categories, setCategories] = useState(() =>
+    Array.isArray(filteredInventory) && filteredInventory.length > 0 ? filteredInventory : []
+  );
+  const [unitsLoading, setUnitsLoading] = useState(
+    () => !(Array.isArray(equipmentUnits) && equipmentUnits.length > 0)
+  );
+  useEffect(() => {
+    if (Array.isArray(equipmentUnits) && equipmentUnits.length > 0 && units.length === 0) {
+      setUnits(mapRawUnitsToStockRows(equipmentUnits, filteredInventory));
+      setUnitsLoading(false);
+    }
+  }, [equipmentUnits, filteredInventory, units.length, mapRawUnitsToStockRows]);
   const [activeCategory, setActiveCategory] = useState("all");
   const [activeStatus, setActiveStatus] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -253,7 +373,7 @@ export default function EquipmentStockTab({
 
       // Trigger silent background refresh of both parent report data and local unit list
       if (fetchReportsData) fetchReportsData({ isSilent: true });
-      fetchUnits();
+      fetchUnits({ isSilent: Array.isArray(equipmentUnits) && equipmentUnits.length > 0 });
 
       // Notify other components listening for inventory changes
       window.dispatchEvent(new CustomEvent('equipment_inventory_updated'));
@@ -292,7 +412,7 @@ export default function EquipmentStockTab({
   }, [fetchReportsData]);
 
   useEffect(() => {
-    fetchUnits();
+    fetchUnits({ isSilent: Array.isArray(equipmentUnits) && equipmentUnits.length > 0 });
     const handleSync = () => {
       fetchUnits({ isSilent: true });
       if (fetchReportsDataRef.current) fetchReportsDataRef.current({ isSilent: true });
