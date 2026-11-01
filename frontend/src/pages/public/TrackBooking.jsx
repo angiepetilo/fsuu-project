@@ -16,12 +16,19 @@ export default function TrackBooking() {
   const [booking, setBooking] = useState(null);
   const [trackCode, setTrackCode] = useState("");
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelStep, setCancelStep] = useState("request"); // 'request' | 'verify'
+  const [cancelEmail, setCancelEmail] = useState("");
+  const [cancelOtp, setCancelOtp] = useState("");
+  const [cancelMaskedEmail, setCancelMaskedEmail] = useState("");
+  const [cancelCooldown, setCancelCooldown] = useState(0);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [cancelError, setCancelError] = useState("");
   const [alertModal, setAlertModal] = useState({ open: false, title: "Notice", message: "" });
   const showAlert = (message, title = "Notice") => setAlertModal({ open: true, title, message });
 
   // Missing Requirements Resubmission States
+  const [resubmitEmail, setResubmitEmail] = useState("");
   const [resubmitFile, setResubmitFile] = useState(null);
   const [resubmitRemarks, setResubmitRemarks] = useState("");
   const [resubmitLoading, setResubmitLoading] = useState(false);
@@ -37,6 +44,74 @@ export default function TrackBooking() {
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (cancelCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setCancelCooldown((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cancelCooldown]);
+
+  const handleOpenCancelModal = () => {
+    setCancelStep("request");
+    setCancelEmail("");
+    setCancelOtp("");
+    setCancelError("");
+    setCancelReason("");
+    setShowCancelModal(true);
+  };
+
+  const handleRequestCancelOtp = async () => {
+    const trimmedEmail = cancelEmail.trim();
+    if (!trimmedEmail) {
+      setCancelError("Please enter the email address registered on this reservation.");
+      return;
+    }
+    setCancelLoading(true);
+    setCancelError("");
+    try {
+      const ref = booking?.reference_code || trackCode;
+      const res = await api.post("/public/request-cancel-otp", {
+        reference_code: ref,
+        email: trimmedEmail,
+        reason: cancelReason || "Cancelled by applicant",
+      });
+      setCancelMaskedEmail(res.data?.masked_email || trimmedEmail);
+      setCancelStep("verify");
+      setCancelCooldown(60);
+    } catch (err) {
+      setCancelError(err?.response?.data?.message || "Failed to send verification code. Please check your email address.");
+    } finally {
+      setCancelLoading(false);
+    }
+  };
+
+  const handleConfirmCancel = async () => {
+    const trimmedOtp = cancelOtp.trim();
+    if (!trimmedOtp || trimmedOtp.length < 6) {
+      setCancelError("Please enter the full 6-digit verification code sent to your email.");
+      return;
+    }
+    setCancelLoading(true);
+    setCancelError("");
+    try {
+      const ref = booking?.reference_code || trackCode;
+      await api.post("/public/cancel-booking", {
+        reference_code: ref,
+        email: cancelEmail.trim(),
+        otp_code: trimmedOtp,
+        reason: cancelReason || "Cancelled by applicant",
+      });
+      setShowCancelModal(false);
+      showAlert("Your reservation has been successfully cancelled and any held units have been released.", "Reservation Cancelled");
+      executeTrack(ref);
+    } catch (err) {
+      setCancelError(err?.response?.data?.message || "Failed to verify cancellation code. Please try again.");
+    } finally {
+      setCancelLoading(false);
+    }
+  };
 
   const getRemainingTime = useCallback((deadline) => {
     if (!deadline) return null;
@@ -109,6 +184,9 @@ export default function TrackBooking() {
       const formData = new FormData();
       formData.append("reference_code", refCode);
       formData.append("documents", resubmitFile);
+      if (resubmitEmail && resubmitEmail.trim()) {
+        formData.append("email", resubmitEmail.trim());
+      }
       if (resubmitRemarks && resubmitRemarks.trim()) {
         formData.append("remarks", resubmitRemarks.trim());
       }
@@ -118,6 +196,7 @@ export default function TrackBooking() {
       setResubmitSuccess(res.data?.message || "Missing requirements uploaded successfully! Your reservation has been returned to review.");
       setResubmitFile(null);
       setResubmitRemarks("");
+      setResubmitEmail("");
 
       // Refresh the tracked booking so the status/timeline reflects the resubmission immediately.
       executeTrack(refCode, true);
@@ -126,7 +205,7 @@ export default function TrackBooking() {
     } finally {
       setResubmitLoading(false);
     }
-  }, [resubmitFile, resubmitRemarks, booking?.reference_code, trackCode, executeTrack]);
+  }, [resubmitFile, resubmitRemarks, resubmitEmail, booking?.reference_code, trackCode, executeTrack]);
 
   useEffect(() => {
     const codeFromUrl = searchParams.get("ref") || searchParams.get("code") || searchParams.get("reference_code");
@@ -714,6 +793,28 @@ export default function TrackBooking() {
                     <span>Upload & Resubmit Missing Document</span>
                   </h4>
 
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-muted-foreground flex items-center justify-between">
+                      <span>Registered Email Address <span className="text-destructive">*</span></span>
+                      {booking?.masked_email && (
+                        <span className="text-[10px] text-muted-foreground font-normal">
+                          Registered: {booking.masked_email}
+                        </span>
+                      )}
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={resubmitEmail}
+                      onChange={(e) => {
+                        setResubmitEmail(e.target.value);
+                        setResubmitError("");
+                      }}
+                      placeholder="e.g. yourname@urios.edu.ph"
+                      className="w-full p-2.5 bg-card border border-border rounded-lg text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    />
+                  </div>
+
                   <div className="flex flex-col gap-2">
                     <input
                       type="file"
@@ -977,7 +1078,7 @@ export default function TrackBooking() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setShowCancelModal(true)}
+                    onClick={handleOpenCancelModal}
                     className="px-4 py-2 bg-card hover:bg-rose-50 hover:text-rose-700 text-rose-600 border border-rose-200 dark:bg-rose-500/10 dark:border-rose-500/30 dark:text-rose-400 rounded-lg text-xs font-semibold transition-all cursor-pointer shadow-2xs min-h-[38px]"
                   >
                     Cancel {isVenue ? 'Venue Booking' : 'Equipment Borrowing'}
@@ -990,65 +1091,165 @@ export default function TrackBooking() {
           </div>
         )}
 
-        {/* Cancellation Confirmation Modal */}
+        {/* Cancellation Confirmation Modal with OTP Verification */}
         {showCancelModal && (
           <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-[1500] flex items-center justify-center p-4">
-            <div className="bg-card text-foreground rounded-2xl p-6 max-w-sm w-full shadow-xl border border-border space-y-4 animate-in zoom-in-95">
+            <div className="bg-card text-foreground rounded-2xl p-6 max-w-md w-full shadow-xl border border-border space-y-4 animate-in zoom-in-95">
               <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400">
                 <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-500/15 border border-rose-200 dark:border-rose-500/30 flex items-center justify-center shrink-0">
                   <AlertCircle size={20} />
                 </div>
                 <div>
-                  <h4 className="font-bold text-foreground text-sm">Cancel Reservation</h4>
-                  <p className="text-[11px] text-muted-foreground font-normal">This action cannot be undone.</p>
+                  <h4 className="font-bold text-foreground text-sm">
+                    {cancelStep === "request" ? "Cancel Reservation" : "Verify Cancellation Code"}
+                  </h4>
+                  <p className="text-[11px] text-muted-foreground font-normal">
+                    {cancelStep === "request"
+                      ? "Security verification is required to cancel this reservation."
+                      : `Enter the 6-digit code sent to ${cancelMaskedEmail}`}
+                  </p>
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">Reason for Cancellation (Optional)</label>
-                <textarea
-                  rows={3}
-                  placeholder="e.g. Activity rescheduled, no longer needed..."
-                  value={cancelReason}
-                  onChange={(e) => setCancelReason(e.target.value)}
-                  className="w-full p-3 bg-card border border-border rounded-lg text-xs font-normal text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                />
-              </div>
+              {cancelStep === "request" ? (
+                <div className="space-y-3.5">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                      <span>Registered Email Address <span className="text-destructive">*</span></span>
+                      {booking?.masked_email && (
+                        <span className="text-[10px] text-muted-foreground font-normal">
+                          Registered: {booking.masked_email}
+                        </span>
+                      )}
+                    </label>
+                    <input
+                      type="email"
+                      placeholder="e.g. yourname@urios.edu.ph"
+                      value={cancelEmail}
+                      onChange={(e) => {
+                        setCancelEmail(e.target.value);
+                        setCancelError("");
+                      }}
+                      className="w-full p-2.5 bg-card border border-border rounded-lg text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    />
+                    <p className="text-[10.5px] text-muted-foreground">
+                      For security, a one-time code will be sent to the email on file.
+                    </p>
+                  </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-border">
-                <button
-                  type="button"
-                  disabled={cancelLoading}
-                  onClick={() => setShowCancelModal(false)}
-                  className="px-4 py-2 min-h-[40px] rounded-lg border border-border text-xs font-semibold text-foreground hover:bg-muted cursor-pointer"
-                >
-                  Keep Reservation
-                </button>
-                <button
-                  type="button"
-                  disabled={cancelLoading}
-                  onClick={async () => {
-                    setCancelLoading(true);
-                    try {
-                      const ref = booking?.reference_code || trackCode;
-                      await api.post('/public/cancel-booking', {
-                        reference_code: ref,
-                        reason: cancelReason || 'Cancelled by applicant',
-                      });
-                      setShowCancelModal(false);
-                      executeTrack(ref);
-                    } catch (err) {
-                      showAlert(err?.response?.data?.message || 'Failed to cancel reservation.', 'Cancellation Failed');
-                    } finally {
-                      setCancelLoading(false);
-                    }
-                  }}
-                  className="px-4 py-2 min-h-[40px] rounded-lg bg-destructive hover:opacity-90 text-destructive-foreground font-semibold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer"
-                >
-                  {cancelLoading ? <Loader2 size={13} className="animate-spin" /> : null}
-                  <span>Confirm Cancellation</span>
-                </button>
-              </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground">Reason for Cancellation (Optional)</label>
+                    <textarea
+                      rows={2}
+                      placeholder="e.g. Activity rescheduled, no longer needed..."
+                      value={cancelReason}
+                      onChange={(e) => setCancelReason(e.target.value)}
+                      className="w-full p-2.5 bg-card border border-border rounded-lg text-xs font-normal text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    />
+                  </div>
+
+                  {cancelError && (
+                    <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 dark:bg-rose-500/15 dark:border-rose-500/30 dark:text-rose-400 text-xs font-semibold flex items-center gap-2">
+                      <AlertCircle size={14} className="shrink-0" />
+                      <span>{cancelError}</span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-2 pt-2 border-t border-border">
+                    <button
+                      type="button"
+                      disabled={cancelLoading}
+                      onClick={() => setShowCancelModal(false)}
+                      className="px-4 py-2 min-h-[38px] rounded-lg border border-border text-xs font-semibold text-foreground hover:bg-muted cursor-pointer"
+                    >
+                      Keep Reservation
+                    </button>
+                    <button
+                      type="button"
+                      disabled={cancelLoading || !cancelEmail.trim()}
+                      onClick={handleRequestCancelOtp}
+                      className="px-4 py-2 min-h-[38px] rounded-lg bg-destructive hover:opacity-90 text-destructive-foreground font-semibold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      {cancelLoading ? <Loader2 size={13} className="animate-spin" /> : null}
+                      <span>Send Cancellation Code</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3.5">
+                  <div className="p-3 bg-muted/40 border border-border rounded-xl text-center space-y-1">
+                    <p className="text-xs text-muted-foreground">We sent a 6-digit confirmation code to:</p>
+                    <p className="text-xs font-bold text-foreground font-mono">{cancelMaskedEmail}</p>
+                    <p className="text-[10.5px] text-muted-foreground">The code is valid for 10 minutes.</p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground">Enter 6-Digit Code</label>
+                    <input
+                      type="text"
+                      maxLength={6}
+                      autoFocus
+                      placeholder="000000"
+                      value={cancelOtp}
+                      onChange={(e) => {
+                        setCancelOtp(e.target.value.replace(/\D/g, ""));
+                        setCancelError("");
+                      }}
+                      className="w-full p-3 text-center tracking-[0.5em] font-mono text-lg font-bold bg-card border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-destructive focus:ring-2 focus:ring-destructive/20"
+                    />
+                  </div>
+
+                  {cancelError && (
+                    <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 dark:bg-rose-500/15 dark:border-rose-500/30 dark:text-rose-400 text-xs font-semibold flex items-center gap-2">
+                      <AlertCircle size={14} className="shrink-0" />
+                      <span>{cancelError}</span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between text-xs pt-1">
+                    <button
+                      type="button"
+                      disabled={cancelLoading}
+                      onClick={() => {
+                        setCancelStep("request");
+                        setCancelError("");
+                      }}
+                      className="text-muted-foreground hover:text-foreground underline cursor-pointer text-[11px]"
+                    >
+                      Change Email
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={cancelLoading || cancelCooldown > 0}
+                      onClick={handleRequestCancelOtp}
+                      className="text-primary hover:underline cursor-pointer disabled:opacity-50 text-[11px] font-semibold"
+                    >
+                      {cancelCooldown > 0 ? `Resend code in ${cancelCooldown}s` : "Didn't receive code? Resend"}
+                    </button>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-2 border-t border-border">
+                    <button
+                      type="button"
+                      disabled={cancelLoading}
+                      onClick={() => setShowCancelModal(false)}
+                      className="px-4 py-2 min-h-[38px] rounded-lg border border-border text-xs font-semibold text-foreground hover:bg-muted cursor-pointer"
+                    >
+                      Keep Reservation
+                    </button>
+                    <button
+                      type="button"
+                      disabled={cancelLoading || cancelOtp.length < 6}
+                      onClick={handleConfirmCancel}
+                      className="px-4 py-2 min-h-[38px] rounded-lg bg-destructive hover:opacity-90 text-destructive-foreground font-semibold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      {cancelLoading ? <Loader2 size={13} className="animate-spin" /> : null}
+                      <span>Confirm Cancellation</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

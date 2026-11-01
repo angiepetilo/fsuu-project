@@ -34,3 +34,4 @@ class EnsureCanManageSettings
         return $next($request);
     }
 }
+

@@ -62,7 +62,8 @@ Route::get('/public/equipment-overrides', [VenueAvailabilityController::class, '
 Route::get('/public/system-settings', [SystemSettingController::class, 'publicShow']);
 Route::post('/public/verify-email-active', [EmailVerificationController::class, 'verifyActive'])->middleware('throttle:60,1');
 Route::post('/public/track', [TrackingController::class, 'track'])->middleware('throttle:60,1');
-Route::post('/public/cancel-booking', [TrackingController::class, 'cancel'])->middleware('throttle:20,1');
+Route::post('/public/request-cancel-otp', [TrackingController::class, 'requestCancelOtp'])->middleware('throttle:10,1');
+Route::post('/public/cancel-booking', [TrackingController::class, 'cancel'])->middleware('throttle:10,1');
 Route::post('/public/resubmit-requirements', [TrackingController::class, 'resubmitRequirements'])->middleware('throttle:30,1');
 
 // ─── Authentication ────────────────────────────────────────────────────────────

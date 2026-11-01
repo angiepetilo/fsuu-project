@@ -243,20 +243,196 @@ class TrackingController extends Controller
             }
         }
 
+        if ($booking) {
+            $rawEmail = $booking->requestor_email ?? $booking->email_address ?? '';
+            $booking->masked_email = self::maskEmail($rawEmail);
+        }
+
         return response()->json($booking);
     }
 
-    public function cancel(\Illuminate\Http\Request $request): JsonResponse
+    public static function maskEmail(?string $email): string
+    {
+        $email = trim((string)$email);
+        if (empty($email) || !str_contains($email, '@')) {
+            return '******';
+        }
+        [$name, $domain] = explode('@', $email, 2);
+        $len = strlen($name);
+        if ($len <= 2) {
+            $maskedName = substr($name, 0, 1) . '*';
+        } else {
+            $maskedName = substr($name, 0, 1) . str_repeat('*', max(3, $len - 2)) . substr($name, -1);
+        }
+        return $maskedName . '@' . $domain;
+    }
+
+    /**
+     * Step 1 of public cancellation:
+     * Validates that the provided email matches the booking owner,
+     * generates a 6-digit verification code with 10-minute validity,
+     * and dispatches it via email to the applicant.
+     */
+    public function requestCancelOtp(\Illuminate\Http\Request $request): JsonResponse
     {
         $referenceCode = trim($request->input('reference_code') ?? '');
+        $inputEmail = strtolower(trim($request->input('email') ?? ''));
         $reason = trim($request->input('reason') ?? 'Cancelled by applicant');
 
         if (empty($referenceCode)) {
             return response()->json(['message' => 'Reference code is required.'], 422);
         }
+        if (empty($inputEmail)) {
+            return response()->json(['message' => 'Your registered email address is required to cancel this reservation.'], 422);
+        }
+
+        $refLower = strtolower($referenceCode);
+        $booking = null;
 
         $tracking = \Illuminate\Support\Facades\DB::table('tracking_numbers')
-            ->where('reference_code', $referenceCode)
+            ->whereRaw('LOWER(reference_code) = ?', [$refLower])
+            ->first();
+
+        if ($tracking) {
+            if (in_array($tracking->reservation_type, ['equipment_borrow', 'equipment_borrowing', 'equipment'])) {
+                $booking = EquipmentBorrow::find($tracking->reservation_id);
+            } else {
+                $booking = VenueBooking::find($tracking->reservation_id);
+            }
+        }
+
+        if (!$booking) {
+            $booking = VenueBooking::whereRaw('LOWER(reference_code) = ?', [$refLower])->first();
+            if (!$booking) {
+                $booking = EquipmentBorrow::whereRaw('LOWER(reference_code) = ?', [$refLower])->first();
+            }
+        }
+
+        if (!$booking) {
+            return response()->json(['message' => 'Reservation record not found.'], 404);
+        }
+
+        $currentStatus = strtolower($booking->status ?? 'pending');
+        if (in_array($currentStatus, ['completed', 'cancelled', 'returned', 'rejected', 'damaged'])) {
+            return response()->json(['message' => 'This reservation can no longer be cancelled.'], 400);
+        }
+
+        $actualEmail = strtolower(trim($booking->requestor_email ?? $booking->email_address ?? ''));
+        if (empty($actualEmail) || $actualEmail !== $inputEmail) {
+            return response()->json([
+                'message' => 'The provided email address does not match our records for this reservation. Please check and try again.'
+            ], 422);
+        }
+
+        $upperRef = strtoupper($referenceCode);
+        $cacheKey = "booking_cancel_otp_{$upperRef}";
+        $cooldownKey = "booking_cancel_otp_cd_{$upperRef}";
+
+        // Enforce 60-second cooldown between sending OTPs
+        if (\Illuminate\Support\Facades\Cache::has($cooldownKey)) {
+            $remaining = (int) (\Illuminate\Support\Facades\Cache::get($cooldownKey) - time());
+            $remaining = max(1, $remaining);
+            return response()->json([
+                'message' => "A verification code was recently sent. Please wait {$remaining} second(s) before requesting another code."
+            ], 429);
+        }
+
+        $plainOtp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $expireMinutes = 10;
+
+        \Illuminate\Support\Facades\Cache::put($cacheKey, [
+            'otp_hash'       => hash('sha256', $plainOtp),
+            'email'          => $actualEmail,
+            'reason'         => $reason,
+            'reference_code' => $booking->reference_code ?? $referenceCode,
+            'attempts'       => 0,
+            'expires_at'     => now()->addMinutes($expireMinutes)->timestamp,
+        ], now()->addMinutes($expireMinutes));
+
+        \Illuminate\Support\Facades\Cache::put($cooldownKey, time() + 60, 60);
+
+        $recipientName = $booking->filer_name ?? $booking->requester_name ?? $booking->name ?? 'Applicant';
+
+        try {
+            \App\Jobs\SendBookingCancellationOtpJob::dispatch(
+                $actualEmail,
+                $recipientName,
+                $booking->reference_code ?? $referenceCode,
+                $plainOtp,
+                $expireMinutes
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to dispatch cancellation OTP job: " . $e->getMessage());
+        }
+
+        return response()->json([
+            'success'      => true,
+            'message'      => 'A 6-digit cancellation verification code has been sent to your email.',
+            'masked_email' => self::maskEmail($actualEmail),
+        ]);
+    }
+
+    /**
+     * Step 2 of public cancellation:
+     * Verifies the 6-digit OTP code against the cached SHA-256 hash.
+     * Enforces a maximum of 5 attempts. Once verified, permanently cancels the booking,
+     * frees assigned assets, sends cancellation confirmation, and logs the audit trail.
+     */
+    public function cancel(\Illuminate\Http\Request $request): JsonResponse
+    {
+        $referenceCode = trim($request->input('reference_code') ?? '');
+        $inputEmail = strtolower(trim($request->input('email') ?? ''));
+        $otpCode = trim($request->input('otp_code') ?? '');
+        $reason = trim($request->input('reason') ?? 'Cancelled by applicant');
+
+        if (empty($referenceCode)) {
+            return response()->json(['message' => 'Reference code is required.'], 422);
+        }
+        if (empty($inputEmail)) {
+            return response()->json(['message' => 'Your registered email address is required.'], 422);
+        }
+        if (empty($otpCode)) {
+            return response()->json(['message' => 'The 6-digit verification code is required to confirm cancellation.'], 422);
+        }
+
+        $upperRef = strtoupper($referenceCode);
+        $cacheKey = "booking_cancel_otp_{$upperRef}";
+        $cached = \Illuminate\Support\Facades\Cache::get($cacheKey);
+
+        if (!$cached) {
+            return response()->json([
+                'message' => 'The verification code has expired or was not requested. Please request a new code.'
+            ], 422);
+        }
+
+        if (($cached['attempts'] ?? 0) >= 5) {
+            \Illuminate\Support\Facades\Cache::forget($cacheKey);
+            return response()->json([
+                'message' => 'Too many failed attempts. For security reasons, this request has expired. Please request a new verification code.'
+            ], 429);
+        }
+
+        $submittedHash = hash('sha256', $otpCode);
+        if (!hash_equals((string)($cached['otp_hash'] ?? ''), $submittedHash)) {
+            $cached['attempts'] = ($cached['attempts'] ?? 0) + 1;
+            $remaining = 5 - $cached['attempts'];
+            \Illuminate\Support\Facades\Cache::put($cacheKey, $cached, now()->addMinutes(10));
+            return response()->json([
+                'message' => "Incorrect verification code. {$remaining} attempt(s) remaining."
+            ], 422);
+        }
+
+        if (strtolower(trim($inputEmail)) !== strtolower(trim($cached['email'] ?? ''))) {
+            return response()->json(['message' => 'Email address verification failed.'], 422);
+        }
+
+        // Successfully verified! Clear OTP cache
+        \Illuminate\Support\Facades\Cache::forget($cacheKey);
+        \Illuminate\Support\Facades\Cache::forget("booking_cancel_otp_cd_{$upperRef}");
+
+        $refLower = strtolower($referenceCode);
+        $tracking = \Illuminate\Support\Facades\DB::table('tracking_numbers')
+            ->whereRaw('LOWER(reference_code) = ?', [$refLower])
             ->first();
 
         if ($tracking && $tracking->reservation_type === 'venue_booking') {
@@ -285,7 +461,7 @@ class TrackingController extends Controller
                         'reference_type' => 'avr_venue_booking',
                         'reference_id'   => $vb->id,
                         'action'         => 'cancelled',
-                        'remarks'        => $reason ?: 'Cancelled by user',
+                        'remarks'        => $reason ?: 'Cancelled by applicant via OTP verification',
                         'approved_by'    => null,
                     ]);
                 }
@@ -304,7 +480,7 @@ class TrackingController extends Controller
             }
         }
 
-        if ($tracking && in_array($tracking->reservation_type, ['equipment_borrow', 'equipment_borrowing'])) {
+        if ($tracking && in_array($tracking->reservation_type, ['equipment_borrow', 'equipment_borrowing', 'equipment'])) {
             $eb = EquipmentBorrow::find($tracking->reservation_id);
             if ($eb) {
                 if (in_array(strtolower($eb->status), ['completed', 'cancelled', 'returned', 'rejected', 'damaged'])) {
@@ -330,7 +506,7 @@ class TrackingController extends Controller
                         'reference_type' => 'equipment_borrowing',
                         'reference_id'   => $eb->id,
                         'action'         => 'cancelled',
-                        'remarks'        => $reason ?: 'Cancelled by user',
+                        'remarks'        => $reason ?: 'Cancelled by applicant via OTP verification',
                         'approved_by'    => null,
                     ]);
                 }
@@ -350,7 +526,7 @@ class TrackingController extends Controller
         }
 
         // Direct fallback on EquipmentBorrow
-        $eb = EquipmentBorrow::where('reference_code', $referenceCode)->first();
+        $eb = EquipmentBorrow::whereRaw('LOWER(reference_code) = ?', [$refLower])->first();
         if ($eb) {
             if (in_array(strtolower($eb->status), ['completed', 'cancelled', 'returned', 'rejected', 'damaged'])) {
                 return response()->json(['message' => 'This borrowing can no longer be cancelled.'], 400);
@@ -377,7 +553,7 @@ class TrackingController extends Controller
                     'reference_type' => 'equipment_borrowing',
                     'reference_id'   => $eb->id,
                     'action'         => 'cancelled',
-                    'remarks'        => $reason ?: 'Cancelled by user',
+                    'remarks'        => $reason ?: 'Cancelled by applicant via OTP verification',
                     'approved_by'    => null,
                 ]);
             }
@@ -396,7 +572,7 @@ class TrackingController extends Controller
         }
 
         // Direct fallback on VenueBooking
-        $vb = VenueBooking::where('reference_code', $referenceCode)->first();
+        $vb = VenueBooking::whereRaw('LOWER(reference_code) = ?', [$refLower])->first();
         if ($vb) {
             if (in_array(strtolower($vb->status), ['completed', 'cancelled', 'rejected', 'damaged'])) {
                 return response()->json(['message' => 'This reservation can no longer be cancelled.'], 400);
@@ -423,7 +599,7 @@ class TrackingController extends Controller
                     'reference_type' => 'avr_venue_booking',
                     'reference_id'   => $vb->id,
                     'action'         => 'cancelled',
-                    'remarks'        => $reason ?: 'Cancelled by user',
+                    'remarks'        => $reason ?: 'Cancelled by applicant via OTP verification',
                     'approved_by'    => null,
                 ]);
             }
@@ -483,6 +659,12 @@ class TrackingController extends Controller
 
         if (!$record) {
             return response()->json(['message' => 'Reservation record not found.'], 404);
+        }
+
+        $ownerEmail = strtolower(trim($record->requestor_email ?? $record->email_address ?? ''));
+        $inputEmail = strtolower(trim($request->input('email') ?? $request->input('requestor_email') ?? ''));
+        if (!empty($ownerEmail) && !empty($inputEmail) && $ownerEmail !== $inputEmail) {
+            return response()->json(['message' => 'The provided email address does not match this reservation.'], 403);
         }
 
         $currentStatus = strtolower($record->status ?? $record->trackingNumber?->status ?? 'pending');
