@@ -1,7 +1,33 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Loader2, Play, Mail, CheckCircle2, PackageCheck, AlertCircle, Smartphone, ChevronDown, X, Check, Clock, Ban } from "lucide-react";
+import { Loader2, Play, Mail, CheckCircle2, PackageCheck, AlertCircle, Smartphone, ChevronDown, X, Check, Clock, Ban, ArrowUpDown } from "lucide-react";
 import api from "@/lib/axios";
 import { getTodayISO } from "@/lib/dateTimeUtils";
+
+const extractUnitSeqNum = (unit) => {
+  if (!unit) return null;
+  const raw = unit.seq_no ?? unit.sequence_no ?? unit.seqNo;
+  if (raw !== null && raw !== undefined && String(raw).trim() !== "") {
+    const m = String(raw).trim().match(/\d+/);
+    if (m) return parseInt(m[0], 10);
+  }
+  const fb = `${unit.name || ""} ${unit.model || ""}`.match(/#(\d+)/);
+  return fb ? parseInt(fb[1], 10) : null;
+};
+
+const compareUnitsBySeqNo = (a, b, order = "asc") => {
+  const seqA = extractUnitSeqNum(a);
+  const seqB = extractUnitSeqNum(b);
+  if (seqA !== null && seqB !== null && seqA !== seqB) {
+    return order === "asc" ? seqA - seqB : seqB - seqA;
+  }
+  if (seqA !== null && seqB === null) return -1;
+  if (seqA === null && seqB !== null) return 1;
+  const codeA = String(a?.barcode || a?.serial_number || a?.code || a?.id || "");
+  const codeB = String(b?.barcode || b?.serial_number || b?.code || b?.id || "");
+  return order === "asc"
+    ? codeA.localeCompare(codeB, undefined, { numeric: true })
+    : codeB.localeCompare(codeA, undefined, { numeric: true });
+};
 
 /**
  * Typeable & Selectable Combobox for Borrow Unit Slot (Model Selection + Built-in components)
@@ -21,6 +47,7 @@ function BorrowSlotBarcodeSelector({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [seqSortOrder, setSeqSortOrder] = useState("asc");
   const containerRef = useRef(null);
 
   const getUnitSeqNo = (unit) => {
@@ -78,7 +105,7 @@ function BorrowSlotBarcodeSelector({
       const typeId = unit?.equipment_type_id || currentReqCat?.equipment_type_id || currentReqCat?.id;
       const matchedType = (dbEquipmentTypes || []).find(t =>
         (typeId && String(t.id) === String(typeId)) ||
-        (categoryName && String(t.eq_name || t.name || '').toLowerCase() === String(categoryName).toLowerCase())
+        (categoryName && String(t.eq_name || t.name || "").toLowerCase() === String(categoryName).toLowerCase())
       );
       if (matchedType) {
         const typeBuilt = matchedType.built_in_names || matchedType.built_in_units;
@@ -93,10 +120,10 @@ function BorrowSlotBarcodeSelector({
 
     return rawList.map((itemRef, itemIdx) => {
       if (!itemRef) return null;
-      const biKey = (typeof itemRef === 'object' && itemRef !== null)
-        ? String(itemRef.id || itemRef.barcode || itemRef.serial_number || itemRef.code || '').trim().toUpperCase()
+      const biKey = (typeof itemRef === "object" && itemRef !== null)
+        ? String(itemRef.id || itemRef.barcode || itemRef.serial_number || itemRef.code || "").trim().toUpperCase()
         : String(itemRef).trim().toUpperCase();
-      const biRaw = (typeof itemRef === 'object' && itemRef !== null)
+      const biRaw = (typeof itemRef === "object" && itemRef !== null)
         ? (itemRef.name || itemRef.eq_name || itemRef.barcode || itemRef.id)
         : itemRef;
 
@@ -111,7 +138,7 @@ function BorrowSlotBarcodeSelector({
           u.serial_no,
           u.code,
         ].filter(Boolean).map((s) => String(s).trim().toUpperCase());
-        return uCandidates.includes(biKey) || (biKey && uCandidates.includes(biKey.replace(/^UNIT-/i, '')));
+        return uCandidates.includes(biKey) || (biKey && uCandidates.includes(biKey.replace(/^UNIT-/i, "")));
       });
       if (match) {
         const rawSeq = match.seq_no ?? match.sequence_no;
@@ -133,7 +160,7 @@ function BorrowSlotBarcodeSelector({
       const matchedType = (dbEquipmentTypes || []).find(t =>
         String(t.id) === String(biKey) ||
         String(t.id) === String(biRaw) ||
-        String(t.eq_name || t.name || '').toLowerCase() === String(biRaw).toLowerCase()
+        String(t.eq_name || t.name || "").toLowerCase() === String(biRaw).toLowerCase()
       );
       if (matchedType) {
         return matchedType.eq_name || matchedType.name;
@@ -190,8 +217,8 @@ function BorrowSlotBarcodeSelector({
     if (selectedUnit && !list.some(u => String(u.id) === String(selectedUnit.id) || String(u.barcode || u.serial_number) === String(selectedUnit.barcode || selectedUnit.serial_number))) {
       list.unshift(selectedUnit);
     }
-    return list;
-  }, [availableUnits, currentBarcode, otherSelectedBarcodes, selectedUnit]);
+    return [...list].sort((a, b) => compareUnitsBySeqNo(a, b, seqSortOrder));
+  }, [availableUnits, currentBarcode, otherSelectedBarcodes, selectedUnit, seqSortOrder]);
 
   const searchFiltered = slotEligibleUnits.filter((u) => {
     const bCode = String(u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).toLowerCase();
@@ -290,9 +317,23 @@ function BorrowSlotBarcodeSelector({
 
       {isOpen && (
         <div className="absolute z-50 left-0 right-0 mt-1 max-h-64 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-blue-900/50 rounded-xl shadow-lg py-1 text-xs animate-in fade-in">
-          <div className="px-3 py-1.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10.5px] font-bold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/80">
-            <span>AVAILABLE MODELS FOR {String(categoryName).toUpperCase()}</span>
-            <span>{searchFiltered.length} Available</span>
+          <div className="px-3 py-1.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2 text-[10.5px] font-bold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/80">
+            <span className="truncate">AVAILABLE MODELS FOR {String(categoryName).toUpperCase()}</span>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSeqSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+                }}
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-extrabold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                title="Sort by Sequence No."
+              >
+                <ArrowUpDown size={10} />
+                <span>Seq # {seqSortOrder === "asc" ? "↑" : "↓"}</span>
+              </button>
+              <span>{searchFiltered.length} Available</span>
+            </div>
           </div>
 
           {searchFiltered.length === 0 ? (
@@ -394,16 +435,16 @@ export default function EquipBorrowUnitAssignment({
   restrictedCategories = [],
   onToggleRestrictCategory,
 }) {
-  const borrowingOfficeId = selected?.office_id || selected?.office?.id || (selected?.items && selected.items[0]?.equipment_type?.office_id);
+  const [releasedSeqSort, setReleasedSeqSort] = useState("asc");
 
   const getBuiltInUnitsForBarcode = (barcodeVal, currentReqCat = null) => {
     if (!barcodeVal || barcodeVal === "—") return [];
     const cleanBarcode = String(barcodeVal).trim().toUpperCase();
-    const strippedBarcode = cleanBarcode.replace(/^UNIT-/i, '').trim();
+    const strippedBarcode = cleanBarcode.replace(/^UNIT-/i, "").trim();
 
     const unit = (allUnits || []).find((u) => {
       const uId = String(u.id).trim().toUpperCase();
-      const uSeq = u.seq_no ? String(u.seq_no).replace(/^#/, '').trim().toUpperCase() : null;
+      const uSeq = u.seq_no ? String(u.seq_no).replace(/^#/, "").trim().toUpperCase() : null;
       const candidates = [
         u.barcode,
         u.serial_number,
@@ -451,7 +492,7 @@ export default function EquipBorrowUnitAssignment({
       const typeId = unit?.equipment_type_id || currentReqCat?.equipment_type_id || currentReqCat?.id;
       const matchedType = (dbEquipmentTypes || []).find(t =>
         (typeId && String(t.id) === String(typeId)) ||
-        (currentReqCat?.category && String(t.eq_name || t.name || '').toLowerCase() === String(currentReqCat.category).toLowerCase())
+        (currentReqCat?.category && String(t.eq_name || t.name || "").toLowerCase() === String(currentReqCat.category).toLowerCase())
       );
       if (matchedType) {
         const typeBuilt = matchedType.built_in_names || matchedType.built_in_units;
@@ -466,10 +507,10 @@ export default function EquipBorrowUnitAssignment({
 
     return rawList.map((itemRef, itemIdx) => {
       if (!itemRef) return null;
-      const biKey = (typeof itemRef === 'object' && itemRef !== null)
-        ? String(itemRef.id || itemRef.barcode || itemRef.serial_number || itemRef.code || '').trim().toUpperCase()
+      const biKey = (typeof itemRef === "object" && itemRef !== null)
+        ? String(itemRef.id || itemRef.barcode || itemRef.serial_number || itemRef.code || "").trim().toUpperCase()
         : String(itemRef).trim().toUpperCase();
-      const biRaw = (typeof itemRef === 'object' && itemRef !== null)
+      const biRaw = (typeof itemRef === "object" && itemRef !== null)
         ? (itemRef.name || itemRef.eq_name || itemRef.barcode || itemRef.id)
         : itemRef;
 
@@ -483,7 +524,7 @@ export default function EquipBorrowUnitAssignment({
           u.serial_no,
           u.code,
         ].filter(Boolean).map((s) => String(s).trim().toUpperCase());
-        return uCandidates.includes(biKey) || (biKey && uCandidates.includes(biKey.replace(/^UNIT-/i, '')));
+        return uCandidates.includes(biKey) || (biKey && uCandidates.includes(biKey.replace(/^UNIT-/i, "")));
       });
 
       if (match) {
@@ -512,7 +553,7 @@ export default function EquipBorrowUnitAssignment({
         const typeMatch = dbEquipmentTypes.find(t =>
           String(t.id) === String(biKey) ||
           String(t.id) === String(biRaw) ||
-          String(t.eq_name || t.name || '').toLowerCase() === String(biRaw).toLowerCase()
+          String(t.eq_name || t.name || "").toLowerCase() === String(biRaw).toLowerCase()
         );
         if (typeMatch) {
           resolvedTypeName = typeMatch.eq_name || typeMatch.name;
@@ -553,7 +594,7 @@ export default function EquipBorrowUnitAssignment({
         name: isNaN(Number(biRaw)) ? String(biRaw) : `Physical Unit #${biRaw}`,
         category: "Built-in Component",
       };
-    }).filter(Boolean);
+    }).filter(Boolean).sort((a, b) => compareUnitsBySeqNo(a, b, "asc"));
   };
 
   // Check if all requested units have been assigned (excluding restricted categories)
@@ -642,7 +683,7 @@ export default function EquipBorrowUnitAssignment({
               key={catIdx}
               className={`p-3.5 rounded-2xl border space-y-2.5 transition-all ${
                 isRestricted
-                  ? "bg-slate-100/80 dark:bg-slate-800/60 border-slate-300 dark:border-slate-700 opacity-75"
+                  ? "bg-slate-200/60 dark:bg-slate-800/80 border-slate-300 dark:border-slate-700 opacity-60 grayscale"
                   : "bg-white dark:bg-slate-900/80 border-slate-200/90 dark:border-blue-900/50 shadow-xs"
               }`}
             >
@@ -662,7 +703,7 @@ export default function EquipBorrowUnitAssignment({
                   <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">
                     Qty: {reqCat.quantity}
                   </span>
-                  {onToggleRestrictCategory && (
+                  {onToggleRestrictCategory && (isPending || isApproved) && !isOngoing && !isCompleted && (
                     <button
                       type="button"
                       onClick={() => onToggleRestrictCategory(reqCat)}
@@ -836,120 +877,137 @@ export default function EquipBorrowUnitAssignment({
               {/* State 3: Completed (Read-only summary with returned condition badges) */}
               {isCompleted && (
                 <div className="space-y-1.5 pt-1">
-                  <span className="text-[10.5px] font-mono text-slate-400 font-bold uppercase">
-                    Dispatched Physical Units:
-                  </span>
-                  {Array.from({ length: reqCat.quantity }).map((_, uIdx) => {
-                    const idxKey = `${catIdx}-${uIdx}`;
-                    const catKey = `${reqCat.category}-${uIdx}`;
-                    const val = assignedUnitSelections[idxKey] || assignedUnitSelections[catKey] || "";
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10.5px] font-mono text-slate-400 font-bold uppercase">
+                      Dispatched Physical Units:
+                    </span>
+                    {reqCat.quantity > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => setReleasedSeqSort((prev) => (prev === "asc" ? "desc" : "asc"))}
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
+                        title="Sort released units by sequence number"
+                      >
+                        <ArrowUpDown size={10} />
+                        <span>Seq # {releasedSeqSort === "asc" ? "↑" : "↓"}</span>
+                      </button>
+                    )}
+                  </div>
+                  {Array.from({ length: reqCat.quantity })
+                    .map((_, uIdx) => {
+                      const idxKey = `${catIdx}-${uIdx}`;
+                      const catKey = `${reqCat.category}-${uIdx}`;
+                      const val = assignedUnitSelections[idxKey] || assignedUnitSelections[catKey] || "";
+                      const match = (allUnits || []).find(u => {
+                        const uId = String(u.id).trim().toUpperCase();
+                        const uCandidates = [
+                          uId,
+                          `UNIT-${uId}`,
+                          u.barcode,
+                          u.serial_number,
+                          u.serial_no,
+                          u.code,
+                        ].filter(Boolean).map(s => String(s).trim().toUpperCase());
+                        const cleanVal = String(val).trim().toUpperCase();
+                        return uCandidates.includes(cleanVal) || (cleanVal.startsWith("UNIT-") && uCandidates.includes(cleanVal.replace(/^UNIT-/i, "")));
+                      });
+                      return { uIdx, idxKey, catKey, val, match };
+                    })
+                    .sort((a, b) => compareUnitsBySeqNo(a.match || { barcode: a.val }, b.match || { barcode: b.val }, releasedSeqSort))
+                    .map(({ uIdx, idxKey, catKey, val, match }) => {
+                      const resolvedCond = val
+                        ? unitReturnedConditions[val] || unitReturnedConditions[idxKey] || unitReturnedConditions[catKey] || "Complete"
+                        : null;
 
-                    const resolvedCond = val
-                      ? unitReturnedConditions[val] || unitReturnedConditions[idxKey] || unitReturnedConditions[catKey] || "Complete"
-                      : null;
+                      const slotBuiltIns = getBuiltInUnitsForBarcode(val, reqCat);
+                      const seq = match?.seq_no ? (String(match.seq_no).trim().startsWith("#") ? String(match.seq_no).trim() : `#${String(match.seq_no).trim()}`) : null;
+                      const brand = match?.brand ? String(match.brand).trim() : "";
+                      const model = match?.model ? String(match.model).trim() : "";
+                      const brandModel = brand && model ? `${brand} • ${model}` : (brand || model || match?.name || "");
 
-                    const slotBuiltIns = getBuiltInUnitsForBarcode(val, reqCat);
-                    const match = (allUnits || []).find(u => {
-                      const uId = String(u.id).trim().toUpperCase();
-                      const uCandidates = [
-                        uId,
-                        `UNIT-${uId}`,
-                        u.barcode,
-                        u.serial_number,
-                        u.serial_no,
-                        u.code,
-                      ].filter(Boolean).map(s => String(s).trim().toUpperCase());
-                      const cleanVal = String(val).trim().toUpperCase();
-                      return uCandidates.includes(cleanVal) || (cleanVal.startsWith("UNIT-") && uCandidates.includes(cleanVal.replace(/^UNIT-/i, "")));
-                    });
-                    const seq = match?.seq_no ? (String(match.seq_no).trim().startsWith("#") ? String(match.seq_no).trim() : `#${String(match.seq_no).trim()}`) : null;
-                    const brand = match?.brand ? String(match.brand).trim() : "";
-                    const model = match?.model ? String(match.model).trim() : "";
-                    const brandModel = brand && model ? `${brand} • ${model}` : (brand || model || match?.name || "");
-
-                    return (
-                      <div key={uIdx} className="p-2.5 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-xl space-y-1.5">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs font-mono font-bold text-slate-800 dark:text-slate-200 gap-2">
-                          <span>Unit {uIdx + 1}</span>
-                          <div className="flex items-center gap-1.5 flex-wrap justify-end">
-                            {seq && (
-                              <span className="font-mono text-[10.5px] font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800/80">
-                                {seq}
-                              </span>
-                            )}
-                            {brandModel && (
-                              <span className="font-bold text-slate-800 dark:text-slate-200 text-xs">
-                                {brandModel}
-                              </span>
-                            )}
-                            <span className={`px-2 py-0.5 rounded-lg border font-extrabold ${
-                              val && val !== "—"
-                                ? "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-blue-700 dark:text-blue-300 shadow-xs"
-                                : "bg-amber-100/60 dark:bg-amber-950/60 border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300"
-                            }`}>
-                              {val || "Unassigned"}
-                            </span>
-
-                            {resolvedCond && val && val !== "—" && (
-                              <span className={`px-2 py-0.5 rounded-lg border font-extrabold shadow-xs ${
-                                ['good', 'clean', 'complete'].includes(resolvedCond.toLowerCase())
-                                  ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
-                                  : resolvedCond.toLowerCase() === 'late return' || resolvedCond.toLowerCase() === 'late'
-                                  ? "bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800"
-                                  : "bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800"
+                      return (
+                        <div key={uIdx} className="p-2.5 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-xl space-y-1.5">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs font-mono font-bold text-slate-800 dark:text-slate-200 gap-2">
+                            <span>Unit {uIdx + 1}</span>
+                            <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                              {seq && (
+                                <span className="font-mono text-[10.5px] font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800/80">
+                                  {seq}
+                                </span>
+                              )}
+                              {brandModel && (
+                                <span className="font-bold text-slate-800 dark:text-slate-200 text-xs">
+                                  {brandModel}
+                                </span>
+                              )}
+                              <span className={`px-2 py-0.5 rounded-lg border font-extrabold ${
+                                val && val !== "—"
+                                  ? "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-blue-700 dark:text-blue-300 shadow-xs"
+                                  : "bg-amber-100/60 dark:bg-amber-950/60 border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300"
                               }`}>
-                                {resolvedCond}
+                                {val || "Unassigned"}
                               </span>
-                            )}
-                          </div>
-                        </div>
 
-                        {slotBuiltIns.length > 0 && (
-                          <div className="pt-1.5 border-t border-slate-200/80 dark:border-slate-800 space-y-1">
-                            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-                              Built-in Linked Units ({slotBuiltIns.length}):
-                            </span>
-                            <div className="flex flex-wrap gap-1.5">
-                              {slotBuiltIns.map((biUnit, biIdx) => {
-                                const biCond = (biUnit.barcode) ? (unitReturnedConditions[biUnit.barcode] || "Complete") : null;
-                                const isBiLost = biCond && biCond.toLowerCase() === "lost";
-                                const isBiDamaged = biCond && biCond.toLowerCase() === "damaged";
-                                return (
-                                  <span
-                                    key={biIdx}
-                                    className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[11px] font-medium shadow-2xs ${
-                                      isBiLost
-                                        ? "bg-rose-100 dark:bg-rose-950/80 text-rose-900 dark:text-rose-300 border-rose-300 dark:border-rose-800 font-bold"
-                                        : isBiDamaged
-                                        ? "bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800 font-bold"
-                                        : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
-                                    }`}
-                                  >
-                                    {biUnit.seq_no && (
-                                      <span className="font-mono font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1 py-0.2 rounded border border-amber-200 dark:border-amber-800 text-[10px]">
-                                        {biUnit.seq_no}
-                                      </span>
-                                    )}
-                                    <span className="font-bold">
-                                      {biUnit.brand && <span>{biUnit.brand}</span>}
-                                      {biUnit.brand && biUnit.model && <span className="text-slate-400 mx-1">•</span>}
-                                      {biUnit.model && <span className="font-medium text-slate-600 dark:text-slate-300">{biUnit.model}</span>}
-                                      {!biUnit.brand && !biUnit.model && (biUnit.name || "Unit")}
-                                    </span>
-                                    {biCond && biCond.toLowerCase() !== "complete" && biCond.toLowerCase() !== "good" && (
-                                      <span className={`text-[10px] uppercase font-black px-1.5 py-0.2 rounded ${isBiLost ? "bg-rose-900 text-white" : "bg-rose-600 text-white"}`}>
-                                        {biCond}
-                                      </span>
-                                    )}
-                                  </span>
-                                );
-                              })}
+                              {resolvedCond && val && val !== "—" && (
+                                <span className={`px-2 py-0.5 rounded-lg border font-extrabold shadow-xs ${
+                                  ["good", "clean", "complete"].includes(resolvedCond.toLowerCase())
+                                    ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
+                                    : resolvedCond.toLowerCase() === "late return" || resolvedCond.toLowerCase() === "late"
+                                    ? "bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800"
+                                    : "bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800"
+                                }`}>
+                                  {resolvedCond}
+                                </span>
+                              )}
                             </div>
                           </div>
-                        )}
-                      </div>
-                    );
-                  })}
+
+                          {slotBuiltIns.length > 0 && (
+                            <div className="pt-1.5 border-t border-slate-200/80 dark:border-slate-800 space-y-1">
+                              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                                Built-in Linked Units ({slotBuiltIns.length}):
+                              </span>
+                              <div className="flex flex-wrap gap-1.5">
+                                {slotBuiltIns.map((biUnit, biIdx) => {
+                                  const biCond = (biUnit.barcode) ? (unitReturnedConditions[biUnit.barcode] || "Complete") : null;
+                                  const isBiLost = biCond && biCond.toLowerCase() === "lost";
+                                  const isBiDamaged = biCond && biCond.toLowerCase() === "damaged";
+                                  return (
+                                    <span
+                                      key={biIdx}
+                                      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[11px] font-medium shadow-2xs ${
+                                        isBiLost
+                                          ? "bg-rose-100 dark:bg-rose-950/80 text-rose-900 dark:text-rose-300 border-rose-300 dark:border-rose-800 font-bold"
+                                          : isBiDamaged
+                                          ? "bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800 font-bold"
+                                          : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+                                      }`}
+                                    >
+                                      {biUnit.seq_no && (
+                                        <span className="font-mono font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1 py-0.2 rounded border border-amber-200 dark:border-amber-800 text-[10px]">
+                                          {biUnit.seq_no}
+                                        </span>
+                                      )}
+                                      <span className="font-bold">
+                                        {biUnit.brand && <span>{biUnit.brand}</span>}
+                                        {biUnit.brand && biUnit.model && <span className="text-slate-400 mx-1">•</span>}
+                                        {biUnit.model && <span className="font-medium text-slate-600 dark:text-slate-300">{biUnit.model}</span>}
+                                        {!biUnit.brand && !biUnit.model && (biUnit.name || "Unit")}
+                                      </span>
+                                      {biCond && biCond.toLowerCase() !== "complete" && biCond.toLowerCase() !== "good" && (
+                                        <span className={`text-[10px] uppercase font-black px-1.5 py-0.2 rounded ${isBiLost ? "bg-rose-900 text-white" : "bg-rose-600 text-white"}`}>
+                                          {biCond}
+                                        </span>
+                                      )}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                 </div>
               )}
             </div>
@@ -1000,7 +1058,7 @@ export default function EquipBorrowUnitAssignment({
               title={isDateBlocked ? `Locked until ${scheduledBorrowDate}` : undefined}
               className={`w-full py-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all shadow-xs ${
                 canRelease
-                  ? "bg-slate-900 hover:bg-slate-800 text-white dark:bg-blue-600 dark:hover:bg-blue-700 dark:text-white cursor-pointer active:scale-[0.99]"
+                  ? "bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:hover:bg-blue-700 dark:text-white cursor-pointer active:scale-[0.99] shadow-md shadow-blue-600/20"
                   : "bg-slate-200 dark:bg-slate-800/80 text-slate-400 dark:text-slate-500 border border-slate-300 dark:border-slate-700/80 cursor-not-allowed"
               }`}
             >
@@ -1014,6 +1072,16 @@ export default function EquipBorrowUnitAssignment({
           <div className="p-3 bg-blue-50/60 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/50 rounded-2xl flex items-center gap-2 text-xs font-bold text-blue-800 dark:text-blue-300">
             <CheckCircle2 size={16} className="text-blue-600 dark:text-blue-400 shrink-0" />
             <span>Equipment dispatched. Awaiting return &amp; post-use inspection.</span>
+          </div>
+        )}
+
+        {isCompleted && (
+          <div className="p-3 bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-900/50 rounded-2xl flex items-center justify-between gap-2 text-xs font-bold text-emerald-800 dark:text-emerald-300">
+            <div className="flex items-center gap-2">
+              <Mail size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span>Email Sent: Equipment Clearance Receipt dispatched to borrower.</span>
+            </div>
+            <CheckCircle2 size={15} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
           </div>
         )}
       </div>

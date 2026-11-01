@@ -1,13 +1,9 @@
 import { useState, useEffect } from "react";
 import {
-  Eye,
   ChevronLeft,
   ChevronRight,
   Loader2,
-  Info,
-  ImageIcon,
   X,
-  Clock,
 } from "lucide-react";
 import { formatDate, formatTimeRange12 } from "@/lib/dateUtils";
 import { formatTimeLate, formatTimeLateFull } from "@/lib/dateTimeUtils";
@@ -18,7 +14,6 @@ export default function BookingBorrowingReportTab({
   setShowPdfModal,
   loading = false,
 }) {
-  const [evidenceModalImage, setEvidenceModalImage] = useState(null);
   const [selectedRecord, setSelectedRecord] = useState(null);
 
   const [venueReportNotes, setVenueReportNotes] = useState(() => localStorage.getItem("fsuu_report_venue_notes") || "");
@@ -61,65 +56,49 @@ export default function BookingBorrowingReportTab({
     if (s === "APPROVED" || s === "SCHEDULED" || s === "CONFIRMED") {
       return <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">Approved</span>;
     }
-    if (s === "ON-GOING" || s === "ONGOING" || s === "BORROWED" || s === "IN_USE" || s === "IN USE") {
-      return <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">On-Going</span>;
+    if (s === "ON-GOING" || s === "ONGOING" || s === "BORROWED" || s === "IN_USE" || s === "IN USE" || s === "RELEASED") {
+      return <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">In Use</span>;
     }
     if (s === "COMPLETED" || s === "RETURNED" || s === "DONE" || s === "GOOD CONDITION" || s === "GOOD") {
-      return <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">{s === "GOOD CONDITION" || s === "GOOD" ? "Completed" : s.charAt(0) + s.slice(1).toLowerCase()}</span>;
+      return (
+        <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+          {s === "RETURNED" ? "Returned" : "Completed"}
+        </span>
+      );
     }
-    if (s === "REJECTED" || s === "CANCELLED" || s === "POLICY VIOLATION" || s === "DAMAGED" || s === "LOST" || s === "DAMAGE") {
-      return <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">{s.charAt(0) + s.slice(1).toLowerCase()}</span>;
+    if (s === "CANCELLED") {
+      return <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">Cancelled</span>;
+    }
+    if (s === "REJECTED" || s === "POLICY VIOLATION" || s === "DAMAGED" || s === "LOST" || s === "DAMAGE") {
+      const label =
+        s === "POLICY VIOLATION"
+          ? "Policy Violation"
+          : s === "DAMAGE"
+          ? "Damaged"
+          : s.charAt(0) + s.slice(1).toLowerCase();
+      return <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">{label}</span>;
     }
     if (s === "LATE RETURN" || s === "RETURNED LATE") {
-      return <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">Late</span>;
+      return <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">Late Return</span>;
     }
     return <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">{s}</span>;
   };
 
-  const renderStatusAndInspectionNote = (record, defaultStatus) => {
+  const renderInspectionNote = (record, defaultStatus) => {
     const s = String(defaultStatus || record.status || "").toUpperCase();
-    
+
     if (s === "REJECTED" || s === "CANCELLED") {
       const reason = record.rejection_reason || record.remarks || record.notes || "";
+      if (!reason) {
+        return <span className="text-xs text-slate-300 dark:text-slate-600">—</span>;
+      }
       return (
-        <div className="flex flex-col items-center justify-center gap-1 max-w-[220px] mx-auto text-center py-1">
-          <span className={`text-[11px] font-bold ${s === "REJECTED" ? "text-rose-600 dark:text-rose-400" : "text-amber-600 dark:text-amber-400"}`}>
-            {s === "REJECTED" ? "Rejected" : "Cancelled"}
-          </span>
-          {reason && (
-             <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium italic leading-tight" title={reason}>
-               {reason.length > 50 ? reason.substring(0, 50) + "..." : reason}
-             </span>
-          )}
-        </div>
-      );
-    }
-
-    if (s === "LOST") {
-      const note = record.inspection_notes || record.notes || record.violation || record.violation_type || "";
-      return (
-        <div className="flex flex-col items-center justify-center gap-1 max-w-[220px] mx-auto text-center py-1">
-          <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400">Lost</span>
-          {note && note !== "Returned safely in good condition." && (
-            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium italic leading-tight" title={note}>
-              {note.length > 50 ? note.substring(0, 50) + "..." : note}
-            </span>
-          )}
-        </div>
-      );
-    }
-
-    if (s === "DAMAGED") {
-      const note = record.inspection_notes || record.notes || record.violation || record.violation_type || "";
-      return (
-        <div className="flex flex-col items-center justify-center gap-1 max-w-[220px] mx-auto text-center py-1">
-          <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400">Damaged</span>
-          {note && note !== "Returned safely in good condition." && (
-            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium italic leading-tight" title={note}>
-              {note.length > 50 ? note.substring(0, 50) + "..." : note}
-            </span>
-          )}
-        </div>
+        <span
+          className="text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-tight inline-block max-w-[220px] truncate"
+          title={reason}
+        >
+          {reason}
+        </span>
       );
     }
 
@@ -137,37 +116,37 @@ export default function BookingBorrowingReportTab({
       rawNote = rawNote.replace(/Physical Facility\s*\/\s*Furniture Damage/gi, "Property Damaged");
       rawNote = rawNote.replace(/Facility or Property Damage/gi, "Property Damaged");
       rawNote = rawNote.replace(/Property Damaged,\s*Property Damaged/gi, "Property Damaged");
-      // Remove slash separators from violation type labels (e.g. "Late Return / Extension" → "Late Return, Extension")
       rawNote = rawNote.replace(/\s*\/\s*/g, ", ");
     }
+
     const condition = (record.inspection_condition || record.condition || "").toLowerCase();
 
-    return (
-      <div className="flex flex-col items-center justify-center gap-1 max-w-[220px] mx-auto text-center py-1">
-        {rawNote ? (
-          <span
-            className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 leading-snug break-words max-w-full text-center"
-            title={rawNote}
-          >
-            {rawNote}
-          </span>
-        ) : condition ? (
-          <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 capitalize">
-            {condition === "good" || condition === "clean" ? "*COMPLETE PHYSICAL UNIT*" : condition}
-          </span>
-        ) : (
-          <span className="text-[10.5px] text-slate-400 dark:text-slate-500 font-normal italic">
-            No inspection note
-          </span>
-        )}
-      </div>
-    );
+    if (rawNote) {
+      return (
+        <span
+          className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 leading-snug inline-block max-w-[220px] truncate"
+          title={rawNote}
+        >
+          {rawNote}
+        </span>
+      );
+    }
+
+    if (condition) {
+      return (
+        <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 capitalize">
+          {condition === "good" || condition === "clean" ? "Good Condition" : condition}
+        </span>
+      );
+    }
+
+    return <span className="text-xs text-slate-300 dark:text-slate-600">—</span>;
   };
 
   return (
     <div className="space-y-8">
       {/* ── 1. VENUE BOOKING REPORTS TABLE ── */}
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
           <span className="text-sm font-bold text-slate-900 dark:text-white">Venue Booking Reports</span>
           <span className="text-xs font-semibold text-slate-400 dark:text-slate-500">{reportVenueBookings.length} records</span>
@@ -184,20 +163,21 @@ export default function BookingBorrowingReportTab({
                 <th className="py-3 px-4">VENUE</th>
                 <th className="py-3 px-4">DATE</th>
                 <th className="py-3 px-4">TIME</th>
-                <th className="py-3 px-4 text-center">NOTE</th>
+                <th className="py-3 px-4">STATUS</th>
+                <th className="py-3 px-4">NOTE</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-semibold text-slate-700 dark:text-slate-300">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-10 text-slate-400 dark:text-slate-500">
+                  <td colSpan={9} className="text-center py-10 text-slate-400 dark:text-slate-500">
                     <Loader2 size={16} className="animate-spin inline mr-1.5 text-blue-600" />
                     Loading...
                   </td>
                 </tr>
               ) : reportVenueBookings.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-10 text-slate-400 dark:text-slate-500">No venue booking records found.</td>
+                  <td colSpan={9} className="text-center py-10 text-slate-400 dark:text-slate-500">No venue booking records found.</td>
                 </tr>
               ) : (
                 paginatedVenueRecords.map((b, idx) => {
@@ -216,13 +196,14 @@ export default function BookingBorrowingReportTab({
                   return (
                     <tr key={`rpt-venue-${b.id || idx}`} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
                       <td className="py-3 px-4 text-slate-400">{venueStartIndex + idx + 1}</td>
-                      <td className="py-3 px-4 font-bold text-slate-700 dark:text-slate-300 font-mono">{trackNo}</td>
+                      <td className="py-3 px-4 font-bold text-slate-700 dark:text-slate-300 font-mono whitespace-nowrap">{trackNo}</td>
                       <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{b.filer_name || b.requestor || "Filer"}</td>
                       <td className="py-3 px-4 text-slate-500 dark:text-slate-400">{b.program_office || b.dept || b.office || "CAS"}</td>
                       <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{b.venue_name || b.venue?.name || b.venue || "Audio Visual Room"}</td>
                       <td className="py-3 px-4 text-slate-500 dark:text-slate-400 whitespace-nowrap">{formatDate(b.date_of_usage || b.date)}</td>
                       <td className="py-3 px-4 text-slate-500 dark:text-slate-400 whitespace-nowrap">{timeFormatted || "08:00 AM – 04:00 PM"}</td>
-                      <td className="py-3 px-4 text-center">{renderStatusAndInspectionNote(b, status)}</td>
+                      <td className="py-3 px-4 whitespace-nowrap">{getStatusBadge(status)}</td>
+                      <td className="py-3 px-4">{renderInspectionNote(b, status)}</td>
                     </tr>
                   );
                 })
@@ -257,21 +238,25 @@ export default function BookingBorrowingReportTab({
           </div>
         )}
 
-        {/* Notes */}
-        <div className="space-y-1.5">
-          <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">Venue Report Notes</label>
+        {/* Export Notes */}
+        <div className="space-y-1 pt-1">
+          <div className="flex items-center justify-between">
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">
+              Venue Export Notes <span className="text-[11px] font-normal text-slate-400 dark:text-slate-500">(Included in PDF / Excel)</span>
+            </label>
+          </div>
           <textarea
             rows={2}
             value={venueReportNotes}
             onChange={(e) => { setVenueReportNotes(e.target.value); localStorage.setItem("fsuu_report_venue_notes", e.target.value); }}
-            placeholder="Add venue booking observations or audit summary..."
+            placeholder="Add venue booking observations or audit summary for exported reports..."
             className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
           />
         </div>
       </div>
 
       {/* ── 2. EQUIPMENT BORROWING REPORTS TABLE ── */}
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
           <span className="text-sm font-bold text-slate-900 dark:text-white">Equipment Borrowing Reports</span>
           <span className="text-xs font-semibold text-slate-400 dark:text-slate-500">{reportEquipmentBorrowings.length} records</span>
@@ -288,9 +273,9 @@ export default function BookingBorrowingReportTab({
                 <th className="py-3 px-4">EQUIPMENT</th>
                 <th className="py-3 px-4">DATE</th>
                 <th className="py-3 px-4">TIME</th>
-                <th className="py-3 px-4">LATE RETURN</th>
-                <th className="py-3 px-4">TIME LATE</th>
-                <th className="py-3 px-4 text-center">NOTE</th>
+                <th className="py-3 px-4">TIMELINESS</th>
+                <th className="py-3 px-4">STATUS</th>
+                <th className="py-3 px-4">NOTE</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-semibold text-slate-700 dark:text-slate-300">
@@ -321,31 +306,28 @@ export default function BookingBorrowingReportTab({
                   return (
                     <tr key={`rpt-equip-${eb.id || idx}`} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
                       <td className="py-3 px-4 text-slate-400">{equipStartIndex + idx + 1}</td>
-                      <td className="py-3 px-4 font-bold text-slate-700 dark:text-slate-300 font-mono">{trackNo}</td>
+                      <td className="py-3 px-4 font-bold text-slate-700 dark:text-slate-300 font-mono whitespace-nowrap">{trackNo}</td>
                       <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{eb.filer_name || eb.requestor || "Borrower"}</td>
                       <td className="py-3 px-4 text-slate-500 dark:text-slate-400">{eb.program_office || eb.dept || eb.office || "CAS"}</td>
                       <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{eb.items?.[0]?.equipmentType?.name || eb.equipment_name || "Equipment"}</td>
                       <td className="py-3 px-4 text-slate-500 dark:text-slate-400 whitespace-nowrap">{formatDate(eb.date_of_usage || eb.date)}</td>
                       <td className="py-3 px-4 text-slate-500 dark:text-slate-400 whitespace-nowrap">{timeFormatted || "08:00 AM – 04:00 PM"}</td>
-                      <td className="py-3 px-4">
-                        <span className={`text-xs font-semibold ${
-                          isLate
-                            ? "text-rose-600 dark:text-rose-400"
-                            : "text-emerald-600 dark:text-emerald-400"
-                        }`}>
-                          {isLate ? "Late" : "Ontime"}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-slate-500 dark:text-slate-400 font-mono whitespace-nowrap">
+                      <td className="py-3 px-4 whitespace-nowrap">
                         {isLate ? (
-                          minutesLate > 0 ? (
-                            <span title={formatTimeLateFull(minutesLate)}>
-                              {formatTimeLate(minutesLate)}
-                            </span>
-                          ) : "—"
-                        ) : "—"}
+                          <span
+                            className="text-xs font-semibold text-rose-600 dark:text-rose-400"
+                            title={minutesLate > 0 ? formatTimeLateFull(minutesLate) : "Returned Late"}
+                          >
+                            {minutesLate > 0 ? `Late (${formatTimeLate(minutesLate)})` : "Late"}
+                          </span>
+                        ) : (
+                          <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                            On Time
+                          </span>
+                        )}
                       </td>
-                      <td className="py-3 px-4 text-center">{renderStatusAndInspectionNote(eb, status)}</td>
+                      <td className="py-3 px-4 whitespace-nowrap">{getStatusBadge(status)}</td>
+                      <td className="py-3 px-4">{renderInspectionNote(eb, status)}</td>
                     </tr>
                   );
                 })
@@ -380,14 +362,18 @@ export default function BookingBorrowingReportTab({
           </div>
         )}
 
-        {/* Notes */}
-        <div className="space-y-1.5">
-          <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">Report Notes</label>
+        {/* Export Notes */}
+        <div className="space-y-1 pt-1">
+          <div className="flex items-center justify-between">
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">
+              Equipment Export Notes <span className="text-[11px] font-normal text-slate-400 dark:text-slate-500">(Included in PDF / Excel)</span>
+            </label>
+          </div>
           <textarea
             rows={2}
             value={equipReportNotes}
             onChange={(e) => { setEquipReportNotes(e.target.value); localStorage.setItem("fsuu_report_equipment_notes", e.target.value); }}
-            placeholder="Add equipment borrowing observations or audit notes..."
+            placeholder="Add equipment borrowing observations or audit notes for exported reports..."
             className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
           />
         </div>
@@ -438,21 +424,17 @@ export default function BookingBorrowingReportTab({
               {selectedRecord.type === "equipment" && (
                 <>
                   <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
-                    <span className="text-slate-500 dark:text-slate-400 font-semibold">Late Return Status:</span>
+                    <span className="text-slate-500 dark:text-slate-400 font-semibold">Timeliness:</span>
                     <span className="font-bold text-slate-900 dark:text-white">
                       {selectedRecord.data.is_late || Number(selectedRecord.data.minutes_late) > 0 ? (
-                        <span className="text-rose-600 dark:text-rose-400 font-extrabold">Late Return</span>
+                        <span className="text-rose-600 dark:text-rose-400 font-extrabold">
+                          {Number(selectedRecord.data.minutes_late || 0) > 0
+                            ? `Late (${formatTimeLate(selectedRecord.data.minutes_late)})`
+                            : "Late Return"}
+                        </span>
                       ) : (
                         <span className="text-emerald-600 dark:text-emerald-400 font-bold">On Time</span>
                       )}
-                    </span>
-                  </div>
-                  <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
-                    <span className="text-slate-500 dark:text-slate-400 font-semibold">Time Late:</span>
-                    <span className="font-bold text-slate-900 dark:text-white font-mono">
-                      {Number(selectedRecord.data.minutes_late || 0) > 0
-                        ? `${formatTimeLate(selectedRecord.data.minutes_late)} (${formatTimeLateFull(selectedRecord.data.minutes_late)})`
-                        : "—"}
                     </span>
                   </div>
                 </>

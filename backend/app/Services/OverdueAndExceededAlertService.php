@@ -50,7 +50,9 @@ class OverdueAndExceededAlertService
                     )
                     ->get();
 
-                Log::info("OverdueAndExceededAlertService: Found {$activeVenues->count()} on-going venue booking(s) to check.");
+                if ($activeVenues->isNotEmpty()) {
+                    Log::info("OverdueAndExceededAlertService: Found {$activeVenues->count()} on-going venue booking(s) to check.");
+                }
 
                 foreach ($activeVenues as $vb) {
                     // Use reservation_end_date if present (multi-day bookings), else date_of_usage
@@ -126,7 +128,9 @@ class OverdueAndExceededAlertService
                     )
                     ->get();
 
-                Log::info("OverdueAndExceededAlertService: Found {$activeBorrows->count()} on-going equipment borrow(s) to check.");
+                if ($activeBorrows->isNotEmpty()) {
+                    Log::info("OverdueAndExceededAlertService: Found {$activeBorrows->count()} on-going equipment borrow(s) to check.");
+                }
 
                 foreach ($activeBorrows as $eb) {
                     $endDate = $eb->date_of_usage;

@@ -63,6 +63,7 @@ export default function Step3Details({
   const [requirements, setRequirements] = useState([]);
   const [departmentsList, setDepartmentsList] = useState([]);
   const [equipmentCatalog, setEquipmentCatalog] = useState([]);
+  const [loadingEquipment, setLoadingEquipment] = useState(true);
 
   useEffect(() => {
     api.get("/public/booking-requirements")
@@ -82,6 +83,7 @@ export default function Step3Details({
     };
 
     const fetchEquipment = async () => {
+      setLoadingEquipment(true);
       try {
         const params = new URLSearchParams();
         params.append("context", "venue_booking");
@@ -103,6 +105,8 @@ export default function Step3Details({
         } catch {
           setEquipmentCatalog([]);
         }
+      } finally {
+        setLoadingEquipment(false);
       }
     };
 
@@ -429,27 +433,8 @@ export default function Step3Details({
       {/* DYNAMIC FORM RENDERING */}
       <form onSubmit={handleDetailsSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-5">
 
-        {/* COMMON REQUIRED FIELDS: Structured Name Inputs (Last Name First) */}
+        {/* COMMON REQUIRED FIELDS: Structured Name Inputs (First Name, Middle Name, Last Name, Suffix) */}
         <div className="col-span-1 sm:col-span-2 grid grid-cols-1 sm:grid-cols-4 gap-3">
-          <div className="flex flex-col gap-1.5 sm:col-span-1">
-            <label className="text-xs font-bold text-slate-900 dark:text-white">Last Name <span className="text-red-500">*</span></label>
-            <input
-              type="text"
-              required
-              value={lastName}
-              onChange={e => {
-                const val = e.target.value;
-                setLastName(val);
-                if (setFullName) {
-                  const given = [firstName, middleName].filter(Boolean).join(" ");
-                  setFullName(val ? (given ? `${val}, ${given}${suffix ? ` ${suffix}` : ''}` : val) : [given, suffix].filter(Boolean).join(" "));
-                }
-              }}
-              placeholder="e.g. Dela Cruz"
-              className="w-full p-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all"
-            />
-          </div>
-
           <div className="flex flex-col gap-1.5 sm:col-span-1">
             <label className="text-xs font-bold text-slate-900 dark:text-white">First Name <span className="text-red-500">*</span></label>
             <input
@@ -483,6 +468,25 @@ export default function Step3Details({
                 }
               }}
               placeholder="e.g. Santos"
+              className="w-full p-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5 sm:col-span-1">
+            <label className="text-xs font-bold text-slate-900 dark:text-white">Last Name <span className="text-red-500">*</span></label>
+            <input
+              type="text"
+              required
+              value={lastName}
+              onChange={e => {
+                const val = e.target.value;
+                setLastName(val);
+                if (setFullName) {
+                  const given = [firstName, middleName].filter(Boolean).join(" ");
+                  setFullName(val ? (given ? `${val}, ${given}${suffix ? ` ${suffix}` : ''}` : val) : [given, suffix].filter(Boolean).join(" "));
+                }
+              }}
+              placeholder="e.g. Dela Cruz"
               className="w-full p-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all"
             />
           </div>
@@ -712,7 +716,7 @@ export default function Step3Details({
           )}
 
           {/* Duplicate / OTP Error Alert Banner */}
-          {requireVerification && otpChannel === "email" && otpError && !isOtpRequested && otpError !== emailCheckMessage && (
+          {requireVerification && otpChannel === "email" && otpError && !isOtpRequested && emailCheckStatus !== "invalid" && otpError !== emailCheckMessage && (
             <div className="mt-2.5 p-3.5 bg-rose-50 dark:bg-rose-950/40 border-2 border-rose-300 dark:border-rose-800 rounded-2xl text-xs font-bold text-rose-800 dark:text-rose-200 flex items-start gap-2.5 shadow-sm animate-in fade-in">
               <AlertCircle size={16} className="text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
               <div className="flex-1 space-y-1">
@@ -1169,6 +1173,21 @@ export default function Step3Details({
 
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 text-xs pt-1">
                 {(() => {
+                  if (loadingEquipment && equipmentCatalog.length === 0) {
+                    return Array.from({ length: 4 }).map((_, sIdx) => (
+                      <div
+                        key={`eq-skel-${sIdx}`}
+                        className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/80 animate-pulse"
+                      >
+                        <div className="w-4 h-4 rounded bg-slate-200 dark:bg-slate-800 shrink-0" />
+                        <div className="flex-1 space-y-1.5">
+                          <div className="h-3 w-20 bg-slate-200 dark:bg-slate-800 rounded" />
+                          <div className="h-2.5 w-14 bg-slate-100 dark:bg-slate-800/70 rounded" />
+                        </div>
+                      </div>
+                    ));
+                  }
+
                   let baseCatalog = [];
 
                   const rawAllowed = selectedVenue?.allowed_equipment;

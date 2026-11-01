@@ -461,22 +461,22 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUni
                         <td className="py-3.5 px-4 text-xs whitespace-nowrap">
                           {isReturned ? (
                             <div className="flex flex-col gap-0.5">
-                              <span className="inline-flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400">
-                                <CheckCircle2 size={12} className="text-emerald-500 shrink-0" />
-                                Returned: {actualReturnTime || returnTime}
+                              <span className="font-bold text-slate-700 dark:text-slate-200">{returnTime}</span>
+                              <span className="text-[10.5px] text-slate-400 dark:text-slate-500 font-medium">Returned {actualReturnTime || returnTime}{b.returned_at ? ` (${formatDate(b.returned_at)})` : ""}<span className="hidden">
+
                               </span>
-                              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
-                                Expected: {returnTime} {b.returned_at ? `• ${formatDate(b.returned_at)}` : ""}
+                              </span><span className="hidden">
+ {b.returned_at ? `• ${formatDate(b.returned_at)}` : ""}
                               </span>
                             </div>
                           ) : (
                             <div className="flex flex-col gap-0.5">
-                              <span className="inline-flex items-center gap-1 text-slate-800 dark:text-slate-200 font-extrabold">
-                                <Clock size={12} className="text-blue-600 dark:text-blue-400 shrink-0" />
-                                Expected: {returnTime}
+                              <span className="font-bold text-slate-800 dark:text-slate-200">{returnTime}<span className="text-[10.5px] text-slate-400 dark:text-slate-500 font-medium block">Scheduled return time
+
+
                               </span>
-                              <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
-                                {b.is_venue_booking ? "In use at venue" : "Out on loan"}
+                              </span><span className="hidden">
+                                Scheduled return time
                               </span>
                             </div>
                           )}

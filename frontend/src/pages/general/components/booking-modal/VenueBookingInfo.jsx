@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { FileText, ExternalLink, Upload, CheckCircle, CheckCircle2, HardDrive, Check, Shield, PackageCheck, AlertCircle, X, Loader2, Download, Eye, Image as ImageIcon, Ban } from "lucide-react";
+import { FileText, ExternalLink, Upload, CheckCircle, CheckCircle2, HardDrive, Check, Shield, PackageCheck, AlertCircle, X, Loader2, Download, Eye, Image as ImageIcon, Ban, RotateCcw, ArrowUpDown } from "lucide-react";
 import { resolveStorageUrl, openFileInNewTab } from "@/lib/utils";
 import { formatDateRange, formatTime12 } from "@/lib/dateUtils";
 import api from "@/lib/axios";
@@ -51,6 +51,7 @@ export default function VenueBookingInfo({
   const { isSuperAdmin } = usePermissions();
   const [showOverrideModal, setShowOverrideModal] = useState(false);
   const [overrideFocusField, setOverrideFocusField] = useState("venue");
+  const [seqSortOrder, setSeqSortOrder] = useState("asc");
 
   const handleOpenOverride = (field = "venue") => {
     setOverrideFocusField(field);
@@ -193,6 +194,7 @@ export default function VenueBookingInfo({
         barcode: matchedUnit?.barcode || bCode,
         serial: matchedUnit?.serial_number && matchedUnit.serial_number !== (matchedUnit?.barcode || bCode) ? matchedUnit.serial_number : null,
         seqNo,
+        seqNum: seqNo ? parseInt(String(seqNo).replace(/\D/g, ""), 10) || Number.MAX_SAFE_INTEGER : Number.MAX_SAFE_INTEGER,
         brandModel,
         builtIns,
         categoryName: catName,
@@ -201,8 +203,17 @@ export default function VenueBookingInfo({
         slotKey,
         unit: matchedUnit,
       };
+    }).sort((a, b) => {
+      if (a.seqNum !== b.seqNum) {
+        if (a.seqNum === Number.MAX_SAFE_INTEGER) return 1;
+        if (b.seqNum === Number.MAX_SAFE_INTEGER) return -1;
+        return seqSortOrder === "asc" ? a.seqNum - b.seqNum : b.seqNum - a.seqNum;
+      }
+      return seqSortOrder === "asc"
+        ? String(a.barcode || "").localeCompare(String(b.barcode || ""), undefined, { numeric: true })
+        : String(b.barcode || "").localeCompare(String(a.barcode || ""), undefined, { numeric: true });
     });
-  }, [assignedUnitSelections, selected, physicalUnits, isOngoing]);
+  }, [assignedUnitSelections, selected, physicalUnits, isOngoing, seqSortOrder]);
 
   if (!selected) return null;
 
@@ -507,9 +518,9 @@ export default function VenueBookingInfo({
                 return (
                   <div
                     key={idx}
-                    className={`p-2.5 rounded-xl border flex items-center justify-between gap-3 transition-all ${
+                    className={`p-3 rounded-xl border flex items-center justify-between gap-3 transition-all ${
                       isRestricted
-                        ? "bg-slate-100/80 dark:bg-slate-800/60 border-slate-300 dark:border-slate-700 opacity-75"
+                        ? "bg-slate-200/70 dark:bg-slate-800/80 border-slate-300 dark:border-slate-700 opacity-60 grayscale"
                         : "bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800"
                     }`}
                   >
@@ -517,29 +528,43 @@ export default function VenueBookingInfo({
                       <span className={`text-xs font-bold font-mono ${isRestricted ? "line-through text-slate-500 dark:text-slate-400" : "text-slate-800 dark:text-slate-200"}`}>
                         {catName}
                       </span>
-                      <span className="text-[10.5px] font-bold text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">
+                      <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-md border ${
+                        isRestricted
+                          ? "bg-slate-200 text-slate-500 border-slate-300 line-through dark:bg-slate-700 dark:text-slate-400 dark:border-slate-600"
+                          : "text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700"
+                      }`}>
                         {reqQty} {Number(reqQty) === 1 ? 'unit' : 'units'}
                       </span>
                       {isRestricted && (
-                        <span className="px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900 text-[9.5px] font-black uppercase tracking-wider">
-                          Restricted / Not Approved
+                        <span className="px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900 text-[9.5px] font-black uppercase tracking-wider flex items-center gap-1">
+                          <Ban size={10} />
+                          <span>Restricted / Not Approved</span>
                         </span>
                       )}
                     </div>
 
-                    {onToggleRestrictCategory && (
+                    {onToggleRestrictCategory && !isOngoing && (
                       <button
                         type="button"
                         onClick={() => onToggleRestrictCategory(cat)}
                         className={`px-2.5 py-1 rounded-lg text-[10.5px] font-black transition-all cursor-pointer flex items-center gap-1 border shadow-2xs shrink-0 ${
                           isRestricted
-                            ? "bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 border-slate-300 dark:border-slate-600"
+                            ? "bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-600"
                             : "bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border-rose-200 hover:border-rose-600 dark:bg-rose-950/50 dark:hover:bg-rose-600 dark:text-rose-300 dark:hover:text-white dark:border-rose-900/60"
                         }`}
                         title={isRestricted ? "Click to unrestrict this category" : "Click to restrict this equipment category"}
                       >
-                        <Ban size={11} className={isRestricted ? "text-slate-600 dark:text-slate-300" : ""} />
-                        <span>{isRestricted ? "Unrestrict" : "Restrict"}</span>
+                        {isRestricted ? (
+                          <>
+                            <RotateCcw size={11} className="text-slate-600 dark:text-slate-300" />
+                            <span>Unrestrict</span>
+                          </>
+                        ) : (
+                          <>
+                            <Ban size={11} />
+                            <span>Restrict</span>
+                          </>
+                        )}
                       </button>
                     )}
                   </div>
@@ -552,14 +577,27 @@ export default function VenueBookingInfo({
         {/* Assigned Physical Equipment Units */}
         {requestedCategories && requestedCategories.length > 0 && (
           <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/80 space-y-2">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <span className="text-slate-700 dark:text-slate-300 font-extrabold text-xs flex items-center gap-1.5">
                 <PackageCheck size={14} className="text-blue-600 dark:text-blue-400" />
                 Assigned Equipment Units :
               </span>
-              <span className="text-[10.5px] font-mono font-bold text-slate-500 dark:text-slate-400">
-                {assignedUnitsList.length} of {requestedCategories.filter(c => !restrictedCategories.some(r => String(r).toLowerCase().trim() === String(c.name || c.category || c.equipment_types_name).toLowerCase().trim())).reduce((acc, c) => acc + (parseInt(c.quantity || 1, 10) || 1), 0)} unit(s) assigned
-              </span>
+              <div className="flex items-center gap-2">
+                {assignedUnitsList.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setSeqSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))}
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
+                    title="Sort released units by sequence number"
+                  >
+                    <ArrowUpDown size={10} />
+                    <span>Seq # {seqSortOrder === "asc" ? "↑" : "↓"}</span>
+                  </button>
+                )}
+                <span className="text-[10.5px] font-mono font-bold text-slate-500 dark:text-slate-400">
+                  {assignedUnitsList.length} of {requestedCategories.filter(c => !restrictedCategories.some(r => String(r).toLowerCase().trim() === String(c.name || c.category || c.equipment_types_name).toLowerCase().trim())).reduce((acc, c) => acc + (parseInt(c.quantity || 1, 10) || 1), 0)} unit(s) assigned
+                </span>
+              </div>
             </div>
 
             {/* List of successfully assigned physical units */}

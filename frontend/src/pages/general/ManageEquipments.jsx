@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from "react";
 import { useOutletContext, useLocation } from "react-router-dom";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
@@ -10,10 +10,39 @@ import {
   CircleCheck, Layers, PackageCheck, ArrowUpDown, Download, Upload,
   FileSpreadsheet, ChevronDown
 } from "lucide-react";
-import EquipmentDetailModal from "./components/EquipmentDetailModal";
-import EquipmentModal, { generateSequentialBarcodes } from "./components/EquipmentModal";
-import EquipmentImportModal from "./components/EquipmentImportModal";
-import { exportEquipmentList } from "./equipmentExportHelper";
+function generateSequentialBarcodes(baseBarcode, count) {
+  const clean = (baseBarcode || "").trim();
+  if (count <= 1) {
+    if (clean) return [clean];
+    const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return [`SN-${today}-${rand}`];
+  }
+  const results = [];
+  const match = clean.match(/^(.*?)(\d+)$/);
+  if (match) {
+    const prefix = match[1];
+    const numStr = match[2];
+    const padLen = numStr.length;
+    const startNum = parseInt(numStr, 10);
+    for (let i = 0; i < count; i++) {
+      results.push(`${prefix}${String(startNum + i).padStart(padLen, "0")}`);
+    }
+  } else if (clean) {
+    for (let i = 1; i <= count; i++) {
+      results.push(`${clean}-${String(i).padStart(2, "0")}`);
+    }
+  } else {
+    const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    for (let i = 1; i <= count; i++) {
+      results.push(`BC-${today}-${String(i).padStart(3, "0")}`);
+    }
+  }
+  return results;
+}
+const EquipmentDetailModal = lazy(() => import("./components/EquipmentDetailModal"));
+const EquipmentModal = lazy(() => import("./components/EquipmentModal"));
+const EquipmentImportModal = lazy(() => import("./components/EquipmentImportModal"));
 import ActionPopover from "@/components/ui/action-popover";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import { PageLoader } from "@/components/ui/page-loader";
@@ -41,9 +70,27 @@ export default function ManageEquipments() {
   const context = useOutletContext();
   const location = useLocation();
 
-  const [units, setUnits] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [units, setUnits] = useState(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem("fsuu_cache_mapped_units") || "[]");
+    } catch {
+      return [];
+    }
+  });
+  const [categories, setCategories] = useState(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem("fsuu_cache_equip_categories") || "[]");
+    } catch {
+      return [];
+    }
+  });
+  const [loading, setLoading] = useState(() => {
+    try {
+      return !sessionStorage.getItem("fsuu_cache_mapped_units");
+    } catch {
+      return true;
+    }
+  });
   const [activeCategory, setActiveCategory] = useState("all");
   const [activeStatus, setActiveStatus] = useState("all");
   const [searchQuery, setSearchQuery] = useState(() => {
@@ -113,6 +160,7 @@ export default function ManageEquipments() {
         notify.warning("No Records Found", "No equipment units match the selected timeframe.");
         return;
       }
+      const { exportEquipmentList } = await import("./equipmentExportHelper");
       await exportEquipmentList(filteredUnitsToExport, format);
       notify.success(`Exported ${filteredUnitsToExport.length} equipment units as ${format.toUpperCase()}.`);
       setShowExportModal(false);
@@ -297,6 +345,10 @@ export default function ManageEquipments() {
 
       // Parent units with built-in child units remain available
       setUnits(allMappedUnits);
+      try {
+        sessionStorage.setItem("fsuu_cache_mapped_units", JSON.stringify(allMappedUnits));
+        sessionStorage.setItem("fsuu_cache_equip_categories", JSON.stringify(catList));
+      } catch {}
 
     } catch {
       setUnits([]);
@@ -799,6 +851,16 @@ export default function ManageEquipments() {
           if (numA !== numB) {
             return sortOrder === "seq_desc" ? numB - numA : numA - numB;
           }
+          // Secondary natural sort when units share identical seq_no (e.g. PHILIPS #001 before PHILIPS #018)
+          const nameNumA = String(a.name || a.model || "").match(/\d+/);
+          const nameNumB = String(b.name || b.model || "").match(/\d+/);
+          if (nameNumA && nameNumB) {
+            const valA = parseInt(nameNumA[0], 10);
+            const valB = parseInt(nameNumB[0], 10);
+            if (valA !== valB) {
+              return sortOrder === "seq_desc" ? valB - valA : valA - valB;
+            }
+          }
         } else if (numA !== null) {
           return -1; // Numbered units come first (starting from 001)
         } else if (numB !== null) {
@@ -1258,36 +1320,7 @@ export default function ManageEquipments() {
                               <span className="transition-colors">View Details</span>
                             </button>
 
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setOpenActionId(null);
-                                setActionAnchorEl(null);
-                                setEditingItem(item);
-                                setEditFormData({
-                                  brand: item.brand || "",
-                                  model: item.model || "",
-                                  seq_no: item.seq_no || "",
-                                  serial_number: item.serial_number || item.barcode || "",
-                                  barcode: item.barcode || "",
-                                  category: item.category || "",
-                                  date_purchased: item.date_purchased || "",
-                                  lifespan_years: String(item.lifespan_years || 5),
-                                  status: parentUnitMap.has(String(item.id)) || String(item.status).toLowerCase() === "built-in" ? "built-in" : (item.status || "available"),
-                                  condition: item.condition || "Good",
-                                  description: item.description || "",
-                                  reason: "",
-                                  built_in_units: Array.isArray(item.built_in_units) && item.built_in_units.length > 0 ? item.built_in_units : [""],
-                                  built_in_models: item.built_in_models || {},
-                                });
-                              }}
-                              className="w-full px-3.5 py-2 text-left text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white flex items-center gap-2.5 transition-colors cursor-pointer"
-                            >
-                              <Edit3 size={14} className="text-slate-500" />
-                              <span>Edit Unit</span>
-                            </button>
 
-                            <div className="border-t border-slate-100 dark:border-slate-800 my-1"></div>
 
                             {item.is_disabled ? (
                               <button
@@ -1363,6 +1396,7 @@ export default function ManageEquipments() {
       </div>
 
       {/* Add / Edit Equipment Modal */}
+      <Suspense fallback={null}>
       <EquipmentModal
         showAddModal={showAddModal}
         setShowAddModal={setShowAddModal}
@@ -1434,11 +1468,14 @@ export default function ManageEquipments() {
       />
 
       {/* Equipment Batch Import Modal */}
-      <EquipmentImportModal
-        isOpen={showImportModal}
-        onClose={() => setShowImportModal(false)}
-        onSuccess={() => fetchEquipments(true)}
-      />
+      {showImportModal && (
+        <EquipmentImportModal
+          isOpen={showImportModal}
+          onClose={() => setShowImportModal(false)}
+          onSuccess={() => fetchEquipments(true)}
+        />
+      )}
+      </Suspense>
 
       {/* Reusable Export Modal */}
       <ExportModal

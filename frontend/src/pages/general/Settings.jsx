@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import { usePermissions } from "@/hooks/usePermissions";
 import notify from "@/lib/notify";
@@ -9,23 +9,21 @@ import {
   Lock, Eye, EyeOff, ShieldAlert, Loader2, X, Tag, Laptop, Activity
 } from "lucide-react";
 
-import {
-  EquipmentCategoriesTab,
-  VenuesTab,
-  UserManagementTab,
-  DepartmentsTab,
-  OperatingHoursTab,
-  FeeMatrixTab,
-  VerificationPinTab,
-  ProfileConfigTab,
-  AcademicTermsTab,
-  SystemSettingsTab,
-  CommunicationLogsTab,
-  AuditLogsTab,
-  BrandsTab,
-  ActiveSessionsTab,
-  SecurityAlertsTab,
-} from "@/components/settings-tabs";
+const EquipmentCategoriesTab = lazy(() => import("@/components/settings-tabs/EquipmentCategoriesTab"));
+const VenuesTab = lazy(() => import("@/components/settings-tabs/VenuesTab"));
+const UserManagementTab = lazy(() => import("@/components/settings-tabs/UserManagementTab"));
+const DepartmentsTab = lazy(() => import("@/components/settings-tabs/DepartmentsTab"));
+const OperatingHoursTab = lazy(() => import("@/components/settings-tabs/OperatingHoursTab"));
+const FeeMatrixTab = lazy(() => import("@/components/settings-tabs/FeeMatrixTab"));
+const VerificationPinTab = lazy(() => import("@/components/settings-tabs/VerificationPinTab"));
+const ProfileConfigTab = lazy(() => import("@/components/settings-tabs/ProfileConfigTab"));
+const AcademicTermsTab = lazy(() => import("@/components/settings-tabs/AcademicTermsTab"));
+const SystemSettingsTab = lazy(() => import("@/components/settings-tabs/SystemSettingsTab"));
+const CommunicationLogsTab = lazy(() => import("@/components/settings-tabs/CommunicationLogsTab"));
+const AuditLogsTab = lazy(() => import("@/components/settings-tabs/AuditLogsTab"));
+const BrandsTab = lazy(() => import("@/components/settings-tabs/BrandsTab"));
+const ActiveSessionsTab = lazy(() => import("@/components/settings-tabs/ActiveSessionsTab"));
+const SecurityAlertsTab = lazy(() => import("@/components/settings-tabs/SecurityAlertsTab"));
 
 // Tabs that require password confirmation before viewing
 const PROTECTED_TABS = ["pin", "system_settings"];
@@ -436,6 +434,7 @@ export default function Settings() {
 
         {/* ── Right Content Canvas: Inlined & Aligned ── */}
         <main className="flex-1 min-w-0 p-5 lg:p-6 bg-white dark:bg-[#111827]">
+          <Suspense fallback={null}>
           {mountedTabs.has("users") && (
             <div className={activeTab === "users" ? "block" : "hidden"}>
               <UserManagementTab showMsg={showMsg} />
@@ -511,6 +510,7 @@ export default function Settings() {
               <ProfileConfigTab showMsg={showMsg} />
             </div>
           )}
+          </Suspense>
         </main>
       </div>
 

@@ -19,6 +19,7 @@ export default function AlertModal({
   title = "Notice",
   message,
   buttonLabel = "OK",
+  buttonClassName,
 }) {
   if (!open) return null;
 
@@ -55,7 +56,7 @@ export default function AlertModal({
         <button
           type="button"
           onClick={onClose}
-          className="mt-5 w-full py-2.5 min-h-[42px] bg-slate-900 hover:bg-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
+          className={buttonClassName || "mt-5 w-full py-2.5 min-h-[42px] bg-slate-900 hover:bg-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"}
         >
           {buttonLabel}
         </button>

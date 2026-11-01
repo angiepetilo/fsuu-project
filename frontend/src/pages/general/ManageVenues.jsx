@@ -40,9 +40,28 @@ export default function ManageVenues() {
   const context = useOutletContext();
   const officeScope = context?.adminOffice || context?.selectedOffice || "All Offices";
 
-  const [venues, setVenues] = useState([]);
-  const [selectedVenue, setSelectedVenue] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [venues, setVenues] = useState(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem("fsuu_cache_venues_list") || "[]");
+    } catch {
+      return [];
+    }
+  });
+  const [selectedVenue, setSelectedVenue] = useState(() => {
+    try {
+      const v = JSON.parse(sessionStorage.getItem("fsuu_cache_venues_list") || "[]");
+      return v[0] || null;
+    } catch {
+      return null;
+    }
+  });
+  const [loading, setLoading] = useState(() => {
+    try {
+      return !sessionStorage.getItem("fsuu_cache_venues_list");
+    } catch {
+      return true;
+    }
+  });
 
 
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
@@ -207,65 +226,59 @@ export default function ManageVenues() {
 
     if (!isSilent && venues.length === 0) setLoading(true);
     try {
-      const res = await api.get("/general/venues").catch(() => api.get("/general/venues-list"));
-      let data = Array.isArray(res.data) ? res.data : [];
+      // Run all 5 endpoints concurrently instead of sequentially
+      const [venuesRes, opData, bookingsRes, eqTypesRes, eqBorrowsRes] = await Promise.all([
+        api.get("/general/venues").catch(() => api.get("/general/venues-list")),
+        fetchWithCache("operating_hours_settings", () => api.get("/general/operating-hours").then(r => r.data).catch(() => api.get("/public/operating-hours").then(r => r.data))).catch(() => null),
+        api.get("/avr-venue-bookings").catch(() => ({ data: [] })),
+        api.get("/general/equipment-types").catch(() => ({ data: [] })),
+        api.get("/avr-equipment-borrowings").catch(() => ({ data: [] })),
+      ]);
+
+      let data = Array.isArray(venuesRes?.data) ? venuesRes.data : [];
       setVenues(data);
+      try {
+        sessionStorage.setItem("fsuu_cache_venues_list", JSON.stringify(data));
+      } catch {}
       if (data.length > 0) {
         setSelectedVenue((prev) => (prev ? data.find((d) => d.id === prev.id) || data[0] : data[0]));
         setVenueForm((p) => ({ ...p, venueId: data[0].id }));
       }
 
-      // Fetch operating hours with cache
-      try {
-        const opData = await fetchWithCache("operating_hours_settings", () => api.get("/general/operating-hours").then(r => r.data).catch(() => api.get("/public/operating-hours").then(r => r.data)));
-        if (opData) {
-          const vOpen = opData.venue_open ? opData.venue_open.substring(0, 5) : "07:00";
-          const vClose = opData.venue_close ? opData.venue_close.substring(0, 5) : "17:00";
-          const eqOpen = opData.kiosk_open || opData.equipment_open ? (opData.kiosk_open || opData.equipment_open).substring(0, 5) : vOpen;
-          const eqClose = opData.kiosk_close || opData.equipment_close ? (opData.kiosk_close || opData.equipment_close).substring(0, 5) : vClose;
-          setOperatingHours({
-            venue_open: vOpen,
-            venue_close: vClose,
-            equipment_open: eqOpen,
-            equipment_close: eqClose,
-          });
-          setVenueForm((prev) => {
-            let nextStart = prev.startTime;
-            let nextEnd = prev.endTime;
-            if (nextStart < vOpen || nextStart > vClose) nextStart = vOpen;
-            if (nextEnd > vClose || nextEnd < vOpen) nextEnd = vClose;
-            return { ...prev, startTime: nextStart, endTime: nextEnd };
-          });
-          setEquipmentForm((prev) => {
-            let nextStart = prev.startTime;
-            let nextEnd = prev.endTime;
-            if (nextStart < eqOpen || nextStart > eqClose) nextStart = eqOpen;
-            if (nextEnd > eqClose || nextEnd < eqOpen) nextEnd = eqClose;
-            return { ...prev, startTime: nextStart, endTime: nextEnd };
-          });
-        }
-      } catch {}
+      if (opData) {
+        const vOpen = opData.venue_open ? opData.venue_open.substring(0, 5) : "07:00";
+        const vClose = opData.venue_close ? opData.venue_close.substring(0, 5) : "17:00";
+        const eqOpen = opData.kiosk_open || opData.equipment_open ? (opData.kiosk_open || opData.equipment_open).substring(0, 5) : vOpen;
+        const eqClose = opData.kiosk_close || opData.equipment_close ? (opData.kiosk_close || opData.equipment_close).substring(0, 5) : vClose;
+        setOperatingHours({
+          venue_open: vOpen,
+          venue_close: vClose,
+          equipment_open: eqOpen,
+          equipment_close: eqClose,
+        });
+        setVenueForm((prev) => {
+          let nextStart = prev.startTime;
+          let nextEnd = prev.endTime;
+          if (nextStart < vOpen || nextStart > vClose) nextStart = vOpen;
+          if (nextEnd > vClose || nextEnd < vOpen) nextEnd = vClose;
+          return { ...prev, startTime: nextStart, endTime: nextEnd };
+        });
+        setEquipmentForm((prev) => {
+          let nextStart = prev.startTime;
+          let nextEnd = prev.endTime;
+          if (nextStart < eqOpen || nextStart > eqClose) nextStart = eqOpen;
+          if (nextEnd > eqClose || nextEnd < eqOpen) nextEnd = eqClose;
+          return { ...prev, startTime: nextStart, endTime: nextEnd };
+        });
+      }
 
-      // Fetch bookings for dynamic calendar density
-      try {
-        const bookingsRes = await api.get("/avr-venue-bookings").catch(() => ({ data: [] }));
-        const rawB = bookingsRes.data?.data || bookingsRes.data || [];
-        let bData = Array.isArray(rawB) ? rawB : [];
-        setBookings(bData);
-      } catch {}
+      const rawB = bookingsRes?.data?.data || bookingsRes?.data || [];
+      setBookings(Array.isArray(rawB) ? rawB : []);
 
-      // Fetch equipment catalog types for Equipment Borrowing timeline matrix
-      try {
-        const eqTypesRes = await api.get("/general/equipment-types").catch(() => ({ data: [] }));
-        setEquipmentTypes(Array.isArray(eqTypesRes.data) ? eqTypesRes.data : []);
-      } catch {}
+      setEquipmentTypes(Array.isArray(eqTypesRes?.data) ? eqTypesRes.data : []);
 
-      // Fetch equipment borrowings for Equipment Borrowing timeline matrix
-      try {
-        const eqBorrowsRes = await api.get("/avr-equipment-borrowings").catch(() => ({ data: [] }));
-        const rawEB = eqBorrowsRes.data?.data || eqBorrowsRes.data || [];
-        setEquipBorrows(Array.isArray(rawEB) ? rawEB : []);
-      } catch {}
+      const rawEB = eqBorrowsRes?.data?.data || eqBorrowsRes?.data || [];
+      setEquipBorrows(Array.isArray(rawEB) ? rawEB : []);
     } catch {
       if (!isSilent) notify.error("Fetch Error", "Error fetching venues list.");
     } finally {

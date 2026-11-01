@@ -100,10 +100,12 @@ class ListingController extends Controller
      */
     public function equipmentTypes(\Illuminate\Http\Request $request): JsonResponse
     {
-        // Proactively clear expired reservations past grace period and check overdue alerts
+        // Proactively clear expired reservations past grace period and check overdue alerts (throttled to once every 45s)
         try {
-            app(\App\Services\NoShowAutoReleaseService::class)->processNoShows();
-            app(\App\Services\OverdueAndExceededAlertService::class)->processAlerts();
+            if (\Illuminate\Support\Facades\Cache::add('bg_booking_checks_throttled', true, 45)) {
+                app(\App\Services\NoShowAutoReleaseService::class)->processNoShows();
+                app(\App\Services\OverdueAndExceededAlertService::class)->processAlerts();
+            }
         } catch (\Throwable $e) {}
 
         $startDatetime = $request->query('start_datetime');
@@ -399,8 +401,10 @@ class ListingController extends Controller
     public function venueBookings(): JsonResponse
     {
         try {
-            app(\App\Services\NoShowAutoReleaseService::class)->processNoShows();
-            app(\App\Services\OverdueAndExceededAlertService::class)->processAlerts();
+            if (\Illuminate\Support\Facades\Cache::add('bg_booking_checks_throttled', true, 45)) {
+                app(\App\Services\NoShowAutoReleaseService::class)->processNoShows();
+                app(\App\Services\OverdueAndExceededAlertService::class)->processAlerts();
+            }
         } catch (\Throwable $e) {}
 
         $bookings = DB::table('venue_bookings')

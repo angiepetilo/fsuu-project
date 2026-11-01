@@ -397,7 +397,8 @@ class VenueBookingService
                     try { $rawItems = json_decode($rawItems, true); } catch (\Throwable $t) { $rawItems = null; }
                 }
 
-                if (is_array($rawItems) && !empty($rawItems)) {
+                if (is_array($rawItems)) {
+                    // Client explicitly sent equipment_items (if empty, user deliberately selected NO equipment)
                     foreach ($rawItems as $it) {
                         $eqId = $it['equipment_type_id'] ?? $it['id'] ?? null;
                         $qty = (int)($it['quantity_requested'] ?? $it['quantity'] ?? 1);
@@ -412,28 +413,35 @@ class VenueBookingService
                         }
                     }
                 } else {
+                    // Fallback only for legacy requests where equipment_items was not provided at all:
+                    // Only parse structured "Category (Qty: N)" before any "Equipment-Needed:" free-text remarks
                     $equipNotes = $data['equipment_notes'] ?? '';
                     if (!empty($equipNotes)) {
-                        $items = array_map('trim', explode(',', $equipNotes));
-                        foreach ($items as $itemStr) {
-                            if (empty($itemStr)) continue;
-                            $cleanName = trim(explode('(', $itemStr)[0]);
-                            $qty = 1;
-                            if (preg_match('/\(Qty:\s*(\d+)\)/i', $itemStr, $m)) {
-                                $qty = (int)$m[1];
-                            }
-                            $eqType = DB::table('equipment_types')
-                                ->where('eq_name', 'LIKE', "%{$cleanName}%")
-                                ->first();
-                            if ($eqType) {
-                                DB::table('venue_booking_equipment')->insert([
-                                    'venue_booking_id'   => $bookingId,
-                                    'equipment_type_id'  => $eqType->id,
-                                    'quantity_requested' => max(1, $qty),
-                                    'others_specify'    => $itemStr,
-                                    'created_at'         => now(),
-                                    'updated_at'         => now(),
-                                ]);
+                        $structuredPart = trim(explode('Equipment-Needed:', $equipNotes)[0]);
+                        $structuredPart = trim(rtrim($structuredPart, '|'));
+                        if (!empty($structuredPart) && stripos($structuredPart, '(Qty:') !== false) {
+                            $items = array_map('trim', explode(',', $structuredPart));
+                            foreach ($items as $itemStr) {
+                                if (empty($itemStr)) continue;
+                                if (!preg_match('/^(.*?)\s*\(Qty:\s*(\d+)\)/i', $itemStr, $m)) {
+                                    continue; // Strictly require structured (Qty: N) format; never parse free-text remarks
+                                }
+                                $cleanName = trim($m[1]);
+                                $qty = (int)$m[2];
+                                $eqType = DB::table('equipment_types')
+                                    ->where('eq_name', $cleanName)
+                                    ->orWhere('eq_name', 'LIKE', "%{$cleanName}%")
+                                    ->first();
+                                if ($eqType) {
+                                    DB::table('venue_booking_equipment')->insert([
+                                        'venue_booking_id'   => $bookingId,
+                                        'equipment_type_id'  => $eqType->id,
+                                        'quantity_requested' => max(1, $qty),
+                                        'others_specify'    => $itemStr,
+                                        'created_at'         => now(),
+                                        'updated_at'         => now(),
+                                    ]);
+                                }
                             }
                         }
                     }
@@ -1362,7 +1370,7 @@ class VenueBookingService
             // Attach unit_conditions as a virtual attribute so booking_status_update.blade.php
             // can render the per-unit inspection table (same pattern as EquipmentBorrow).
             try {
-                $compStatus = $isLate ? 'late return' : 'completed';
+                $compStatus = 'completed';
                 $compRemarks = $isLate 
                     ? "Your venue usage has concluded ({$minutesLate} minutes past scheduled end time). Inspection completed."
                     : "Your venue reservation has concluded and has been cleared in good order.";

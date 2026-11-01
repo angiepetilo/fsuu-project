@@ -595,8 +595,28 @@ export default function Step2Venue({
         <div className="lg:col-span-7 sm:col-span-12 space-y-4">
 
           {venuesLoading ? (
-            <div className="p-8 text-center bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-              <p className="text-xs font-bold text-slate-700 dark:text-slate-300">Loading</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" aria-busy="true" aria-label="Loading venues">
+              {Array.from({ length: 4 }).map((_, idx) => (
+                <div
+                  key={`venue-skel-${idx}`}
+                  className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-2xl p-4 flex flex-col justify-between overflow-hidden animate-pulse"
+                >
+                  <div>
+                    <div className="w-full aspect-[16/9] bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200/60 dark:border-slate-700/50" />
+                    <div className="mt-3.5 space-y-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="h-4 w-32 bg-slate-200 dark:bg-slate-800 rounded-md" />
+                        <div className="h-5 w-20 bg-slate-100 dark:bg-slate-800 rounded-full" />
+                      </div>
+                      <div className="h-3 w-40 bg-slate-100 dark:bg-slate-800/70 rounded" />
+                      <div className="h-3 w-36 bg-slate-100 dark:bg-slate-800/70 rounded" />
+                    </div>
+                  </div>
+                  <div className="mt-5">
+                    <div className="w-full h-9 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : searchedVenues.length === 0 ? (
             <div className="p-8 text-center bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
@@ -653,12 +673,12 @@ export default function Step2Venue({
                       if (!isCardBlocked) onSelectVenue(v);
                     }}
                     className={`group relative border rounded-2xl p-4 transition-all duration-200 flex flex-col justify-between overflow-hidden ${isClosed
-                        ? "border-rose-200 dark:border-rose-900/60 bg-rose-50/30 dark:bg-rose-950/20 opacity-85 cursor-not-allowed shadow-none"
-                        : isMaintenance
-                          ? "border-amber-300/80 dark:border-amber-700/50 bg-amber-50/20 dark:bg-amber-950/20 opacity-90 cursor-not-allowed shadow-2xs"
-                          : isSelected
-                            ? "border-blue-600 bg-white dark:bg-slate-900 shadow-md ring-2 ring-blue-500/20 cursor-pointer"
-                            : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-500 hover:ring-2 hover:ring-blue-500/20 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-0.5 cursor-pointer"
+                      ? "border-rose-200 dark:border-rose-900/60 bg-rose-50/30 dark:bg-rose-950/20 opacity-85 cursor-not-allowed shadow-none"
+                      : isMaintenance
+                        ? "border-amber-300/80 dark:border-amber-700/50 bg-amber-50/20 dark:bg-amber-950/20 opacity-90 cursor-not-allowed shadow-2xs"
+                        : isSelected
+                          ? "border-blue-600 bg-white dark:bg-slate-900 shadow-md ring-2 ring-blue-500/20 cursor-pointer"
+                          : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-500 hover:ring-2 hover:ring-blue-500/20 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-0.5 cursor-pointer"
                       }`}
                   >
                     <div>
@@ -687,10 +707,10 @@ export default function Step2Venue({
                             {v.name}
                           </h4>
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold shrink-0 ${isClosed
-                              ? "bg-rose-500/15 border border-rose-400/30 text-rose-700 dark:text-rose-400"
-                              : isMaintenance
-                                ? "bg-amber-500/15 border border-amber-400/30 text-amber-700 dark:text-[#FCD34D]"
-                                : "bg-emerald-500/15 border border-emerald-400/30 text-emerald-700 dark:text-[#6EE7B7]"
+                            ? "bg-rose-500/15 border border-rose-400/30 text-rose-700 dark:text-rose-400"
+                            : isMaintenance
+                              ? "bg-amber-500/15 border border-amber-400/30 text-amber-700 dark:text-[#FCD34D]"
+                              : "bg-emerald-500/15 border border-emerald-400/30 text-emerald-700 dark:text-[#6EE7B7]"
                             }`}>
                             <span className={`w-1.5 h-1.5 rounded-full ${isClosed ? "bg-rose-400" : isMaintenance ? "bg-amber-400" : "bg-emerald-400 animate-pulse"}`} />
                             {isClosed ? "Closed" : isMaintenance ? "Maintenance" : "Available"}
@@ -902,12 +922,12 @@ export default function Step2Venue({
                     <div
                       key={day}
                       className={`relative h-9 flex items-center justify-center ${hasRange && isInBetween
-                          ? "bg-blue-100 dark:bg-blue-950/70"
-                          : hasRange && isStart
-                            ? "bg-blue-100 dark:bg-blue-950/70 rounded-l-2xl"
-                            : hasRange && isEnd
-                              ? "bg-blue-100 dark:bg-blue-950/70 rounded-r-2xl"
-                              : ""
+                        ? "bg-blue-100 dark:bg-blue-950/70"
+                        : hasRange && isStart
+                          ? "bg-blue-100 dark:bg-blue-950/70 rounded-l-2xl"
+                          : hasRange && isEnd
+                            ? "bg-blue-100 dark:bg-blue-950/70 rounded-r-2xl"
+                            : ""
                         }`}
                     >
                       <button
@@ -963,26 +983,26 @@ export default function Step2Venue({
                           }
                         }}
                         className={`w-9 h-9 text-xs font-semibold flex items-center justify-center mx-auto transition-all relative z-10 ${isStart && hasRange
-                            ? "bg-blue-600 text-white font-black rounded-l-2xl shadow-md ring-2 ring-blue-600/40 z-20 cursor-pointer"
-                            : isEnd && hasRange
-                              ? "bg-blue-600 text-white font-black rounded-r-2xl shadow-md ring-2 ring-blue-600/40 z-20 cursor-pointer"
-                              : (isStart || isEnd)
-                                ? "bg-slate-900 text-white dark:bg-white dark:text-black font-black rounded-2xl shadow-lg ring-2 ring-blue-500/50 z-20 cursor-pointer"
-                                : isInBetween
-                                  ? "bg-blue-200/90 dark:bg-blue-900/80 text-blue-950 dark:text-blue-100 font-black border-y-2 border-blue-400 dark:border-blue-500 rounded-none w-full hover:bg-blue-300 dark:hover:bg-blue-800 cursor-pointer shadow-2xs"
-                                  : isToday
-                                    ? "bg-slate-100 dark:bg-[#252830] text-slate-900 dark:text-slate-100 font-bold rounded-2xl border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer"
-                                    : isClosed
-                                      ? "border border-rose-600 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 font-semibold rounded-2xl cursor-not-allowed"
-                                      : isMaintenance
-                                        ? "border border-amber-500 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 font-semibold rounded-2xl cursor-not-allowed"
-                                        : isBooked
-                                          ? "border border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-semibold rounded-2xl cursor-not-allowed"
-                                          : isShortNotice
-                                            ? `border border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 font-medium bg-slate-50/50 dark:bg-slate-800/40 rounded-2xl ${isPublicBlockedNotice ? "cursor-not-allowed opacity-80" : "hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"}`
-                                            : isPast
-                                              ? "text-slate-300 dark:text-slate-600 font-normal rounded-2xl cursor-not-allowed select-none"
-                                              : "border border-emerald-300/80 dark:border-emerald-700/60 bg-emerald-50/20 dark:bg-emerald-950/20 text-slate-700 dark:text-slate-200 font-medium hover:bg-emerald-100/50 rounded-2xl cursor-pointer"
+                          ? "bg-blue-600 text-white font-black rounded-l-2xl shadow-md ring-2 ring-blue-600/40 z-20 cursor-pointer"
+                          : isEnd && hasRange
+                            ? "bg-blue-600 text-white font-black rounded-r-2xl shadow-md ring-2 ring-blue-600/40 z-20 cursor-pointer"
+                            : (isStart || isEnd)
+                              ? "bg-blue-600 text-white font-black rounded-2xl shadow-md ring-2 ring-blue-500/40 z-20 cursor-pointer"
+                              : isInBetween
+                                ? "bg-blue-200/90 dark:bg-blue-900/80 text-blue-950 dark:text-blue-100 font-black border-y-2 border-blue-400 dark:border-blue-500 rounded-none w-full hover:bg-blue-300 dark:hover:bg-blue-800 cursor-pointer shadow-2xs"
+                                : isToday
+                                  ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-bold rounded-2xl border border-blue-300 dark:border-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/60 cursor-pointer"
+                                  : isClosed
+                                    ? "border border-rose-600 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 font-semibold rounded-2xl cursor-not-allowed"
+                                    : isMaintenance
+                                      ? "border border-amber-500 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 font-semibold rounded-2xl cursor-not-allowed"
+                                      : isBooked
+                                        ? "border border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-semibold rounded-2xl cursor-not-allowed"
+                                        : isShortNotice
+                                          ? `border border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 font-medium bg-slate-50/50 dark:bg-slate-800/40 rounded-2xl ${isPublicBlockedNotice ? "cursor-not-allowed opacity-80" : "hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"}`
+                                          : isPast
+                                            ? "text-slate-300 dark:text-slate-600 font-normal rounded-2xl cursor-not-allowed select-none"
+                                            : "border border-slate-200/80 dark:border-slate-700/80 bg-white dark:bg-slate-900/40 text-slate-800 dark:text-slate-200 font-semibold hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50/40 dark:hover:bg-slate-800/60 rounded-2xl cursor-pointer"
                           }`}
                       >
                         <span className="relative">
@@ -999,8 +1019,8 @@ export default function Step2Venue({
                           {isInBetween && (
                             <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-300" />
                           )}
-                          {!isClosed && !isBooked && !isMaintenance && !isPast && !isShortNotice && !isToday && !isStart && !isEnd && !isInBetween && (
-                            <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          {false && (null
+
                           )}
                         </span>
                       </button>
@@ -1039,8 +1059,8 @@ export default function Step2Venue({
               {/* Calendar Quick Legend */}
               <div className="flex flex-wrap items-center justify-between gap-2.5 text-xs font-medium text-slate-600 dark:text-slate-400 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <span className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
-                  <span className="text-emerald-700 dark:text-emerald-400 font-semibold">Available</span>
+                  <span className="w-2.5 h-2.5 rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 inline-block"></span>
+                  <span className="text-slate-500 dark:text-slate-400 font-semibold">Available</span>
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-blue-500 inline-block"></span>
@@ -1090,8 +1110,8 @@ export default function Step2Venue({
               <div className="space-y-2 pt-1">
                 {selectedDateOverride ? (
                   <div className={`p-3.5 border rounded-lg text-xs font-bold space-y-1.5 ${selectedDateOverride.status === "maintenance"
-                      ? "bg-amber-50 border-amber-300 text-amber-900"
-                      : "bg-rose-50 border-rose-300 text-rose-900"
+                    ? "bg-amber-50 border-amber-300 text-amber-900"
+                    : "bg-rose-50 border-rose-300 text-rose-900"
                     }`}>
                     <div className="font-extrabold">
                       <span>{selectedDateOverride.status === "maintenance" ? "Maintenance" : "Closed"}</span>
@@ -1102,31 +1122,31 @@ export default function Step2Venue({
                     </p>
                   </div>
                 ) : null}
-                {isInvalidEndDate ? (
+                {selectedDateOverride ? null : isInvalidEndDate ? (
                   <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs font-bold text-rose-800 space-y-1">
-                    <div className="text-rose-700">
+                    <div className="hidden">
                       <span>Invalid</span>
                     </div>
                     <p className="text-[11px] font-semibold text-rose-700 leading-snug">
-                      End date ({selectedEndDate}) cannot be earlier than start date ({selectedDate}).
+                      End date must be on or after start date.
                     </p>
                   </div>
                 ) : isInvalidTimeRange ? (
                   <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs font-bold text-rose-800 space-y-1">
-                    <div className="text-rose-700">
+                    <div className="hidden">
                       <span>Invalid</span>
                     </div>
                     <p className="text-[11px] font-semibold text-rose-700 leading-snug">
-                      End ({formatTime12(timeEnd)}) must be later than Start ({formatTime12(timeStart)}).
+                      End time must be later than start time.
                     </p>
                   </div>
                 ) : isPastSelection ? (
                   <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs font-bold text-rose-800 space-y-1">
-                    <div className="text-rose-700">
+                    <div className="hidden">
                       <span>Invalid</span>
                     </div>
                     <p className="text-[11px] font-semibold text-rose-700 leading-snug">
-                      Selected start time ({formatTime12(timeStart)}) has passed.
+                      Please select a future start time.
                     </p>
                   </div>
                 ) : isConflict ? (
@@ -1145,7 +1165,7 @@ export default function Step2Venue({
                   const venueClose = opHours?.venue_close?.substring(0, 5) || "17:00";
                   const isOutside = timeStart < venueOpen || timeEnd > venueClose;
 
-                  if (isOutside) {
+                  if (isOutside && !selectedDateOverride && !isInvalidEndDate && !isInvalidTimeRange && !isPastSelection && !isConflict) {
                     if (isPortal) {
                       return (
                         <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 space-y-2 mt-2">
@@ -1188,10 +1208,10 @@ export default function Step2Venue({
                       return (
                         <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-800 space-y-1 mt-2">
                           <div className="font-bold text-rose-900">
-                            <span>Hours</span>
+                            <span className="hidden">Hours</span>
                           </div>
                           <p className="text-[11px] font-semibold text-rose-700 leading-snug">
-                            Must be scheduled within Operating Hours [ {formatTime12(venueOpen)} - {formatTime12(venueClose)} ].
+                            Available within operating hours ({formatTime12(venueOpen)} – {formatTime12(venueClose)}).
                           </p>
                         </div>
                       );

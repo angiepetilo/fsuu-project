@@ -52,7 +52,50 @@ export default function IncidentReportsTab({
       setLoading(true);
       const res = await api.get("/inspections");
       const list = Array.isArray(res.data) ? res.data : [];
-      setReports(list);
+      const incidentAndDamageList = list.filter((item) => {
+        const tType = String(item.target_type || "").toLowerCase();
+        const cond = String(item.condition || "").toLowerCase();
+        const vio = String(item.violation_type || "").trim().toLowerCase();
+        const notesLower = String(item.notes || "").toLowerCase();
+        let hasUnitDamage = false;
+        if (item.unit_conditions) {
+          try {
+            const uConds = typeof item.unit_conditions === "string" ? JSON.parse(item.unit_conditions) : item.unit_conditions;
+            const vals = Array.isArray(uConds) ? uConds.map((u) => (typeof u === "object" ? u.condition || u.status : u)) : Object.values(uConds || {});
+            hasUnitDamage = vals.some((v) => {
+              const s = String(v || "").toLowerCase();
+              return s.includes("damage") || s.includes("lost");
+            });
+          } catch {}
+        }
+        const isDamagedOrLost =
+          hasUnitDamage ||
+          cond.includes("damage") ||
+          cond.includes("lost") ||
+          vio.includes("damage") ||
+          vio.includes("lost") ||
+          notesLower.includes("damaged") ||
+          notesLower.includes("property damage");
+        if (tType === "venue_booking") {
+          const hasIncidentOrViolation =
+            Boolean(vio) &&
+            vio !== "none" &&
+            vio !== "good" &&
+            vio !== "satisfactory" &&
+            vio !== "clean";
+          const isBadCondition =
+            cond.includes("violation") ||
+            cond.includes("incident") ||
+            cond.includes("breach") ||
+            cond.includes("issue");
+          return isDamagedOrLost || hasIncidentOrViolation || isBadCondition;
+        }
+        if (tType === "equipment_borrow") {
+          return isDamagedOrLost;
+        }
+        return isDamagedOrLost || (cond !== "good" && cond !== "satisfactory" && cond !== "clean");
+      });
+      setReports(incidentAndDamageList);
     } catch (err) {
       console.error("Failed to load incident reports:", err);
     } finally {
@@ -440,7 +483,7 @@ export default function IncidentReportsTab({
               { value: "damaged", label: "Damaged" },
               { value: "lost", label: "Lost" },
               { value: "violation", label: "Violation" },
-              { value: "good", label: "Good" },
+
             ]}
             icon={Filter}
             title="Filter by Condition"

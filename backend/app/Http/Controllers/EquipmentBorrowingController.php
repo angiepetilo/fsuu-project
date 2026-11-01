@@ -26,10 +26,12 @@ class EquipmentBorrowingController extends Controller
     {
         $this->authorize('viewAny', EquipmentBorrow::class);
 
-        // Automatically auto-release unclaimed/expired equipment loans based on dynamic operating hours rules and check overdue alerts
+        // Automatically auto-release unclaimed/expired equipment loans based on dynamic operating hours rules and check overdue alerts (throttled to once every 45s)
         try {
-            app(\App\Services\NoShowAutoReleaseService::class)->processNoShows();
-            app(\App\Services\OverdueAndExceededAlertService::class)->processAlerts();
+            if (\Illuminate\Support\Facades\Cache::add('bg_booking_checks_throttled', true, 45)) {
+                app(\App\Services\NoShowAutoReleaseService::class)->processNoShows();
+                app(\App\Services\OverdueAndExceededAlertService::class)->processAlerts();
+            }
         } catch (\Throwable $e) {}
 
         $user = $request->user();
@@ -731,13 +733,14 @@ class EquipmentBorrowingController extends Controller
 
             if (!$wasAlreadyTerminal) {
                 try {
-                    $eqStatus = $isLate ? 'late return' : ($condition === 'damaged' ? 'damaged' : ($condition === 'lost' ? 'lost' : 'completed'));
-                    $eqRemarks = $isLate
-                        ? "Equipment returned {$minutesLate} minutes late. Logged as Late Return."
-                        : ($condition === 'damaged'
-                            ? "Equipment returned with reported damage. Inspection notes: {$notes}"
-                            : ($condition === 'lost'
-                                ? "Equipment unit reported missing/lost."
+                    // Always dispatch "completed" when equipment is returned in good order (even if late) so the borrower receives the official Equipment Clearance Receipt email instead of an unreturned overdue alert
+                    $eqStatus = $condition === 'damaged' ? 'damaged' : ($condition === 'lost' ? 'lost' : 'completed');
+                    $eqRemarks = $condition === 'damaged'
+                        ? "Equipment returned with reported damage. Inspection notes: {$notes}"
+                        : ($condition === 'lost'
+                            ? "Equipment unit reported missing/lost."
+                            : ($isLate
+                                ? "All borrowed equipment units returned ({$minutesLate} minutes past scheduled return time — logged as Late Return) and inspected in complete order."
                                 : "All borrowed equipment units returned safely and inspected in complete order. Thank you!"));
 
                     // Attach unit_conditions as a virtual attribute so the Email 4 blade
@@ -823,15 +826,25 @@ class EquipmentBorrowingController extends Controller
         } catch (\Throwable $t) {}
 
         try {
+            $isClearanceReceipt = in_array($status, ['completed', 'returned', 'cleared', 'done', 'late return']);
             if ($status === 'pending') {
                 \App\Jobs\SendBookingConfirmationJob::dispatch('equipment', $borrow);
             } elseif ($isPastDue && in_array($status, ['ongoing', 'on-going', 'released', 'in_use', 'in-use', 'borrowed'])) {
                 \App\Jobs\SendBookingStatusUpdateJob::dispatch('equipment', $borrow, 'late_return', 'URGENT: Your equipment borrowing return time has elapsed. Please return all borrowed physical units immediately.');
+            } elseif ($isClearanceReceipt) {
+                $clearanceRemarks = $status === 'late return'
+                    ? 'All borrowed equipment units returned (logged as Late Return) and inspected in complete order.'
+                    : 'All borrowed equipment units returned safely and inspected in complete order. Thank you!';
+                \App\Jobs\SendBookingStatusUpdateJob::dispatch('equipment', $borrow, 'completed', $clearanceRemarks);
             } else {
                 \App\Jobs\SendBookingStatusUpdateJob::dispatch('equipment', $borrow, $status, 'Resent notification by admin');
             }
             $recipient = $borrow->email_address ?? $borrow->requestor_email ?? 'Requestor';
-            return response()->json(['message' => '✅ Email delivery resent to ' . $recipient]);
+            return response()->json([
+                'message' => $isClearanceReceipt
+                    ? '✅ Equipment Clearance Receipt sent to ' . $recipient
+                    : '✅ Email delivery resent to ' . $recipient
+            ]);
         } catch (\Throwable $e) {
             return response()->json(['message' => 'Failed to resend email: ' . $e->getMessage()], 500);
         }

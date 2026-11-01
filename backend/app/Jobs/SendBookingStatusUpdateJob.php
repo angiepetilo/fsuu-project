@@ -100,11 +100,17 @@ class SendBookingStatusUpdateJob implements ShouldQueue
             'error_message'   => $mailError,
         ]);
 
-        // Send SMS status update notification
-        try {
-            \App\Services\SmsService::sendStatusNotification($this->type, $this->booking, $this->status, $this->remarks);
-        } catch (\Throwable $smsErr) {
-            Log::warning("SendBookingStatusUpdateJob SMS dispatch failed: " . $smsErr->getMessage());
+        // Send SMS notification strictly for overdue / exceeded alerts (other status updates are dispatched via Email)
+        $isOverdueOrExceeded = in_array(strtolower(str_replace(['_', '-'], ' ', (string)$this->status)), [
+            'overdue', 'late return', 'late_return', 'exceed end time', 'exceeded', 'exceeded end time'
+        ], true);
+
+        if ($isOverdueOrExceeded) {
+            try {
+                \App\Services\SmsService::sendStatusNotification($this->type, $this->booking, $this->status, $this->remarks);
+            } catch (\Throwable $smsErr) {
+                Log::warning("SendBookingStatusUpdateJob SMS dispatch failed: " . $smsErr->getMessage());
+            }
         }
     }
 

@@ -1160,13 +1160,13 @@
       </div>
     @else
       <div>
-        <span class="badge-pill badge-success">COMPLETED</span>
+        <span class="badge-pill badge-success">EQUIPMENT CLEARANCE RECEIPT</span>
       </div>
 
-      <h1 class="email-heading">Borrowing Transaction Closed</h1>
+      <h1 class="email-heading">Equipment Clearance Receipt — Transaction Closed</h1>
       <p class="intro-text">
         Hi <strong>{{ $requestorName }}</strong>,<br>
-        The borrowing request #{{ $ref }} is officially closed. All items have been verified and returned in good working order.
+        Your equipment borrowing request <strong>#{{ $ref }}</strong> is officially cleared and closed. All borrowed items have been verified and returned in good working order.
         <span style="display:none;">Custodial Clearance Certificate</span>
       </p>
 
@@ -1177,19 +1177,31 @@
         </tr>
         <tr>
           <td class="data-label">Borrower Name</td>
-          <td class="data-value"><strong>{{ $requestorName }}</strong></td>
+          <td class="data-value"><strong>{{ $requestorName }}</strong> ({{ $organization }})</td>
+        </tr>
+        <tr>
+          <td class="data-label">Usage Schedule</td>
+          <td class="data-value">{{ $sched }}</td>
         </tr>
         <tr>
           <td class="data-label">Date Returned</td>
           <td class="data-value">{{ $returnTimeStr }}</td>
         </tr>
         <tr>
-          <td class="data-label">Final Status</td>
-          <td class="data-value"><span style="color: #16a34a; font-weight: 700;">Closed</span></td>
+          <td class="data-label">Inspected By</td>
+          <td class="data-value"><strong>{{ $staffName }}</strong></td>
+        </tr>
+        <tr>
+          <td class="data-label">Clearance Status</td>
+          <td class="data-value">
+            <span style="color: #16a34a; font-weight: 700;">
+              Cleared &amp; Completed{{ (!empty($inspection?->is_late) || strtolower((string)($booking->status ?? '')) === 'late return') ? ' (Late Return Logged)' : '' }}
+            </span>
+          </td>
         </tr>
       </table>
 
-      <div class="section-title">VERIFIED &amp; RESTORED UNITS:</div>
+      <div class="section-title">VERIFIED &amp; RETURNED EQUIPMENT UNITS:</div>
       @if($resolvedUnits->isNotEmpty())
         <div style="margin: 8px 0 16px 0;">
           @include('emails.partials.equipment_unit_table', ['units' => $resolvedUnits, 'mode' => 'receipt', 'equipmentList' => $equipmentList ?? [], 'booking' => $booking ?? null])
@@ -1198,7 +1210,7 @@
         <div class="items-box">
           @if(!empty($equipmentList))
             @foreach($equipmentList as $item)
-              <div class="item-row">&bull; <strong>{{ $item['label'] }}</strong> — <span style="color: #16a34a; font-weight: 700;">Good Condition</span></div>
+              <div class="item-row">&bull; <strong>{{ $item['label'] }}</strong> — <span style="color: #16a34a; font-weight: 700;">Returned in Good Condition</span></div>
             @endforeach
           @endif
         </div>
@@ -1206,12 +1218,12 @@
 
       @if(!empty($remarks))
         <div style="font-size: 12.5px; color: #475569; margin: 10px 0;">
-          <strong>Staff Notes:</strong> {{ $remarks }}
+          <strong>Inspection Remarks:</strong> {{ $remarks }}
         </div>
       @endif
 
       <div class="notice-box notice-success">
-        ✅ <strong>CLEARANCE CERTIFICATE:</strong> Your custodial accountability record for this transaction is officially closed in good standing.
+        ✅ <strong>OFFICIAL EQUIPMENT CLEARANCE RECEIPT:</strong> All borrowed equipment units have been returned and verified by AVR Custodial Staff. Your custodial accountability record for this transaction is officially cleared and closed in good standing.
       </div>
     @endif
 

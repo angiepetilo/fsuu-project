@@ -602,7 +602,7 @@ export default function EquipmentStockTab({
       {/* ═══════════════════════════════════════════════════════════════════════ */}
       <div className="space-y-4">
         {/* Header Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-[#111827] p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+        <div className="hidden">
           <div>
             <h3 className="font-extrabold text-slate-900 dark:text-white text-sm">
               Stock by Category
@@ -621,13 +621,13 @@ export default function EquipmentStockTab({
         )}
 
         {/* Category Audit Table with Mobile Responsive Card Grid */}
-        <div className="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
           {/* Desktop View */}
-          <div className="hidden md:block overflow-x-auto">
+          <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800"><div><h3 className="font-bold text-slate-900 dark:text-white text-sm">Stock by Category</h3><p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Aggregated stock balance of physical units across equipment categories.</p></div></div><div className="hidden md:block overflow-x-auto">
             <table className="w-full text-xs text-left">
               <thead>
-                <tr className="bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-bold uppercase text-[10px] tracking-wider">
-                  <th className="px-4 py-3.5 w-16">Photo</th>
+                <tr className="bg-slate-50/80 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-bold uppercase text-[11px] tracking-wider">
+                  <th className="px-4 py-3 text-left w-12">#</th>
                   <th className="px-4 py-3.5">Category Name</th>
                   <th className="px-4 py-3.5 text-center">Total</th>
                   <th className="px-4 py-3.5 text-center">Available</th>
@@ -652,7 +652,7 @@ export default function EquipmentStockTab({
                 ) : filteredInventory.length === 0 ? (
                   <tr>
                     <td colSpan={10} className="text-center py-12 text-slate-400 dark:text-slate-500">
-                      📦 No inventory items registered yet.
+                      No inventory items registered yet.
                     </td>
                   </tr>
                 ) : (
@@ -664,55 +664,55 @@ export default function EquipmentStockTab({
 
                     return (
                       <tr key={key || idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                        <td className="px-4 py-3">
-                          <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 overflow-hidden flex items-center justify-center shadow-inner shrink-0">
+                        <td className="px-4 py-3"><div>
+                          <span className="font-bold text-slate-400">{startCategoryIndex + idx + 1}</span><div className="hidden">
                             {displayPhoto ? (
                               <img src={displayPhoto} alt={categoryName} className="w-full h-full object-contain p-0.5" />
                             ) : (
                               <Package size={18} className="text-slate-400" />
                             )}
-                          </div>
+                          </div></div>
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="font-extrabold text-xs text-slate-900 dark:text-white">
+                        <td className="px-4 py-3"><div>
+                          <div className="font-bold text-xs text-slate-900 dark:text-white">
                             {categoryName}
-                          </div>
+                          </div></div>
                           {item.description && (
                             <div className="text-[11px] text-slate-400 dark:text-slate-500 truncate max-w-xs">{item.description}</div>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-center font-mono font-extrabold text-slate-700 dark:text-slate-200">
+                        <td className="px-4 py-3 text-center font-extrabold text-slate-900 dark:text-white">
                           {stats.expectedQty}
                         </td>
-                        <td className="px-4 py-3 text-center font-mono font-extrabold text-emerald-600 dark:text-emerald-400">
+                        <td className={`px-4 py-3 text-center font-bold ${stats.availablePresent > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400 dark:text-slate-500"}`}>
                           {stats.availablePresent}
                         </td>
-                        <td className={`px-4 py-3 text-center font-mono font-extrabold ${
+                        <td className={`px-4 py-3 text-center font-bold ${
                           stats.builtInCount > 0 ? "text-violet-600 dark:text-violet-400" : "text-slate-400 dark:text-slate-600"
                         }`}>
                           {stats.builtInCount}
                         </td>
-                        <td className={`px-4 py-3 text-center font-mono font-extrabold ${
+                        <td className={`px-4 py-3 text-center font-bold ${
                           stats.unavailableCount > 0 ? "text-amber-600 dark:text-amber-400" : "text-slate-400 dark:text-slate-600"
                         }`}>
                           {stats.unavailableCount}
                         </td>
-                        <td className={`px-4 py-3 text-center font-mono font-extrabold ${
+                        <td className={`px-4 py-3 text-center font-bold ${
                           stats.reservedCount > 0 ? "text-indigo-600 dark:text-indigo-400" : "text-slate-400 dark:text-slate-600"
                         }`}>
                           {stats.reservedCount}
                         </td>
-                        <td className={`px-4 py-3 text-center font-mono font-extrabold ${
+                        <td className={`px-4 py-3 text-center font-bold ${
                           stats.currentReleased > 0 ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-600"
                         }`}>
                           {stats.currentReleased}
                         </td>
-                        <td className={`px-4 py-3 text-center font-mono font-extrabold ${
+                        <td className={`px-4 py-3 text-center font-bold ${
                           stats.currentDamaged > 0 ? "text-rose-600 dark:text-rose-400" : "text-slate-400 dark:text-slate-600"
                         }`}>
                           {stats.currentDamaged}
                         </td>
-                        <td className={`px-4 py-3 text-center font-mono font-extrabold ${
+                        <td className={`px-4 py-3 text-center font-bold ${
                           stats.currentLost > 0 ? "text-amber-600 dark:text-amber-400" : "text-slate-400 dark:text-slate-600"
                         }`}>
                           {stats.currentLost}
@@ -744,7 +744,7 @@ export default function EquipmentStockTab({
                 return (
                   <div key={`mob-stock-${item.id || idx}`} className="p-4 space-y-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shadow-inner shrink-0">
+                      <div className="hidden">
                         {displayPhoto ? (
                           <img src={displayPhoto} alt={categoryName} className="w-full h-full object-contain p-0.5" />
                         ) : (
@@ -893,7 +893,7 @@ export default function EquipmentStockTab({
         </div>
 
         {/* Physical Units Table */}
-        <div className="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
           <div className="overflow-x-auto scrollbar-thin">
             <table className="w-full text-sm min-w-[760px]">
               <thead>
@@ -915,7 +915,7 @@ export default function EquipmentStockTab({
                 ) : filteredUnits.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="text-center py-12 text-slate-400">
-                      📦 No physical equipment units found.
+                      No physical equipment units found.
                     </td>
                   </tr>
                 ) : (
@@ -992,7 +992,7 @@ export default function EquipmentStockTab({
                           })()}
                         </td>
                         <td className="px-4 py-3.5 relative">
-                          <div className="relative action-menu-container inline-block">
+                          <div><div className="relative action-menu-container inline-block">
                             <button
                               type="button"
                               onClick={(e) => {
@@ -1036,7 +1036,7 @@ export default function EquipmentStockTab({
                                 <span className="transition-colors">View Details</span>
                               </button>
                             </ActionPopover>
-                          </div>
+                          </div></div>
                         </td>
                       </tr>
                     );

@@ -1,31 +1,28 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import api from "@/lib/axios";
 import { fetchWithCache } from "@/lib/apiCache";
-import BookingBorrowingReportTab from "./reports/BookingBorrowingReportTab";
-import BreachesTab from "./reports/BreachesTab";
-import EquipmentStockTab from "./reports/EquipmentStockTab";
-import EquipmentOutTab from "./reports/EquipmentOutTab";
-import IncidentReportsTab from "./reports/IncidentReportsTab";
-import PdfPreviewModal from "./reports/PdfPreviewModal";
-import { downloadReportAsPdf } from "./reports/exportPdfHelper";
-import { exportReportsToExcel } from "./reports/exportReportsExcelHelper";
-import {
-  FileBarChart2, FileText, Download, ShieldAlert, PackageOpen, CheckCircle2,
-  Building2, Printer, X, Loader2, FileSpreadsheet, ChevronDown, Layers
-} from "lucide-react";
-import AcademicTermSelect from "@/components/ui/AcademicTermSelect";
+import { FileBarChart2, CheckCircle2 } from "lucide-react";
 import ExportModal, { filterRecordsByBounds } from "@/components/ui/ExportModal";
 import ExportButton from "@/components/ui/ExportButton";
 
+// Lazy-loaded Report Sub-Tabs & Modals (only parsed when opened)
+const BookingBorrowingReportTab = lazy(() => import("./reports/BookingBorrowingReportTab"));
+const BreachesTab = lazy(() => import("./reports/BreachesTab"));
+const EquipmentStockTab = lazy(() => import("./reports/EquipmentStockTab"));
+const EquipmentOutTab = lazy(() => import("./reports/EquipmentOutTab"));
+const IncidentReportsTab = lazy(() => import("./reports/IncidentReportsTab"));
+const PdfPreviewModal = lazy(() => import("./reports/PdfPreviewModal"));
+
+const REPORTS_CACHE_KEY = "fsuu_cache_reports_data";
+
 export default function Reports() {
-  const { user, isStaff, isSuperAdmin, isStudentAssistant, hasPermission } = usePermissions();
+  const { user, isStaff, isSuperAdmin, hasPermission } = usePermissions();
 
   const context = useOutletContext();
   const officeScope = context?.adminOffice || context?.selectedOffice || "All Offices";
-
 
   const ALL_REPORT_TABS = [
     { id: "booking_borrowing", label: "Booking & Borrowing Report", permissionKey: "reports.booking_borrowing" },
@@ -76,18 +73,29 @@ export default function Reports() {
       return next;
     }, { replace: true });
   }, [setSearchParams]);
+
   const [feedback, setFeedback] = useState(null);
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
 
-  const [venueBookings, setVenueBookings] = useState([]);
-  const [equipmentBorrowings, setEquipmentBorrowings] = useState([]);
-  const [activeEquipmentBorrowings, setActiveEquipmentBorrowings] = useState([]);
-  const [ruleViolations, setRuleViolations] = useState([]);
-  const [inventoryItems, setInventoryItems] = useState([]);
+  // Seed initial state from session cache for instant 0ms render
+  const [cachedReports] = useState(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem(REPORTS_CACHE_KEY) || "null");
+    } catch {
+      return null;
+    }
+  });
+
+  const [venueBookings, setVenueBookings] = useState(cachedReports?.venueBookings || []);
+  const [equipmentBorrowings, setEquipmentBorrowings] = useState(cachedReports?.equipmentBorrowings || []);
+  const [activeEquipmentBorrowings, setActiveEquipmentBorrowings] = useState(cachedReports?.activeEquipmentBorrowings || []);
+  const [ruleViolations, setRuleViolations] = useState(cachedReports?.ruleViolations || []);
+  const [inventoryItems, setInventoryItems] = useState(cachedReports?.inventoryItems || []);
+  const [equipmentUnits, setEquipmentUnits] = useState(cachedReports?.equipmentUnits || []);
   const [academicTerms, setAcademicTerms] = useState([]);
-  const [selectedTermId, setSelectedTermId] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [selectedTermId] = useState("");
+  const [loading, setLoading] = useState(!cachedReports);
 
   // Load academic terms list once with cache
   useEffect(() => {
@@ -96,9 +104,6 @@ export default function Reports() {
         const termsData = await fetchWithCache("academic_terms_list", () => api.get("/general/academic-terms").then(r => r.data));
         if (termsData?.terms) {
           setAcademicTerms(termsData.terms);
-          if (termsData.active_term?.id && !selectedTermId) {
-            setSelectedTermId(String(termsData.active_term.id));
-          }
         }
       } catch (err) {
         console.error("Failed to load academic terms in Reports:", err);
@@ -106,8 +111,6 @@ export default function Reports() {
     };
     loadTerms();
   }, []);
-
-  const [equipmentUnits, setEquipmentUnits] = useState([]);
 
   const fetchReportsData = useCallback(async (opts = false) => {
     if (!hasPermission("reports")) {
@@ -118,100 +121,140 @@ export default function Reports() {
       ? Boolean(opts.isSilent || opts.silent || opts.showLoading === false)
       : Boolean(opts);
 
-    if (!isSilent) setLoading(true);
+    if (!isSilent && !cachedReports) setLoading(true);
+
+    const termParam = selectedTermId ? `&academic_term_id=${selectedTermId}` : "";
+
     try {
-      const termParam = selectedTermId ? `&academic_term_id=${selectedTermId}` : "";
-      const [histRes, daRes, eqData, unitsRes, activeEbRes, activeVbRes] = await Promise.all([
-        api.get(`/general/history-log?include_archived=1${termParam}`).catch(() => ({ data: { venue_bookings: [], equipment_borrowings: [] } })),
-        api.get(`/general/department-analytics${termParam ? `?academic_term_id=${selectedTermId}` : ''}`).catch(() => ({ data: { rule_violations: [], late_returns: [] } })),
-        api.get("/general/equipment-types").then(r => r.data).catch(() => []),
-        api.get("/general/equipment-units").then(r => r.data).catch(() => []),
+      // Progressive non-blocking fetches: fast endpoints update UI immediately without waiting for heavy history queries
+      const eqPromise = api.get("/general/equipment-types").then(r => {
+        const eqItems = Array.isArray(r.data) ? r.data : (r.data?.data || []);
+        setInventoryItems(eqItems);
+        return eqItems;
+      }).catch(() => []);
+
+      const unitsPromise = api.get("/general/equipment-units").then(r => {
+        const unitItems = Array.isArray(r.data) ? r.data : (r.data?.data || []);
+        setEquipmentUnits(unitItems);
+        return unitItems;
+      }).catch(() => []);
+
+      const daPromise = api.get(`/general/department-analytics${termParam ? `?academic_term_id=${selectedTermId}` : ''}`).then(daRes => {
+        const violations = daRes.data?.rule_violations || [];
+        setRuleViolations(violations);
+        return violations;
+      }).catch(() => []);
+
+      const histPromise = api.get(`/general/history-log?include_archived=1${termParam}`).then(histRes => {
+        const vb = histRes.data?.venue_bookings || [];
+        const eb = histRes.data?.equipment_borrowings || [];
+        setVenueBookings(vb);
+        setEquipmentBorrowings(eb);
+        return { vb, eb };
+      }).catch(() => ({ vb: [], eb: [] }));
+
+      const activePromise = Promise.all([
         api.get(`/avr-equipment-borrowings?all=1&include_returned=1${termParam ? `&academic_term_id=${selectedTermId}` : ''}`).catch(() => ({ data: [] })),
         api.get(`/avr-venue-bookings?all=1&include_returned=1${termParam ? `&academic_term_id=${selectedTermId}` : ''}`).catch(() => ({ data: [] })),
+      ]).then(([activeEbRes, activeVbRes]) => {
+        const rawActiveEb = activeEbRes.data?.data ?? (Array.isArray(activeEbRes.data) ? activeEbRes.data : []);
+        const rawActiveVb = activeVbRes.data?.data ?? (Array.isArray(activeVbRes.data) ? activeVbRes.data : []);
+
+        const venueBookingsWithUnits = rawActiveVb.map(vbItem => {
+          let au = vbItem.assigned_units;
+          if (!au || (typeof au === "object" && Object.keys(au).length === 0)) {
+            try {
+              const stored = localStorage.getItem(`fsuu_assigned_units_${vbItem.id}`) || localStorage.getItem(`fsuu_completed_assigned_units_${vbItem.id}`);
+              if (stored) au = JSON.parse(stored);
+            } catch {}
+          }
+          return { ...vbItem, assigned_units: au };
+        }).filter(vbItem => {
+          const au = vbItem.assigned_units;
+          if (!au) return false;
+          if (Array.isArray(au)) return au.filter(Boolean).length > 0;
+          if (typeof au === "object") return Object.values(au).filter(Boolean).length > 0;
+          if (typeof au === "string") {
+            try {
+              const p = JSON.parse(au);
+              if (Array.isArray(p)) return p.filter(Boolean).length > 0;
+              if (typeof p === "object") return Object.values(p).filter(Boolean).length > 0;
+              return au.trim() !== "" && au !== "[]" && au !== "{}";
+            } catch {
+              return au.trim() !== "";
+            }
+          }
+          return false;
+        }).map(vbItem => ({
+          ...vbItem,
+          is_venue_booking: true,
+          filer_name: vbItem.filer_name || vbItem.requestor_name || vbItem.name || vbItem.requestor?.name || "Venue Client",
+          program_office: vbItem.program_office || (vbItem.venue?.name ? `${vbItem.venue.name} (Venue)` : "Venue Reservation"),
+          equipment_name: vbItem.equipment_notes || vbItem.purpose || "Venue Equipment",
+        }));
+
+        const combinedActive = [...rawActiveEb, ...venueBookingsWithUnits];
+        setActiveEquipmentBorrowings(combinedActive);
+        return combinedActive;
+      });
+
+      const [eqItems, unitItems, violations, histData, combinedActive] = await Promise.all([
+        eqPromise,
+        unitsPromise,
+        daPromise,
+        histPromise,
+        activePromise,
       ]);
 
-      // 1. History log venue bookings & equipment borrowings
-      const vb = histRes.data?.venue_bookings || [];
-      const eb = histRes.data?.equipment_borrowings || [];
-      setVenueBookings(vb);
-      setEquipmentBorrowings(eb);
-
-      // Active equipment borrowings & venue bookings with assigned equipment units (live data for Equipment Out tab)
-      const rawActiveEb = activeEbRes.data?.data ?? (Array.isArray(activeEbRes.data) ? activeEbRes.data : []);
-      const rawActiveVb = activeVbRes.data?.data ?? (Array.isArray(activeVbRes.data) ? activeVbRes.data : []);
-
-      const venueBookingsWithUnits = rawActiveVb.map(vbItem => {
-        let au = vbItem.assigned_units;
-        if (!au || (typeof au === "object" && Object.keys(au).length === 0)) {
-          try {
-            const stored = localStorage.getItem(`fsuu_assigned_units_${vbItem.id}`) || localStorage.getItem(`fsuu_completed_assigned_units_${vbItem.id}`);
-            if (stored) au = JSON.parse(stored);
-          } catch {}
-        }
-        return { ...vbItem, assigned_units: au };
-      }).filter(vbItem => {
-        const au = vbItem.assigned_units;
-        if (!au) return false;
-        if (Array.isArray(au)) return au.filter(Boolean).length > 0;
-        if (typeof au === "object") return Object.values(au).filter(Boolean).length > 0;
-        if (typeof au === "string") {
-          try {
-            const p = JSON.parse(au);
-            if (Array.isArray(p)) return p.filter(Boolean).length > 0;
-            if (typeof p === "object") return Object.values(p).filter(Boolean).length > 0;
-            return au.trim() !== "" && au !== "[]" && au !== "{}";
-          } catch {
-            return au.trim() !== "";
-          }
-        }
-        return false;
-      }).map(vbItem => ({
-        ...vbItem,
-        is_venue_booking: true,
-        filer_name: vbItem.filer_name || vbItem.requestor_name || vbItem.name || vbItem.requestor?.name || "Venue Client",
-        program_office: vbItem.program_office || (vbItem.venue?.name ? `${vbItem.venue.name} (Venue)` : "Venue Reservation"),
-        equipment_name: vbItem.equipment_notes || vbItem.purpose || "Venue Equipment",
-      }));
-
-      setActiveEquipmentBorrowings([...rawActiveEb, ...venueBookingsWithUnits]);
-
-      // 2. Department analytics / violations
-      const violations = daRes.data?.rule_violations || [];
-      setRuleViolations(violations);
-
-      // 3. Equipment inventory stock (fresh, live, un-cached)
-      const eqItems = Array.isArray(eqData) ? eqData : (eqData?.data || []);
-      setInventoryItems(eqItems);
-
-      // 4. Physical Equipment Units
-      const unitItems = Array.isArray(unitsRes) ? unitsRes : (unitsRes?.data || []);
-      setEquipmentUnits(unitItems);
+      try {
+        sessionStorage.setItem(REPORTS_CACHE_KEY, JSON.stringify({
+          inventoryItems: eqItems,
+          equipmentUnits: unitItems,
+          ruleViolations: violations,
+          venueBookings: (histData?.vb || []).slice(0, 100),
+          equipmentBorrowings: (histData?.eb || []).slice(0, 100),
+          activeEquipmentBorrowings: (combinedActive || []).slice(0, 100),
+        }));
+      } catch {}
     } catch {
       // Fallback
     } finally {
-      if (!isSilent) setLoading(false);
+      setLoading(false);
     }
-  }, [hasPermission, selectedTermId]);
+  }, [hasPermission, selectedTermId, cachedReports]);
 
   useEffect(() => {
     fetchReportsData();
     const handleSync = () => {
       fetchReportsData({ isSilent: true });
     };
-    window.addEventListener("equipment_updated", handleSync);
-    window.addEventListener("equipment_inventory_updated", handleSync);
+    const events = [
+      "equipment_updated",
+      "equipment_inventory_updated",
+      "booking_status_updated",
+      "venue_bookings_updated",
+      "equipment_borrowings_updated",
+      "fsuu_booking_created",
+    ];
+    events.forEach(ev => window.addEventListener(ev, handleSync));
+
     const handleStorage = (e) => {
-      if (e.key && e.key.includes("equipment")) {
+      if (
+        e.key &&
+        (e.key.includes("equipment") ||
+          e.key === "fsuu_booking_status_updated_ping" ||
+          e.key === "fsuu_booking_created_ping" ||
+          e.key === "fsuu_realtime_sync_ping")
+      ) {
         handleSync();
       }
     };
     window.addEventListener("storage", handleStorage);
     return () => {
-      window.removeEventListener("equipment_updated", handleSync);
-      window.removeEventListener("equipment_inventory_updated", handleSync);
+      events.forEach(ev => window.removeEventListener(ev, handleSync));
       window.removeEventListener("storage", handleStorage);
     };
-  }, [selectedTermId]);
+  }, [selectedTermId, fetchReportsData]);
 
   const selectedOfficeId = context?.selectedOfficeId;
   const selectedOfficeName = context?.selectedOffice || officeScope;
@@ -352,26 +395,34 @@ export default function Reports() {
     incident_reports: "Incident & Damage Reports",
   };
 
-  // ── DIRECT PDF DOWNLOAD (Generates and saves .pdf file to user's device) ──
+  // ── DIRECT PDF DOWNLOAD (Dynamically imports jspdf + html2canvas only when clicked) ──
   const handleDownloadPDF = async () => {
     const cleanTab = (tabLabels[activeTab] || "Report").replace(/[^a-zA-Z0-9]/g, "_");
     const filename = `FSUU_${cleanTab}_${new Date().toISOString().slice(0, 10)}.pdf`;
 
-    await downloadReportAsPdf({
-      elementId: "printable-report-area",
-      filename,
-      onStart: () => setIsExportingPdf(true),
-      onComplete: () => {
-        setIsExportingPdf(false);
-        setFeedback(`✅ ${tabLabels[activeTab]} PDF file saved to your device.`);
-        setTimeout(() => setFeedback(null), 3500);
-      },
-      onError: (err) => {
-        setIsExportingPdf(false);
-        setFeedback(`❌ PDF generation failed: ${err?.message || "Unknown error"}`);
-        setTimeout(() => setFeedback(null), 5000);
-      },
-    });
+    setIsExportingPdf(true);
+    try {
+      const { downloadReportAsPdf } = await import("./reports/exportPdfHelper");
+      await downloadReportAsPdf({
+        elementId: "printable-report-area",
+        filename,
+        onStart: () => setIsExportingPdf(true),
+        onComplete: () => {
+          setIsExportingPdf(false);
+          setFeedback(`✅ ${tabLabels[activeTab]} PDF file saved to your device.`);
+          setTimeout(() => setFeedback(null), 3500);
+        },
+        onError: (err) => {
+          setIsExportingPdf(false);
+          setFeedback(`❌ PDF generation failed: ${err?.message || "Unknown error"}`);
+          setTimeout(() => setFeedback(null), 5000);
+        },
+      });
+    } catch (err) {
+      setIsExportingPdf(false);
+      setFeedback(`❌ PDF generation failed: ${err?.message || "Unknown error"}`);
+      setTimeout(() => setFeedback(null), 5000);
+    }
   };
 
   // ── PRINT PREVIEW ──
@@ -403,10 +454,11 @@ export default function Reports() {
       return;
     }
 
-    // Excel Export (.xlsx)
+    // Excel Export (.xlsx) - Dynamically imports exceljs only when clicked
     setIsExportingExcel(true);
     try {
-      // Filter records according to the selected timeframe bounds
+      const { exportReportsToExcel } = await import("./reports/exportReportsExcelHelper");
+
       const dateFilteredVb = filterRecordsByBounds(filteredVenueBookings, bounds);
       const dateFilteredEb = filterRecordsByBounds(filteredEquipmentBorrowings, bounds);
       const dateFilteredActiveEb = filterRecordsByBounds(filteredActiveEquipmentBorrowings, bounds);
@@ -461,7 +513,6 @@ export default function Reports() {
     <div className="space-y-6">
       {/* Action Toolbar */}
       <div className="flex items-center justify-end gap-2.5 flex-wrap">
-        {/* Unified Institutional Export Button */}
         {(isSuperAdmin || hasPermission("reports.export_pdf") || hasPermission("reports")) && (
           <ExportButton
             label="Export"
@@ -479,7 +530,7 @@ export default function Reports() {
         </div>
       )}
 
-      {/* Tabs Bar with Semester Filter Aligned to the Right */}
+      {/* Tabs Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-200 pb-3">
         <div className="flex flex-wrap items-center gap-2">
           {visibleReportTabs.map((tab) => {
@@ -500,74 +551,65 @@ export default function Reports() {
             );
           })}
         </div>
+      </div>
 
-        {/* Semester filter aligned in the 4 tabs on the right side */}
-        {academicTerms.length > 0 && (
-          <div className="self-end md:self-auto shrink-0">
-            <AcademicTermSelect
-              terms={academicTerms}
-              selectedId={selectedTermId}
-              onSelect={(val) => setSelectedTermId(val)}
+      {/* Render Active Tab Component with Suspense */}
+      <Suspense fallback={null}>
+        {mountedTabs.has("booking_borrowing") && (
+          <div className={activeTab === "booking_borrowing" ? "block" : "hidden"}>
+            <BookingBorrowingReportTab
+              venueBookings={filteredVenueBookings}
+              equipmentBorrowings={filteredEquipmentBorrowings}
+              setShowPdfModal={setShowPdfModal}
+              loading={loading && filteredVenueBookings.length === 0 && filteredEquipmentBorrowings.length === 0}
             />
           </div>
         )}
-      </div>
 
-      {/* Render Active Tab Component */}
-      {mountedTabs.has("booking_borrowing") && (
-        <div className={activeTab === "booking_borrowing" ? "block" : "hidden"}>
-          <BookingBorrowingReportTab
-            venueBookings={filteredVenueBookings}
-            equipmentBorrowings={filteredEquipmentBorrowings}
-            setShowPdfModal={setShowPdfModal}
-            loading={loading}
-          />
-        </div>
-      )}
+        {mountedTabs.has("breaches") && (
+          <div className={activeTab === "breaches" ? "block" : "hidden"}>
+            <BreachesTab
+              ruleViolations={filteredRuleViolations}
+              venueBookings={filteredVenueBookings}
+              equipmentBorrowings={filteredEquipmentBorrowings}
+              officeScope={selectedOfficeName}
+            />
+          </div>
+        )}
 
-      {mountedTabs.has("breaches") && (
-        <div className={activeTab === "breaches" ? "block" : "hidden"}>
-          <BreachesTab
-            ruleViolations={filteredRuleViolations}
-            venueBookings={filteredVenueBookings}
-            equipmentBorrowings={filteredEquipmentBorrowings}
-            officeScope={selectedOfficeName}
-          />
-        </div>
-      )}
+        {mountedTabs.has("inventory") && (
+          <div className={activeTab === "inventory" ? "block" : "hidden"}>
+            <EquipmentStockTab
+              filteredInventory={filteredInventoryItems}
+              setInventoryItems={setInventoryItems}
+              loading={loading && filteredInventoryItems.length === 0}
+              fetchReportsData={fetchReportsData}
+              isStaff={isStaff}
+            />
+          </div>
+        )}
 
-      {mountedTabs.has("inventory") && (
-        <div className={activeTab === "inventory" ? "block" : "hidden"}>
-          <EquipmentStockTab
-            filteredInventory={filteredInventoryItems}
-            setInventoryItems={setInventoryItems}
-            loading={loading}
-            fetchReportsData={fetchReportsData}
-            isStaff={isStaff}
-          />
-        </div>
-      )}
+        {mountedTabs.has("equipment_out") && (
+          <div className={activeTab === "equipment_out" ? "block" : "hidden"}>
+            <EquipmentOutTab
+              equipmentBorrowings={filteredActiveEquipmentBorrowings}
+              equipmentUnits={equipmentUnits}
+              loading={loading && filteredActiveEquipmentBorrowings.length === 0}
+            />
+          </div>
+        )}
 
-      {mountedTabs.has("equipment_out") && (
-        <div className={activeTab === "equipment_out" ? "block" : "hidden"}>
-          <EquipmentOutTab
-            equipmentBorrowings={filteredActiveEquipmentBorrowings}
-            equipmentUnits={equipmentUnits}
-            loading={loading}
-          />
-        </div>
-      )}
-
-      {mountedTabs.has("incident_reports") && (
-        <div className={activeTab === "incident_reports" ? "block" : "hidden"}>
-          <IncidentReportsTab
-            venueBookings={filteredVenueBookings}
-            equipmentBorrowings={filteredEquipmentBorrowings}
-            equipmentUnits={equipmentUnits}
-            onRefresh={fetchReportsData}
-          />
-        </div>
-      )}
+        {mountedTabs.has("incident_reports") && (
+          <div className={activeTab === "incident_reports" ? "block" : "hidden"}>
+            <IncidentReportsTab
+              venueBookings={filteredVenueBookings}
+              equipmentBorrowings={filteredEquipmentBorrowings}
+              equipmentUnits={equipmentUnits}
+              onRefresh={fetchReportsData}
+            />
+          </div>
+        )}
+      </Suspense>
 
       {/* ── EXPORT MODAL ── */}
       <ExportModal
@@ -599,30 +641,34 @@ export default function Reports() {
         isExporting={isExportingExcel || isExportingPdf}
       />
 
-      {/* ── PDF PRINT PREVIEW MODAL ── */}
-      <PdfPreviewModal
-        open={showPdfModal}
-        onClose={() => {
-          setShowPdfModal(false);
-          setExportDateBounds({ start: null, end: null });
-        }}
-        tabLabels={tabLabels}
-        activeTab={activeTab}
-        officeScope={officeScope}
-        user={user}
-        isExportingPdf={isExportingPdf}
-        onDownloadPDF={handleDownloadPDF}
-        onPrintPDF={handlePrintPDF}
-        filteredVenueBookings={filterRecordsByBounds(filteredVenueBookings, exportDateBounds)}
-        filteredEquipmentBorrowings={filterRecordsByBounds(filteredEquipmentBorrowings, exportDateBounds)}
-        filteredActiveEquipmentBorrowings={filterRecordsByBounds(filteredActiveEquipmentBorrowings, exportDateBounds)}
-        filteredRuleViolations={filterRecordsByBounds(filteredRuleViolations, exportDateBounds)}
-        filteredInventoryItems={filteredInventoryItems}
-        filteredUnits={filteredUnits}
-        currentVenueNotes={currentVenueNotes}
-        currentEquipNotes={currentEquipNotes}
-        currentBreachesNotes={currentBreachesNotes}
-      />
+      {/* ── PDF PRINT PREVIEW MODAL (Lazy-loaded only when opened) ── */}
+      {showPdfModal && (
+        <Suspense fallback={null}>
+          <PdfPreviewModal
+            open={showPdfModal}
+            onClose={() => {
+              setShowPdfModal(false);
+              setExportDateBounds({ start: null, end: null });
+            }}
+            tabLabels={tabLabels}
+            activeTab={activeTab}
+            officeScope={officeScope}
+            user={user}
+            isExportingPdf={isExportingPdf}
+            onDownloadPDF={handleDownloadPDF}
+            onPrintPDF={handlePrintPDF}
+            filteredVenueBookings={filterRecordsByBounds(filteredVenueBookings, exportDateBounds)}
+            filteredEquipmentBorrowings={filterRecordsByBounds(filteredEquipmentBorrowings, exportDateBounds)}
+            filteredActiveEquipmentBorrowings={filterRecordsByBounds(filteredActiveEquipmentBorrowings, exportDateBounds)}
+            filteredRuleViolations={filterRecordsByBounds(filteredRuleViolations, exportDateBounds)}
+            filteredInventoryItems={filteredInventoryItems}
+            filteredUnits={filteredUnits}
+            currentVenueNotes={currentVenueNotes}
+            currentEquipNotes={currentEquipNotes}
+            currentBreachesNotes={currentBreachesNotes}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

@@ -11,11 +11,12 @@ class DepartmentAnalyticsController extends Controller
     public function index(): JsonResponse
     {
         $termParam = request('academic_term_id', request('term_id'));
-        if ($termParam === 'all' || $termParam === '' || $termParam === '0') {
+        if ($termParam === 'all' || $termParam === '0') {
             $academicTermId = null;
         } elseif (is_numeric($termParam)) {
             $academicTermId = (int)$termParam;
         } else {
+            // Strictly Active Semester: default to the currently active academic term only
             $academicTermId = DB::table('academic_terms')->where('is_active', true)->value('id');
             $academicTermId = $academicTermId ? (int)$academicTermId : null;
         }

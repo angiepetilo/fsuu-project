@@ -13,15 +13,7 @@ import { PageLoader } from "@/components/ui/page-loader";
 import { formatDate, formatTime, formatTimeRange } from "@/lib/dateUtils";
 import HistoryTable from "./history/HistoryTable";
 import ConfirmModal from "@/components/ui/ConfirmModal";
-import {
-  exportVenueHistoryToCsv,
-  exportEquipmentHistoryToCsv,
-} from "./history/exportHistoryCsvHelper";
-import {
-  exportVenueHistoryToExcel,
-  exportEquipmentHistoryToExcel,
-  exportAllHistoryToExcel,
-} from "./history/exportHistoryExcelHelper";
+// Export helpers are dynamically imported on demand when exporting
 import AcademicTermSelect from "@/components/ui/AcademicTermSelect";
 import FilterDropdown from "@/components/ui/FilterDropdown";
 import ExportButton from "@/components/ui/ExportButton";
@@ -86,12 +78,36 @@ export default function HistoryLog() {
   const officeScope = context?.adminOffice || context?.selectedOffice || "All Offices";
 
   const [historyType, setHistoryType] = useState("venue"); // "venue" | "equipment" | "incidents"
-  const [venueHistory, setVenueHistory] = useState([]);
-  const [equipmentHistory, setEquipmentHistory] = useState([]);
-  const [incidentsHistory, setIncidentsHistory] = useState([]);
+  const [venueHistory, setVenueHistory] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("fsuu_history_venue_bookings") || "[]");
+    } catch {
+      return [];
+    }
+  });
+  const [equipmentHistory, setEquipmentHistory] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("fsuu_history_equipment_borrowings") || "[]");
+    } catch {
+      return [];
+    }
+  });
+  const [incidentsHistory, setIncidentsHistory] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("fsuu_history_incidents") || "[]");
+    } catch {
+      return [];
+    }
+  });
   const [academicTerms, setAcademicTerms] = useState([]);
   const [selectedTermId, setSelectedTermId] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => {
+    try {
+      return !localStorage.getItem("fsuu_history_venue_bookings") && !localStorage.getItem("fsuu_history_equipment_borrowings");
+    } catch {
+      return true;
+    }
+  });
 
   // Sorting: "completed_desc" = Newest, "completed_asc" = Oldest
   const [sortBy, setSortBy] = useState("completed_desc");
@@ -109,9 +125,7 @@ export default function HistoryLog() {
         const res = await api.get("/general/academic-terms");
         if (res.data?.terms) {
           setAcademicTerms(res.data.terms);
-          if (res.data.active_term?.id && !selectedTermId) {
-            setSelectedTermId(String(res.data.active_term.id));
-          }
+          // Default to "" (All Academic Terms) so all lifetime records are immediately visible
         }
       } catch (err) {
         console.error("Failed to load academic terms in HistoryLog:", err);
@@ -227,10 +241,10 @@ export default function HistoryLog() {
       open: true,
       action: "disable",
       payload: { id, refCode, type },
-      title: "Clear History Record",
-      message: `Clear record "${refCode}" from your history view? All statistical reports, analytics, and audit logs remain permanently preserved.`,
+      title: "Hide History Record",
+      message: `Hide record "${refCode}" from your history view? All statistical reports, analytics, and audit logs remain permanently preserved.`,
       variant: "delete",
-      confirmLabel: "Yes, Clear from History"
+      confirmLabel: "Yes, Hide Record"
     });
   };
 
@@ -249,13 +263,13 @@ export default function HistoryLog() {
       } else {
         await api.delete(`/general/history-log/equipment/${id}`);
       }
-      setFeedback(`Record "${refCode}" cleared from history.`);
+      setFeedback(`Record "${refCode}" hidden from history.`);
       setTimeout(() => setFeedback(null), 3000);
     } catch {
       // Rollback
       setVenueHistory(prevVenue);
       setEquipmentHistory(prevEquip);
-      setFeedback(`Failed to clear "${refCode}" — changes reverted.`);
+      setFeedback(`Failed to hide "${refCode}" — changes reverted.`);
       setTimeout(() => setFeedback(null), 3000);
     }
   };
@@ -266,10 +280,10 @@ export default function HistoryLog() {
       open: true,
       action: "clear_all",
       payload: { type: historyType },
-      title: `Clear ${targetLabel} History`,
+      title: `Hide Completed ${targetLabel} Records`,
       message: `Are you sure you want to clear completed records in ${targetLabel} history? This removes completed items from this history view while permanently preserving all statistical reports, analytics, and database records.`,
       variant: "delete",
-      confirmLabel: "Yes, Clear History"
+      confirmLabel: "Yes, Hide Records"
     });
   };
 
@@ -467,6 +481,7 @@ export default function HistoryLog() {
     setIsExportingExcel(true);
     try {
       if (format === "csv") {
+        const { exportVenueHistoryToCsv, exportEquipmentHistoryToCsv } = await import("./history/exportHistoryCsvHelper");
         if ((scope === "venue" || scope === "combined") && venues.length > 0) {
           exportVenueHistoryToCsv(venues, currentTermLabel);
         }
@@ -475,6 +490,7 @@ export default function HistoryLog() {
         }
         notify.success("Export Complete", "History records exported to CSV.");
       } else {
+        const { exportVenueHistoryToExcel, exportEquipmentHistoryToExcel, exportAllHistoryToExcel } = await import("./history/exportHistoryExcelHelper");
         if (scope === "venue") {
           await exportVenueHistoryToExcel(venues, currentTermLabel);
         } else if (scope === "equipment") {
@@ -537,14 +553,6 @@ export default function HistoryLog() {
               icon={Layers}
               title="Select History Category"
             />
-
-            {academicTerms.length > 0 && (
-              <AcademicTermSelect
-                terms={academicTerms}
-                selectedId={selectedTermId}
-                onSelect={(val) => setSelectedTermId(val)}
-              />
-            )}
           </div>
 
           {/* Right side: Sort Dropdown & Export Options */}

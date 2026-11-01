@@ -226,6 +226,26 @@ class SystemSettingController extends Controller
                 ], 422);
             }
 
+            if (is_array($res) && (isset($res['status']) && $res['status'] >= 400 || !empty($res['error']) || (isset($res['success']) && $res['success'] === false))) {
+                $err = $res['message'] ?? $res['error'] ?? 'SMS Gateway returned an error.';
+
+                CommunicationLog::record([
+                    'channel'         => 'sms',
+                    'category'        => 'test_sms',
+                    'recipient_name'  => 'Admin Tester',
+                    'recipient_phone' => $recipient,
+                    'subject'         => 'SMS Connection Test (Failed)',
+                    'message_preview' => $testMsg,
+                    'status'          => 'failed',
+                    'error_message'   => $err,
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => "❌ SMS Gateway Error: {$err}",
+                ], 422);
+            }
+
             CommunicationLog::record([
                 'channel'         => 'sms',
                 'category'        => 'test_sms',

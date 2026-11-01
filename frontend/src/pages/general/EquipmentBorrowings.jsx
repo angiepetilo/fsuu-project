@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from "react";
 import { useOutletContext, useLocation } from "react-router-dom";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
+import AlertModal from "@/components/ui/AlertModal";
 import {
   Loader2, AlertCircle, Eye, PackageOpen, ChevronLeft, ChevronRight,
   Search, Calendar, X, Clock, Filter
@@ -106,8 +107,20 @@ export default function EquipmentBorrowings() {
   const location = useLocation();
   const officeScope = context?.adminOffice || context?.selectedOffice || "All Offices";
 
-  const [borrowings, setBorrowings] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [borrowings, setBorrowings] = useState(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem("fsuu_cache_equip_borrowings") || "[]");
+    } catch {
+      return [];
+    }
+  });
+  const [loading, setLoading] = useState(() => {
+    try {
+      return !sessionStorage.getItem("fsuu_cache_equip_borrowings");
+    } catch {
+      return true;
+    }
+  });
   const [actionLoading, setActionLoading] = useState(null);
   const [error, setError] = useState(null);
 
@@ -126,16 +139,43 @@ export default function EquipmentBorrowings() {
   const [showNotifyModal, setShowNotifyModal] = useState(false);
   const [notifyReason, setNotifyReason] = useState("");
   const [feedbackMsg, setFeedbackMsg] = useState(null);
+  const [completeSuccessModal, setCompleteSuccessModal] = useState({
+    open: false,
+    title: "",
+    message: "",
+  });
+  const handledTargetRef = useRef(null);
+
+  const clearDeepLinkUrl = useCallback(() => {
+    try {
+      if (window.history.replaceState) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+      if (location.state?.selectedId) {
+        location.state.selectedId = null;
+      }
+    } catch {}
+  }, [location.state]);
 
   const selected = borrowings.find((b) => String(b.id) === String(selectedId)) || null;
 
   const setSelected = (val) => {
     if (!val) {
       setSelectedId(null);
+      clearDeepLinkUrl();
+    } else if (typeof val === "function") {
+      setBorrowings(prev => {
+        const currentItem = prev.find(b => String(b.id) === String(selectedId));
+        if (!currentItem) return prev;
+        const updated = val(currentItem);
+        return prev.map(b => String(b.id) === String(selectedId) ? { ...b, ...updated } : b);
+      });
     } else if (val.id) {
       setSelectedId(val.id);
+      setBorrowings(prev => prev.map(b => String(b.id) === String(val.id) ? { ...b, ...val } : b));
     } else {
       setSelectedId(null);
+      clearDeepLinkUrl();
     }
   };
   const [currentPage, setCurrentPage] = useState(1);
@@ -159,10 +199,16 @@ export default function EquipmentBorrowings() {
       if (borrowsRes.status === "fulfilled") {
         const data = borrowsRes.value.data?.data ?? (Array.isArray(borrowsRes.value.data) ? borrowsRes.value.data : []);
         setBorrowings(data);
+        try {
+          sessionStorage.setItem("fsuu_cache_equip_borrowings", JSON.stringify(data));
+        } catch {}
       }
       if (unitsRes.status === "fulfilled") {
         const uData = Array.isArray(unitsRes.value.data) ? unitsRes.value.data : (unitsRes.value.data?.data || []);
         setPhysicalUnits(uData);
+        try {
+          sessionStorage.setItem("fsuu_cache_physical_units", JSON.stringify(uData));
+        } catch {}
       }
     } catch {
       setError("Unable to sync equipment borrowings data.");
@@ -208,6 +254,9 @@ export default function EquipmentBorrowings() {
     }
     if (!targetId && !targetRef) return;
 
+    const targetKey = `${targetId || ""}-${targetRef || ""}`;
+    if (handledTargetRef.current === targetKey) return;
+
     // 1. Try finding in loaded borrowings list
     if (borrowings.length > 0) {
       const match = borrowings.find(b => 
@@ -215,14 +264,12 @@ export default function EquipmentBorrowings() {
         (targetRef && (b.reference_code === targetRef || b.tracking_number?.reference_code === targetRef))
       );
       if (match) {
+        handledTargetRef.current = targetKey;
         setSelectedId(match.id);
         const matchStatus = (match.status || match.tracking_number?.status || "").toLowerCase();
-        if (!paramStatus) {
-          if (["pending", "approved", "ongoing", "on-going", "incomplete", "released"].includes(matchStatus)) {
-            setStatusFilter(["ongoing", "on-going", "released"].includes(matchStatus) ? "ongoing" : matchStatus);
-          } else {
-            setStatusFilter("all");
-          }
+        // Keep current statusFilter or 'all' unless an explicit ?status= parameter was passed in URL
+        if (paramStatus && ["pending", "approved", "ongoing", "incomplete"].includes(paramStatus)) {
+          setStatusFilter(paramStatus);
         }
         return;
       }
@@ -245,18 +292,16 @@ export default function EquipmentBorrowings() {
         }
 
         if (isSubscribed && record && record.id) {
+          handledTargetRef.current = targetKey;
           setBorrowings(prev => {
             if (prev.some(b => String(b.id) === String(record.id))) return prev;
             return [record, ...prev];
           });
           setSelectedId(record.id);
           const matchStatus = (record.status || record.tracking_number?.status || "").toLowerCase();
-          if (!paramStatus) {
-            if (["pending", "approved", "ongoing", "on-going", "incomplete", "released"].includes(matchStatus)) {
-              setStatusFilter(["ongoing", "on-going", "released"].includes(matchStatus) ? "ongoing" : matchStatus);
-            } else {
-              setStatusFilter("all");
-            }
+          // Keep current statusFilter or 'all' unless an explicit ?status= parameter was passed in URL
+          if (paramStatus && ["pending", "approved", "ongoing", "incomplete"].includes(paramStatus)) {
+            setStatusFilter(paramStatus);
           }
         }
       } catch (err) {
@@ -396,14 +441,22 @@ export default function EquipmentBorrowings() {
       const refCode = selected?.reference_code || selected?.tracking_number?.reference_code || `EQ-${id}`;
 
       if (type === "complete") {
-        notify.success("Equipment Returned", `Borrowing request (${refCode}) completed and archived to History Log.`);
         setSelectedId(null); // Close modal automatically on complete!
+        clearDeepLinkUrl();
+        handledTargetRef.current = `${id}-completed`;
+        setCompleteSuccessModal({
+          open: true,
+          title: "Successfully Completed",
+          message: `Borrowing request (${refCode}) has been successfully completed and archived to the History Log. An equipment clearance receipt has been sent to the borrower.`,
+        });
       } else if (type === "reject") {
         notify.error("Borrow Request Rejected", `Borrowing request (${refCode}) rejected and transferred to History Log.`);
         setSelectedId(null);
+        clearDeepLinkUrl();
       } else if (type === "cancel") {
         notify.warning("Borrow Request Cancelled", `Borrowing request (${refCode}) cancelled and transferred to History Log.`);
         setSelectedId(null);
+        clearDeepLinkUrl();
       } else if (type === "approve") {
         notify.success("Borrow Request Approved", `Borrowing request (${refCode}) has been approved.`);
       } else if (type === "ongoing") {
@@ -608,14 +661,18 @@ export default function EquipmentBorrowings() {
                     <td className="px-4 py-3.5 font-mono text-xs font-bold text-blue-600 whitespace-nowrap">{refCode}</td>
                     <td className="px-4 py-3.5 font-extrabold text-slate-900">{requestor}</td>
                     <td className="px-4 py-3.5 text-slate-700">{department}</td>
-                    <td className="px-4 py-3.5">
-                      <span className="font-semibold text-slate-800 dark:text-slate-200 line-clamp-2 max-w-[220px]" title={eqTypes}>
-                        {eqTypes}
-                      </span>
+                    <td className="px-4 py-3.5 whitespace-nowrap">
+                      {eqTypes !== "-" ? (
+                        <span className="font-extrabold text-blue-700 dark:text-blue-400 bg-blue-50/80 dark:bg-blue-950/40 px-2.5 py-1 rounded-lg border border-blue-200/80 dark:border-blue-800/60 inline-block max-w-[220px] truncate" title={eqTypes}>
+                          {eqTypes}
+                        </span>
+                      ) : (
+                        <span className="font-bold text-slate-400">-</span>
+                      )}
                     </td>
                     <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{usageDate}</td>
                     <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{timeRange}</td>
-                    <td className="px-4 py-3.5">
+                    <td className="px-4 py-3.5 whitespace-nowrap">
                       <div className="flex flex-col items-start gap-1">
                         <StatusBadge status={currentStatus} />
                         {overdueMins > 0 && <OverdueBadge minutesOverdue={overdueMins} />}
@@ -677,8 +734,14 @@ export default function EquipmentBorrowings() {
                   </div>
                   <div className="bg-slate-50 p-3 rounded-xl text-xs space-y-1.5 border border-slate-100">
                     <div className="flex justify-between items-center text-slate-700">
-                      <span className="text-slate-500 font-medium">Equipment:</span>
-                      <span className="font-bold text-slate-900 truncate max-w-[200px]" title={eqTypes}>{eqTypes}</span>
+                      <span className="text-slate-500 font-medium">Equipment Types:</span>
+                      {eqTypes !== "-" ? (
+                        <span className="font-extrabold text-blue-700 dark:text-blue-400 bg-blue-50/80 dark:bg-blue-950/40 px-2.5 py-0.5 rounded-lg border border-blue-200/80 dark:border-blue-800/60 inline-block max-w-[180px] truncate" title={eqTypes}>
+                          {eqTypes}
+                        </span>
+                      ) : (
+                        <span className="font-bold text-slate-400">-</span>
+                      )}
                     </div>
                     <div className="flex justify-between items-center text-slate-700">
                       <span className="text-slate-500 font-medium">Schedule:</span>
@@ -749,6 +812,17 @@ export default function EquipmentBorrowings() {
           setActionLoading={setActionLoading}
         />
       </Suspense>
+
+      {/* Completion Confirmation Dialog with Done Button */}
+      <AlertModal
+        open={completeSuccessModal.open}
+        onClose={() => setCompleteSuccessModal({ open: false, title: "", message: "" })}
+        variant="success"
+        title={completeSuccessModal.title || "Successfully Completed"}
+        message={completeSuccessModal.message}
+        buttonLabel="Done"
+        buttonClassName="mt-5 w-full py-2.5 min-h-[42px] bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
+      />
     </div>
   );
 }

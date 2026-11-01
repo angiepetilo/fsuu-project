@@ -27,8 +27,11 @@ export default function EquipBorrowHeader({
 }) {
   const currentRawStatus = (currentStatus || selected?.status || selected?.tracking_number?.status || "").toLowerCase();
   const isReleasedOrOngoing = ["ongoing", "on-going", "released", "in_use", "in-use", "borrowed"].includes(currentRawStatus);
+  const isCompletedOrReturned = ["completed", "returned", "cleared", "done", "late return"].includes(currentRawStatus);
 
-  const isLateReturn = Boolean(selected?.is_late) ||
+  const isCancelledOrRejected = ["cancelled", "rejected", "cancelled_by_user", "cancel"].some(s => currentRawStatus.includes(s));
+  const isLateReturn = !isCancelledOrRejected && (
+    Boolean(selected?.is_late) ||
     selected?.is_late === 1 ||
     selected?.is_late === "1" ||
     selected?.is_late === true ||
@@ -36,7 +39,8 @@ export default function EquipBorrowHeader({
     (selected?.timeliness || "").toLowerCase().includes("late") ||
     String(selected?.violation_type || "").toLowerCase().includes("late") ||
     String(selected?.violation || "").toLowerCase().includes("late") ||
-    Number(selected?.minutes_late || selected?.inspection?.minutes_late || 0) > 0;
+    Number(selected?.minutes_late || selected?.inspection?.minutes_late || 0) > 0
+  );
 
   const minutesLateNum = Number(selected?.minutes_late || selected?.inspection?.minutes_late || 0);
 
@@ -117,10 +121,10 @@ export default function EquipBorrowHeader({
                   onClick={handleResendEmail}
                   disabled={resendLoading}
                   className="px-2.5 py-1 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-[11px] font-bold border border-slate-300 dark:border-slate-700 flex items-center gap-1 cursor-pointer disabled:opacity-50 transition-colors shadow-2xs"
-                  title="Resend email confirmation to borrower"
+                  title={isCompletedOrReturned ? "Send Equipment Clearance Receipt email to borrower" : "Resend email confirmation to borrower"}
                 >
                   {resendLoading ? <Loader2 size={12} className="animate-spin" /> : <Mail size={12} className="text-slate-600 dark:text-slate-300" />}
-                  <span>Resend Email</span>
+                  <span>{isCompletedOrReturned ? "Send Clearance Receipt" : "Resend Email"}</span>
                 </button>
 
                 {canSendReminder && (

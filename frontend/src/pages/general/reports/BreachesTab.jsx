@@ -363,13 +363,13 @@ export default function BreachesTab({
   return (
     <div className="space-y-6">
       {/* 1. Department Violation Overview Table */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <div className="flex items-center justify-between p-4 border-b border-slate-100">
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800">
           <div>
-            <h3 className="font-bold text-slate-900 text-sm">
+            <h3 className="font-bold text-slate-900 dark:text-white text-sm">
               Department Violation Summary
             </h3>
-            <p className="text-[11px] text-slate-500 font-medium">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
               Aggregated rule breaches, facility policy violations, and equipment damages by department.
             </p>
           </div>
@@ -378,34 +378,53 @@ export default function BreachesTab({
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-slate-50/80 border-b border-slate-200">
-                {["#", "Department", "Policy Violation", "Equipment Violation"].map((h) => (
-                  <th key={h} className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">
-                    {h}
-                  </th>
-                ))}
+              <tr className="bg-slate-50/80 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800">
+                <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-12">#</th>
+                <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Department</th>
+                <th className="px-4 py-3 text-center text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">Policy Violation</th>
+                <th className="px-4 py-3 text-center text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">Late Return</th>
+                <th className="px-4 py-3 text-center text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">Damaged</th>
+                <th className="px-4 py-3 text-center text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">Lost</th>
+                <th className="px-4 py-3 text-center text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">Total</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-xs font-semibold">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs font-semibold">
               {displaySummaries.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="text-center py-10 text-slate-400">
+                  <td colSpan={7} className="text-center py-10 text-slate-400 dark:text-slate-500">
                     No department breaches or late return violations recorded.
                   </td>
                 </tr>
               ) : (
-                displaySummaries.map((v, idx) => (
-                  <tr key={v.id || idx} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="px-4 py-3.5 font-bold text-slate-400">{idx + 1}</td>
-                    <td className="px-4 py-3.5 font-bold text-slate-900">{v.department || v.program || "Academic Dept"}</td>
-                    <td className="px-4 py-3.5 font-semibold text-rose-600">
-                      {v.venue_violations ?? 0}
-                    </td>
-                    <td className="px-4 py-3.5 font-semibold text-slate-800">
-                      {`${v.late_returns || 0} Late, ${v.equipment_damages || 0} Damaged, ${v.equipment_lost || 0} Lost`}
-                    </td>
-                  </tr>
-                ))
+                displaySummaries.map((v, idx) => {
+                  const policyCount = Number(v.venue_violations ?? 0);
+                  const lateCount = Number(v.late_returns ?? 0);
+                  const damagedCount = Number(v.equipment_damages ?? 0);
+                  const lostCount = Number(v.equipment_lost ?? 0);
+                  const totalCount = policyCount + lateCount + damagedCount + lostCount;
+
+                  return (
+                    <tr key={v.id || idx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
+                      <td className="px-4 py-3 font-bold text-slate-400">{idx + 1}</td>
+                      <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{v.department || v.program || "Academic Dept"}</td>
+                      <td className={`px-4 py-3 text-center font-bold ${policyCount > 0 ? "text-purple-600 dark:text-purple-400" : "text-slate-400 dark:text-slate-500"}`}>
+                        {policyCount}
+                      </td>
+                      <td className={`px-4 py-3 text-center font-bold ${lateCount > 0 ? "text-amber-600 dark:text-amber-400" : "text-slate-400 dark:text-slate-500"}`}>
+                        {lateCount}
+                      </td>
+                      <td className={`px-4 py-3 text-center font-bold ${damagedCount > 0 ? "text-rose-600 dark:text-rose-400" : "text-slate-400 dark:text-slate-500"}`}>
+                        {damagedCount}
+                      </td>
+                      <td className={`px-4 py-3 text-center font-bold ${lostCount > 0 ? "text-rose-600 dark:text-rose-400" : "text-slate-400 dark:text-slate-500"}`}>
+                        {lostCount}
+                      </td>
+                      <td className={`px-4 py-3 text-center font-extrabold ${totalCount > 0 ? "text-slate-900 dark:text-white" : "text-slate-400 dark:text-slate-500"}`}>
+                        {totalCount}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -413,24 +432,24 @@ export default function BreachesTab({
       </div>
 
       {/* 2. Granular Incident & Damage Activity Log */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
           <div>
-            <h3 className="font-bold text-slate-900 text-sm">
+            <h3 className="font-bold text-slate-900 dark:text-white text-sm">
               Incident and Damages View
             </h3>
-            <p className="text-[11px] text-slate-500 font-medium">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
               Individual venue booking violations, damaged or lost units, and equipment return incidents.
             </p>
           </div>
-          <span className="text-xs font-semibold text-slate-500">
+          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
             {incidentRecords.length} Recorded
           </span>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
-            <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-500 uppercase text-[11px] font-semibold">
+            <thead className="bg-slate-50/80 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 uppercase text-[11px] font-semibold">
               <tr>
                 <th className="px-4 py-3.5">Reference</th>
                 <th className="px-4 py-3.5">Incident Type</th>
@@ -440,10 +459,10 @@ export default function BreachesTab({
                 <th className="px-4 py-3.5">Date</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 font-medium">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
               {incidentRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-10 text-slate-400">
+                  <td colSpan={6} className="text-center py-10 text-slate-400 dark:text-slate-500">
                     No active incident, damage, or violation records detected for this term.
                   </td>
                 </tr>
@@ -452,10 +471,10 @@ export default function BreachesTab({
                   .slice((incidentPage - 1) * INCIDENTS_PER_PAGE, incidentPage * INCIDENTS_PER_PAGE)
                   .map((inc) => {
                     return (
-                      <tr key={inc.id} className="hover:bg-slate-50/70 transition-colors">
+                      <tr key={inc.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
                         {/* Reference Code */}
                         <td className="px-4 py-3 whitespace-nowrap">
-                          <span className="font-mono font-bold text-blue-600 text-xs">
+                          <span className="font-mono font-bold text-blue-600 dark:text-blue-400 text-xs">
                             {inc.ref}
                           </span>
                         </td>
@@ -470,22 +489,22 @@ export default function BreachesTab({
                         {/* Requestor & Department */}
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="flex flex-col">
-                            <span className="font-bold text-slate-900">{inc.filer}</span>
-                            <span className="text-[10.5px] text-slate-500 font-semibold">{inc.department}</span>
+                            <span className="font-bold text-slate-900 dark:text-white">{inc.filer}</span>
+                            <span className="text-[10.5px] text-slate-500 dark:text-slate-400 font-semibold">{inc.department}</span>
                           </div>
                         </td>
 
                         {/* Facility / Item */}
                         <td className="px-4 py-3 whitespace-nowrap">
-                          <span className="font-semibold text-slate-800">{inc.target}</span>
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">{inc.target}</span>
                         </td>
 
                         {/* Breach & Damage Details */}
                         <td className="px-4 py-3 max-w-sm">
                           <div className="flex flex-col">
-                            <span className="font-semibold text-slate-800">{inc.details}</span>
+                            <span className="font-semibold text-slate-800 dark:text-slate-200">{inc.details}</span>
                             {inc.notes && (
-                              <span className="text-[11px] text-slate-500 italic mt-0.5 line-clamp-2">
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 italic mt-0.5 line-clamp-2">
                                 "{inc.notes}"
                               </span>
                             )}
@@ -493,7 +512,7 @@ export default function BreachesTab({
                         </td>
 
                         {/* Date */}
-                        <td className="px-4 py-3 whitespace-nowrap font-mono text-[11px] text-slate-600">
+                        <td className="px-4 py-3 whitespace-nowrap font-mono text-[11px] text-slate-600 dark:text-slate-400">
                           {inc.date ? new Date(inc.date).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : "—"}
                         </td>
                       </tr>
@@ -505,7 +524,7 @@ export default function BreachesTab({
         </div>
 
         {incidentRecords.length > 0 && (
-          <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between">
+          <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-400">
               Showing {(incidentPage - 1) * INCIDENTS_PER_PAGE + 1} to {Math.min(incidentPage * INCIDENTS_PER_PAGE, incidentRecords.length)} of {incidentRecords.length}
             </span>
@@ -514,18 +533,18 @@ export default function BreachesTab({
                 type="button"
                 disabled={incidentPage <= 1}
                 onClick={() => setIncidentPage((p) => Math.max(1, p - 1))}
-                className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
               >
                 <ChevronLeft size={14} />
               </button>
-              <span className="text-xs font-bold text-slate-600 px-2">
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-300 px-2">
                 {incidentPage} / {Math.ceil(incidentRecords.length / INCIDENTS_PER_PAGE) || 1}
               </span>
               <button
                 type="button"
                 disabled={incidentPage >= Math.ceil(incidentRecords.length / INCIDENTS_PER_PAGE)}
                 onClick={() => setIncidentPage((p) => Math.min(Math.ceil(incidentRecords.length / INCIDENTS_PER_PAGE) || 1, p + 1))}
-                className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
               >
                 <ChevronRight size={14} />
               </button>
@@ -534,19 +553,19 @@ export default function BreachesTab({
         )}
 
         {/* User Violations Report Typing Box */}
-        <div className="p-4 sm:p-5 bg-slate-50/70 border-t border-slate-100 space-y-2">
-          <label className="block text-xs font-bold text-slate-800">
-            Rule &amp; Late Return Violations Report Notes
+        <div className="p-4 bg-slate-50/70 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+            Rule &amp; Late Return Violations Export Notes <span className="text-[11px] font-normal text-slate-400 dark:text-slate-500">(Included in PDF / Excel)</span>
           </label>
           <textarea
-            rows={3}
+            rows={2}
             value={violationNotes}
             onChange={(e) => {
               setViolationNotes(e.target.value);
               localStorage.setItem("fsuu_report_breaches_notes", e.target.value);
             }}
-            placeholder="Type your rule breaches, late return violations report summary, disciplinary notes, or department compliance recommendations here..."
-            className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-blue-600 transition-all resize-y"
+            placeholder="Add rule breaches, late return violations summary, or compliance notes for exported reports..."
+            className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:border-blue-600 transition-all resize-y"
           />
         </div>
       </div>

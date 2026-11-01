@@ -461,27 +461,8 @@ export default function Step3Details({
       </div>
 
       <form onSubmit={handleDetailsSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-        {/* COMMON REQUIRED FIELDS: Structured Name Inputs (Last Name First) */}
+        {/* COMMON REQUIRED FIELDS: Structured Name Inputs (First Name, Middle Name, Last Name, Suffix) */}
         <div className="col-span-1 sm:col-span-2 grid grid-cols-1 sm:grid-cols-4 gap-3">
-          <div className="flex flex-col gap-1.5 sm:col-span-1">
-            <label className="text-xs font-bold text-slate-900">Last Name <span className="text-red-500">*</span></label>
-            <input
-              type="text"
-              required
-              value={lastName}
-              onChange={e => {
-                const val = e.target.value;
-                setLastName(val);
-                if (setFullName) {
-                  const given = [firstName, middleName].filter(Boolean).join(" ");
-                  setFullName(val ? (given ? `${val}, ${given}${suffix ? ` ${suffix}` : ''}` : val) : [given, suffix].filter(Boolean).join(" "));
-                }
-              }}
-              placeholder="Dela Cruz"
-              className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all"
-            />
-          </div>
-
           <div className="flex flex-col gap-1.5 sm:col-span-1">
             <label className="text-xs font-bold text-slate-900">First Name <span className="text-red-500">*</span></label>
             <input
@@ -515,6 +496,25 @@ export default function Step3Details({
                 }
               }}
               placeholder="Santos"
+              className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5 sm:col-span-1">
+            <label className="text-xs font-bold text-slate-900">Last Name <span className="text-red-500">*</span></label>
+            <input
+              type="text"
+              required
+              value={lastName}
+              onChange={e => {
+                const val = e.target.value;
+                setLastName(val);
+                if (setFullName) {
+                  const given = [firstName, middleName].filter(Boolean).join(" ");
+                  setFullName(val ? (given ? `${val}, ${given}${suffix ? ` ${suffix}` : ''}` : val) : [given, suffix].filter(Boolean).join(" "));
+                }
+              }}
+              placeholder="Dela Cruz"
               className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all"
             />
           </div>
@@ -744,7 +744,7 @@ export default function Step3Details({
           )}
 
           {/* Duplicate / OTP Error Alert Banner */}
-          {requireVerification && otpChannel === "email" && otpError && !isOtpRequested && otpError !== emailCheckMessage && (
+          {requireVerification && otpChannel === "email" && otpError && !isOtpRequested && emailCheckStatus !== "invalid" && otpError !== emailCheckMessage && (
             <div className="mt-2.5 p-3.5 bg-rose-50 border-2 border-rose-300 rounded-2xl text-xs font-bold text-rose-800 flex items-start gap-2.5 shadow-sm animate-in fade-in">
               <AlertCircle size={16} className="text-rose-600 shrink-0 mt-0.5" />
               <div className="flex-1 space-y-1">

@@ -629,6 +629,13 @@ class EquipmentCategoryService
         // 3. Equipment notes or freeform text (for bookings before physical units are assigned)
         $eqRaw = $vb->equipment_notes ?? '';
         if (is_string($eqRaw) && !empty($eqRaw)) {
+            // Strip out free-text remarks so they are never counted as requested equipment
+            $eqRaw = trim(explode('Equipment-Needed:', $eqRaw)[0]);
+            $eqRaw = trim(rtrim($eqRaw, '|'));
+            if (empty($eqRaw)) {
+                return $count;
+            }
+
             if (str_starts_with(trim($eqRaw), '[') || str_starts_with(trim($eqRaw), '{')) {
                 try {
                     $json = json_decode($eqRaw, true);

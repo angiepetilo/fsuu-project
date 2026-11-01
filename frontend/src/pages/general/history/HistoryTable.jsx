@@ -307,7 +307,7 @@ export default function HistoryTable({
                   const hasDamage = b.has_damage === true || b.has_damage === 1 || b.has_damage === "1" || String(b.has_damage).toLowerCase() === "true";
                   const hasViolation = b.violation === true || b.violation === 1 || b.violation === "1" || String(b.violation).toLowerCase() === "true" || (typeof b.violation === 'string' && b.violation.length > 0 && b.violation !== "null");
                   const isSolved = st === "solved";
-                  const isLate = Boolean(b.is_late) || b.is_late === 1 || b.is_late === "1" || b.is_late === true || st.includes("late") || (b.timeliness || "").toLowerCase().includes("late") || noteStr.includes("late return") || (b.violation_type || "").toLowerCase().includes("late");
+                  const isLate = !isCancelled && !isRejected && Boolean(b.is_late) || b.is_late === 1 || b.is_late === "1" || b.is_late === true || st.includes("late") || (b.timeliness || "").toLowerCase().includes("late") || noteStr.includes("late return") || (b.violation_type || "").toLowerCase().includes("late");
                   
                   const isStrictlyLateOnly = isLate && (!hasDamage) && (!noteStr.includes("policy violation")) && (!noteStr.includes("damaged")) && (!noteStr.includes("lost")) && (b.inspection_condition !== "damaged");
 
@@ -399,9 +399,9 @@ export default function HistoryTable({
                           <button
                             type="button"
                             onClick={() => { handleDeleteHistory(b.id, refCode, "venue"); setActiveMenuId(null); }}
-                            className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-rose-50 text-rose-600 flex items-center gap-2 cursor-pointer font-bold"
+                            className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-100 text-slate-700 flex items-center gap-2 cursor-pointer font-bold"
                           >
-                            <Trash2 size={13} className="text-rose-500" /> Clear / Hide
+                            <EyeOff size={13} className="text-slate-500" /> Hide
                           </button>
                         </ActionMenuPopover>
                       </td>
@@ -439,7 +439,7 @@ export default function HistoryTable({
               const hasViolation = b.violation === true || b.violation === 1 || b.violation === "1" || String(b.violation).toLowerCase() === "true";
               const isSolved = st === "solved";
               
-              const isLate = Boolean(b.is_late) || b.is_late === 1 || b.is_late === "1" || b.is_late === true || st.includes("late") || (b.timeliness || "").toLowerCase().includes("late") || noteStr.includes("late return") || (b.violation_type || "").toLowerCase().includes("late");
+              const isLate = !isCancelled && !isRejected && Boolean(b.is_late) || b.is_late === 1 || b.is_late === "1" || b.is_late === true || st.includes("late") || (b.timeliness || "").toLowerCase().includes("late") || noteStr.includes("late return") || (b.violation_type || "").toLowerCase().includes("late");
               
               const isStrictlyLateOnly = isLate && (!hasDamage) && (!noteStr.includes("policy violation")) && (!noteStr.includes("damaged")) && (!noteStr.includes("lost")) && (b.inspection_condition !== "damaged");
 
@@ -628,7 +628,7 @@ export default function HistoryTable({
 
                   const isDamaged = st === "damaged" || Boolean(b.has_damage) || hasDamagedInUnits;
                   const isLost = st === "lost" || Boolean(b.is_lost) || hasLostInUnits;
-                  const isLate = Boolean(b.is_late) || b.is_late === 1 || b.is_late === "1" || b.is_late === true || st.includes("late") || (b.timeliness || "").toLowerCase().includes("late") || String(b.violation_type || "").toLowerCase().includes("late") || String(b.violation || "").toLowerCase().includes("late");
+                  const isLate = !isCancelled && !isRejected && Boolean(b.is_late) || b.is_late === 1 || b.is_late === "1" || b.is_late === true || st.includes("late") || (b.timeliness || "").toLowerCase().includes("late") || String(b.violation_type || "").toLowerCase().includes("late") || String(b.violation || "").toLowerCase().includes("late");
                   const isOtherBreach = Boolean(b.violation) && !isLate && !isDamaged && !isLost;
 
                   return (
@@ -717,9 +717,9 @@ export default function HistoryTable({
                           <button
                             type="button"
                             onClick={() => { handleDeleteHistory(b.id, refCode, "equipment"); setActiveMenuId(null); }}
-                            className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-rose-50 text-rose-600 flex items-center gap-2 cursor-pointer font-bold"
+                            className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-100 text-slate-700 flex items-center gap-2 cursor-pointer font-bold"
                           >
-                            <Trash2 size={13} className="text-rose-500" /> Clear / Hide
+                            <EyeOff size={13} className="text-slate-500" /> Hide
                           </button>
                         </ActionMenuPopover>
                       </td>
@@ -772,7 +772,7 @@ export default function HistoryTable({
 
               const isDamaged = st === "damaged" || Boolean(b.has_damage) || mobHasDamagedInUnits;
               const isLost = st === "lost" || Boolean(b.is_lost) || mobHasLostInUnits;
-              const isLate = Boolean(b.is_late) || b.is_late === 1 || b.is_late === "1" || b.is_late === true || st.includes("late") || (b.timeliness || "").toLowerCase().includes("late");
+              const isLate = !isCancelled && !isRejected && Boolean(b.is_late) || b.is_late === 1 || b.is_late === "1" || b.is_late === true || st.includes("late") || (b.timeliness || "").toLowerCase().includes("late");
 
               return (
                 <div key={`mob-eq-${b.id || idx}`} className="p-4 space-y-2.5">

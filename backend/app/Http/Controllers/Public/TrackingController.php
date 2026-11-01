@@ -15,7 +15,9 @@ class TrackingController extends Controller
     public function track(TrackBookingRequest $request): JsonResponse
     {
         try {
-            app(\App\Services\NoShowAutoReleaseService::class)->processNoShows();
+            if (\Illuminate\Support\Facades\Cache::add('bg_booking_checks_throttled', true, 45)) {
+                app(\App\Services\NoShowAutoReleaseService::class)->processNoShows();
+            }
         } catch (\Throwable $e) {}
 
         $referenceCode = trim($request->input('reference_code') ?? '');

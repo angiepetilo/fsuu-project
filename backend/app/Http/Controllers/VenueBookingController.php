@@ -26,10 +26,12 @@ class VenueBookingController extends Controller
     {
         $this->authorize('viewAny', VenueBooking::class);
 
-        // Automatically auto-release unclaimed/expired bookings based on dynamic operating hours rules and check overdue alerts
+        // Automatically auto-release unclaimed/expired bookings based on dynamic operating hours rules and check overdue alerts (throttled to once every 45s)
         try {
-            app(\App\Services\NoShowAutoReleaseService::class)->processNoShows();
-            app(\App\Services\OverdueAndExceededAlertService::class)->processAlerts();
+            if (\Illuminate\Support\Facades\Cache::add('bg_booking_checks_throttled', true, 45)) {
+                app(\App\Services\NoShowAutoReleaseService::class)->processNoShows();
+                app(\App\Services\OverdueAndExceededAlertService::class)->processAlerts();
+            }
         } catch (\Throwable $e) {}
 
         $user = $request->user();
@@ -534,10 +536,16 @@ class VenueBookingController extends Controller
                                 });
                     }
 
-                    $otherEquipBorrows = $eqQuery->where(function ($q) use ($dateOfUsage, $reservationEndDate, $timeStart, $timeEnd) {
-                        $q->where('equipment_borrows.date_of_usage', '<=', $reservationEndDate)
-                          ->whereRaw('COALESCE(equipment_borrows.reservation_end_date, equipment_borrows.date_of_usage) >= ?', [$dateOfUsage])
-                          ->where('equipment_borrows.time_start', '<', $timeEnd)
+                    // equipment_borrows has date_of_usage but no reservation_end_date — use due_date or date_of_usage as fallback
+                    $ebHasDueDate = Schema::hasColumn('equipment_borrows', 'due_date');
+                    $otherEquipBorrows = $eqQuery->where(function ($q) use ($dateOfUsage, $reservationEndDate, $timeStart, $timeEnd, $ebHasDueDate) {
+                        $q->where('equipment_borrows.date_of_usage', '<=', $reservationEndDate);
+                        if ($ebHasDueDate) {
+                            $q->whereRaw('COALESCE(equipment_borrows.due_date, equipment_borrows.date_of_usage) >= ?', [$dateOfUsage]);
+                        } else {
+                            $q->where('equipment_borrows.date_of_usage', '>=', $dateOfUsage);
+                        }
+                        $q->where('equipment_borrows.time_start', '<', $timeEnd)
                           ->where('equipment_borrows.time_end', '>', $timeStart);
                     })
                     ->select('equipment_borrows.id', 'equipment_borrows.assigned_units')
@@ -596,6 +604,23 @@ class VenueBookingController extends Controller
             return response()->json($avrVenueBooking->fresh(['venue', 'trackingNumber']));
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error("VenueBookingController::assignUnits error: " . $e->getMessage());
+
+            // Still persist the assignment and update unit statuses even if overlap-check had an error
+            try {
+                $avrVenueBooking->update(['assigned_units' => $assignedData]);
+                if (!empty($barcodes) && Schema::hasTable('equipment_units')) {
+                    $currentStatus = strtolower($avrVenueBooking->status ?? '');
+                    $newUnitStatus = in_array($currentStatus, ['ongoing', 'on-going', 'post-inspection']) ? 'released' : 'reserved';
+                    \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
+                        $q->whereIn('barcode', $barcodes)->orWhereIn('serial_number', $barcodes);
+                    })->update(['status' => $newUnitStatus]);
+                    \App\Services\EquipmentCategoryService::autoSyncUnitConditions();
+                    \App\Services\EquipmentCategoryService::syncCategoryStock();
+                }
+            } catch (\Throwable $t2) {
+                \Illuminate\Support\Facades\Log::error("VenueBookingController::assignUnits fallback error: " . $t2->getMessage());
+            }
+
             return response()->json($avrVenueBooking->fresh(['venue', 'trackingNumber']));
         }
     }

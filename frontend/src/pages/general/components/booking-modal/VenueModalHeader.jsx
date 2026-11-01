@@ -24,14 +24,17 @@ export default function VenueModalHeader({
     ? getInspectionEligibility(scheduledEndDate, scheduledEndTime, 30)
     : { isReady: true, minutesUntilUnlock: 0, unlockTimeStr: "", reason: "" };
 
-  const isLateReturn = Boolean(selected?.is_late) ||
+  const isCancelledOrRejected = ["cancelled", "rejected", "cancelled_by_user", "cancel"].some(s => currentRawStatus.includes(s));
+  const isLateReturn = !isCancelledOrRejected && (
+    Boolean(selected?.is_late) ||
     selected?.is_late === 1 ||
     selected?.is_late === "1" ||
     selected?.is_late === true ||
     (selected?.timeliness || "").toLowerCase().includes("late") ||
     String(selected?.violation_type || "").toLowerCase().includes("late") ||
     String(selected?.violation || "").toLowerCase().includes("late") ||
-    Number(selected?.minutes_late || selected?.inspection?.minutes_late || 0) > 0;
+    Number(selected?.minutes_late || selected?.inspection?.minutes_late || 0) > 0
+  );
 
   const minutesLateNum = Number(selected?.minutes_late || selected?.inspection?.minutes_late || 0);
 

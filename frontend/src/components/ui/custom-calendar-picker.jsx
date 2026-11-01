@@ -124,7 +124,7 @@ export function CalendarHeader({
                   }}
                   className={`text-xs font-semibold py-1.5 px-2 rounded-lg transition-colors cursor-pointer text-center ${
                     idx === currentMonth
-                      ? "bg-white text-black font-black"
+                      ? "bg-blue-600 text-white font-black"
                       : "text-slate-300 hover:bg-slate-800 hover:text-white"
                   }`}
                 >
@@ -172,7 +172,7 @@ export function CalendarHeader({
                   }}
                   className={`text-xs font-semibold py-1.5 px-3 rounded-lg transition-colors cursor-pointer text-left ${
                     y === currentYear
-                      ? "bg-white text-black font-black"
+                      ? "bg-blue-600 text-white font-black"
                       : "text-slate-300 hover:bg-slate-800 hover:text-white"
                   }`}
                 >
@@ -452,13 +452,13 @@ export default function CustomCalendarPicker({
           if (isDisabled) {
             cellStyle = "text-slate-600 opacity-40 cursor-not-allowed line-through";
           } else if (isStart || isSelected || isEnd) {
-            // Active Selected Capsule (matches screenshot: white capsule with dark text)
-            cellStyle = "bg-white text-black font-black rounded-2xl shadow-lg ring-2 ring-white/40 cursor-pointer z-10";
+            // Active Selected Capsule: blue primary accent
+            cellStyle = "bg-blue-600 text-white font-black rounded-2xl shadow-md ring-2 ring-blue-500/40 cursor-pointer z-10";
           } else if (isInRange) {
             cellStyle = "bg-blue-600/30 text-blue-200 font-bold rounded-none cursor-pointer";
           } else if (isToday) {
-            // Today indicator: soft dark pill (matches screenshot 22 button)
-            cellStyle = "bg-[#252830] text-slate-100 font-bold rounded-2xl hover:bg-[#2e323c] cursor-pointer";
+            // Today indicator: blue tinted pill
+            cellStyle = "bg-blue-950/60 text-blue-400 border border-blue-500/40 font-bold rounded-2xl hover:bg-blue-900/60 cursor-pointer";
           }
 
           // Override for maintenance / closed badges if defined in customStatus

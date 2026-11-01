@@ -50,14 +50,35 @@ class SmsService
             return null;
         }
 
-        // Dispatch via configured SMS Gateway (supports Semaphore, iProg, etc.)
         try {
-            $apiUrl = $settings->sms_api_url ?: (config('services.iprogsms.api_url') ?: env('IPROG_SMS_API_URL') ?: env('SMS_API_URL', 'https://api.semaphore.co/api/v4/messages'));
+            $apiUrl = $settings->sms_api_url ?: (
+                str_starts_with($apiKey, 'sk_')
+                    ? 'https://unismsapi.com/api/sms'
+                    : (config('services.iprogsms.api_url') ?: env('IPROG_SMS_API_URL') ?: env('SMS_API_URL', 'https://unismsapi.com/api/sms'))
+            );
             $senderName = config('services.iprogsms.sender_name') ?: env('IPROG_SMS_SENDER_NAME') ?: env('SMS_SENDER_NAME');
 
-            $isSemaphore = str_contains(strtolower($apiUrl), 'semaphore');
+            $lowerUrl = strtolower($apiUrl);
+            $isUniSms = str_contains($lowerUrl, 'unisms') || str_starts_with($apiKey, 'sk_');
+            $isSemaphore = str_contains($lowerUrl, 'semaphore');
 
-            if ($isSemaphore) {
+            if ($isUniSms) {
+                // UniSMS API (https://unismsapi.com/api/sms)
+                // Note: UniSMS default test sender ID is "Unisoft" (supports Globe/DITO in testing)
+                $intlNumber = '+63' . substr($cleanNumber, 1);
+                $payload = [
+                    'recipient' => $intlNumber,
+                    'content'   => $message,
+                    'sender_id' => !empty($senderName) ? $senderName : 'Unisoft',
+                ];
+                $response = Http::timeout(10)
+                    ->withBasicAuth($apiKey, '')
+                    ->withHeaders([
+                        'Accept'       => 'application/json',
+                        'Content-Type' => 'application/json',
+                    ])
+                    ->post($apiUrl, $payload);
+            } elseif ($isSemaphore) {
                 $payload = [
                     'apikey'  => $apiKey,
                     'number'  => $cleanNumber,
@@ -87,15 +108,41 @@ class SmsService
             $resJson = $response->json();
             Log::info("SMS Gateway sent to {$cleanNumber}: status={$response->status()} body=" . $response->body());
 
-            if ($response->successful() && (!isset($resJson['status']) || $resJson['status'] < 400)) {
-                return is_array($resJson) ? $resJson : ['success' => true, 'raw' => $response->body()];
+            if ($response->successful() && (!isset($resJson['status']) || $resJson['status'] < 400) && !isset($resJson['errors'])) {
+                return is_array($resJson) ? array_merge(['success' => true], $resJson) : ['success' => true, 'raw' => $response->body()];
             }
 
             Log::warning("SMS Gateway error response: " . $response->body());
-            return $resJson;
+            $errorMsg = null;
+            if (is_array($resJson)) {
+                if (isset($resJson['errors']) && is_array($resJson['errors'])) {
+                    $flattened = [];
+                    foreach ($resJson['errors'] as $field => $errs) {
+                        $flattened[] = $field . ': ' . (is_array($errs) ? implode(', ', $errs) : $errs);
+                    }
+                    $errorMsg = implode('; ', $flattened);
+                } else {
+                    $errorMsg = $resJson['message'] ?? $resJson['error'] ?? null;
+                }
+            }
+            if (!$errorMsg) {
+                $errorMsg = $response->body() ?: 'Gateway returned HTTP status ' . $response->status();
+            }
+
+            return [
+                'success' => false,
+                'status'  => $response->status(),
+                'message' => $errorMsg,
+                'error'   => $errorMsg,
+                'raw'     => $resJson,
+            ];
         } catch (\Throwable $e) {
-            Log::error("iProgSMS failed to send to {$cleanNumber}: " . $e->getMessage());
-            return null;
+            Log::error("SMS Gateway dispatch failed to {$cleanNumber}: " . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => $e->getMessage(),
+                'error'   => $e->getMessage(),
+            ];
         }
     }
 
@@ -360,17 +407,13 @@ class SmsService
         $typeLabel = $type === 'venue' ? 'Venue Reservation' : 'Equipment Borrowing';
         $remarksNote = $remarks ? " Note: {$remarks}" : "";
 
-        if ($type === 'equipment' && in_array($statusNorm, ['ready', 'ready for pickup', 'ready_for_pickup'], true)) {
-            $message = "[FSUU AVR] Your equipment request (#{$refCode}) is ready for pickup.";
-        } elseif ($type === 'equipment' && in_array($statusNorm, ['approved'], true)) {
-            $message = "[FSUU AVR] Your equipment request (#{$refCode}) has been approved.";
-        } elseif ($type === 'venue' && in_array($statusNorm, ['approved'], true)) {
-            $message = "[FSUU AVR] Your venue reservation (#{$refCode}) is confirmed.";
-        } elseif (in_array($statusNorm, ['reminder', 'due soon', 'return reminder'], true)) {
-            $sched = \App\Mail\BookingConfirmationMail::formatSchedule($booking);
-            $message = "FSUU AVR Reminder: Good day, {$requestorName}. Your {$typeLabel} [{$refCode}] is scheduled for {$sched}. Please arrive 15 minutes early and bring a valid ID.";
+        if (in_array($statusNorm, ['late return', 'late_return', 'overdue'], true)) {
+            $message = "URGENT FSUU NOTICE: Good day, {$requestorName}. The scheduled return time for {$typeLabel} [{$refCode}] has elapsed. Please return all physical units immediately to the PMO / AVR office to finalize clearance and avoid penalties.";
+        } elseif (in_array($statusNorm, ['exceed end time', 'exceeded', 'exceeded end time'], true)) {
+            $message = "URGENT FSUU NOTICE: Good day, {$requestorName}. Your {$typeLabel} [{$refCode}] has exceeded its scheduled reservation end time. Please conclude your activity immediately or contact AVR custodial staff.";
         } else {
-            $message = "FSUU Notice: Good day, {$requestorName}. Your {$typeLabel} [{$refCode}] status has been updated to {$statusUpper}.{$remarksNote}";
+            // All non-overdue/exceeded status changes are dispatched via Email only
+            return null;
         }
 
         $res = self::send($contactNumber, $message);

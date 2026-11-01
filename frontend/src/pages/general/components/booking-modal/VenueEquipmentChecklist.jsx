@@ -1,6 +1,32 @@
-import React, { useState, useEffect, useRef } from "react";
-import { PackageOpen, Wrench, Check, Search, ChevronDown, X, CheckCircle2, Plus, Minus, CheckCircle, Ban } from "lucide-react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { PackageOpen, Wrench, Check, Search, ChevronDown, X, CheckCircle2, Plus, Minus, CheckCircle, Ban, ArrowUpDown } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
+
+const extractUnitSeqNum = (unit) => {
+  if (!unit) return null;
+  const raw = unit.seq_no ?? unit.sequence_no ?? unit.seqNo;
+  if (raw !== null && raw !== undefined && String(raw).trim() !== "") {
+    const m = String(raw).trim().match(/\d+/);
+    if (m) return parseInt(m[0], 10);
+  }
+  const fb = `${unit.name || ""} ${unit.model || ""}`.match(/#(\d+)/);
+  return fb ? parseInt(fb[1], 10) : null;
+};
+
+const compareUnitsBySeqNo = (a, b, order = "asc") => {
+  const seqA = extractUnitSeqNum(a);
+  const seqB = extractUnitSeqNum(b);
+  if (seqA !== null && seqB !== null && seqA !== seqB) {
+    return order === "asc" ? seqA - seqB : seqB - seqA;
+  }
+  if (seqA !== null && seqB === null) return -1;
+  if (seqA === null && seqB !== null) return 1;
+  const codeA = String(a?.barcode || a?.serial_number || a?.code || a?.id || "");
+  const codeB = String(b?.barcode || b?.serial_number || b?.code || b?.id || "");
+  return order === "asc"
+    ? codeA.localeCompare(codeB, undefined, { numeric: true })
+    : codeB.localeCompare(codeA, undefined, { numeric: true });
+};
 
 /**
  * Typeable & Selectable Combobox for Physical Equipment Unit Slot
@@ -20,6 +46,7 @@ function SlotBarcodeSelector({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [seqSortOrder, setSeqSortOrder] = useState("asc");
   const containerRef = useRef(null);
 
   const getUnitSeqNo = (unit) => {
@@ -115,12 +142,15 @@ function SlotBarcodeSelector({
     .filter(([k, v]) => k !== unitKey && Boolean(v))
     .map(([_, v]) => String(v).trim().toUpperCase());
 
-  // Filter available units based on slot uniqueness
-  const slotEligibleUnits = availableUnits.filter((u) => {
-    const bCode = String(u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).trim().toUpperCase();
-    const isCurrent = bCode === String(currentBarcode).trim().toUpperCase();
-    return isCurrent || !otherSelectedBarcodes.includes(bCode);
-  });
+  // Filter available units based on slot uniqueness & sort by sequence number
+  const slotEligibleUnits = useMemo(() => {
+    const filtered = availableUnits.filter((u) => {
+      const bCode = String(u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).trim().toUpperCase();
+      const isCurrent = bCode === String(currentBarcode).trim().toUpperCase();
+      return isCurrent || !otherSelectedBarcodes.includes(bCode);
+    });
+    return [...filtered].sort((a, b) => compareUnitsBySeqNo(a, b, seqSortOrder));
+  }, [availableUnits, currentBarcode, otherSelectedBarcodes, seqSortOrder]);
 
   // Search filtered options
   const searchFiltered = slotEligibleUnits.filter((u) => {
@@ -227,9 +257,23 @@ function SlotBarcodeSelector({
       {/* Dropdown Options Menu */}
       {isOpen && (
         <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto bg-white border border-slate-300 rounded py-1 text-xs shadow-sm">
-          <div className="px-3 py-1.5 border-b border-slate-200 flex items-center justify-between text-[11px] font-bold text-slate-600 bg-slate-50">
-            <span>AVAILABLE MODELS FOR {String(categoryName).toUpperCase()}</span>
-            <span className="font-normal text-slate-500">{searchFiltered.length} Available</span>
+          <div className="px-3 py-1.5 border-b border-slate-200 flex items-center justify-between gap-2 text-[11px] font-bold text-slate-600 bg-slate-50">
+            <span className="truncate">AVAILABLE MODELS FOR {String(categoryName).toUpperCase()}</span>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSeqSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+                }}
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white border border-slate-200 text-[10px] font-extrabold text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
+                title="Sort by Sequence No."
+              >
+                <ArrowUpDown size={10} />
+                <span>Seq # {seqSortOrder === "asc" ? "↑" : "↓"}</span>
+              </button>
+              <span className="font-normal text-slate-500">{searchFiltered.length} Available</span>
+            </div>
           </div>
 
           {searchFiltered.length === 0 ? (
@@ -328,6 +372,7 @@ export default function VenueEquipmentChecklist({
   restrictedCategories = [],
 }) {
   const isAssignmentMode = isApproved || isPreEvent || !isSideBySide;
+  const [releasedSeqSort, setReleasedSeqSort] = useState("asc");
 
   const { isSuperAdmin, isStaff } = usePermissions();
   const canOverride = isSuperAdmin || isStaff;
@@ -414,7 +459,7 @@ export default function VenueEquipmentChecklist({
         name: isNaN(Number(biId)) ? String(biId) : `Physical Unit #${biId}`,
         category: "",
       };
-    }).filter(Boolean);
+    }).filter(Boolean).sort((a, b) => compareUnitsBySeqNo(a, b, "asc"));
   };
 
   // Available categories for selection and editing
@@ -573,6 +618,17 @@ export default function VenueEquipmentChecklist({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {!isAssignmentMode && totalRequestedUnits > 1 && (
+            <button
+              type="button"
+              onClick={() => setReleasedSeqSort((prev) => (prev === "asc" ? "desc" : "asc"))}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10.5px] font-bold text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
+              title="Sort released units by sequence number"
+            >
+              <ArrowUpDown size={11} />
+              <span>Seq # {releasedSeqSort === "asc" ? "↑" : "↓"}</span>
+            </button>
+          )}
           {totalRequestedUnits > 0 && (
             <span className="text-[11px] font-mono font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
               {totalAssignedUnits} of {totalRequestedUnits} units selected
@@ -583,7 +639,7 @@ export default function VenueEquipmentChecklist({
             <button
               type="button"
               onClick={handleAddOverrideCategory}
-              className="inline-flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 rounded text-xs font-semibold transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
             >
               <Plus size={13} />
               <span>Add Equipment Category</span>
@@ -594,26 +650,18 @@ export default function VenueEquipmentChecklist({
 
       {/* Equipment Cards */}
       {categoriesToRender.length === 0 ? (
-        <div className="p-6 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-blue-900/50 rounded-lg text-center space-y-3">
-          <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center mx-auto border border-slate-200 dark:border-slate-700">
+        <div className="p-8 bg-slate-50/70 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800 rounded-2xl text-center flex flex-col items-center justify-center space-y-2.5">
+          <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 text-slate-400 dark:text-slate-500 flex items-center justify-center border border-slate-200 dark:border-slate-700 shadow-2xs">
             <PackageOpen size={20} />
           </div>
-          <div className="space-y-1">
-            <h5 className="font-bold text-slate-900 dark:text-white text-xs">No Equipment Units Attached</h5>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium max-w-sm mx-auto">
-              No equipment units or built-ins requested for this venue reservation. You can select and attach equipment categories below.
+          <div className="space-y-1 max-w-sm text-center">
+            <h5 className="font-bold text-slate-900 dark:text-white text-xs">
+              No Equipment Units Attached
+            </h5>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+              No equipment units or built-ins requested for this venue reservation. Use &ldquo;Add Equipment Category&rdquo; above to attach equipment.
             </p>
           </div>
-          {canOverride && setOverrideCategories && (
-            <button
-              type="button"
-              onClick={handleAddOverrideCategory}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-slate-900 rounded text-xs font-semibold transition-all cursor-pointer"
-            >
-              <Plus size={13} />
-              <span>Add Equipment Category</span>
-            </button>
-          )}
         </div>
       ) : (
         <div className="space-y-3">
@@ -630,7 +678,7 @@ export default function VenueEquipmentChecklist({
                 key={`cat-card-${catIdx}`}
                 className={`p-3.5 rounded-lg space-y-3 border transition-all ${
                   isRestricted
-                    ? "bg-slate-100/80 dark:bg-slate-800/60 border-slate-300 dark:border-slate-700 opacity-75"
+                    ? "bg-slate-200/60 dark:bg-slate-800/80 border-slate-300 dark:border-slate-700 opacity-60 grayscale"
                     : "bg-white dark:bg-slate-900/80 border-slate-200 dark:border-blue-900/50"
                 }`}
               >
@@ -714,22 +762,26 @@ export default function VenueEquipmentChecklist({
                 ) : !isAssignmentMode ? (
                   /* RETURNED UNIT CONDITION CHECKLIST (Post-event / side-by-side mode) */
                   <div className="space-y-2 pt-1">
-                    {Array.from({ length: reqQty }).map((_, uIdx) => {
-                      const unitKey = `${catIdx}-${uIdx}`;
-                      const catNameKey = `${item.category}-${uIdx}`;
-                      const assignedBarcode =
-                        assignedUnitSelections[unitKey] ||
-                        assignedUnitSelections[catNameKey] ||
-                        (Array.isArray(assignedUnitSelections) ? assignedUnitSelections[uIdx] : null) ||
-                        (Array.isArray(selected?.assigned_units) ? selected.assigned_units[uIdx] : (selected?.assigned_units?.[unitKey] || selected?.assigned_units?.[catNameKey]));
+                    {Array.from({ length: reqQty })
+                      .map((_, uIdx) => {
+                        const unitKey = `${catIdx}-${uIdx}`;
+                        const catNameKey = `${item.category}-${uIdx}`;
+                        const assignedBarcode =
+                          assignedUnitSelections[unitKey] ||
+                          assignedUnitSelections[catNameKey] ||
+                          (Array.isArray(assignedUnitSelections) ? assignedUnitSelections[uIdx] : null) ||
+                          (Array.isArray(selected?.assigned_units) ? selected.assigned_units[uIdx] : (selected?.assigned_units?.[unitKey] || selected?.assigned_units?.[catNameKey]));
+                        const match = (allUnits || []).find((u) => {
+                          const code = String(u.barcode || u.serial_number || "").trim().toUpperCase();
+                          const target = String(assignedBarcode).trim().toUpperCase();
+                          return code && target && code === target;
+                        });
+                        return { uIdx, unitKey, catNameKey, assignedBarcode, match };
+                      })
+                      .sort((a, b) => compareUnitsBySeqNo(a.match || { barcode: a.assignedBarcode }, b.match || { barcode: b.assignedBarcode }, releasedSeqSort))
+                      .map(({ uIdx, unitKey, assignedBarcode, match }) => {
                       const cond = (assignedBarcode && unitReturnedConditions[assignedBarcode]) || unitReturnedConditions[unitKey] || "Good";
                       const slotBuiltIns = assignedBarcode ? getBuiltInUnitsForBarcode(assignedBarcode) : [];
-
-                      const match = (allUnits || []).find((u) => {
-                        const code = String(u.barcode || u.serial_number || "").trim().toUpperCase();
-                        const target = String(assignedBarcode).trim().toUpperCase();
-                        return code && target && code === target;
-                      });
                       const rawSeq = match?.seq_no ?? match?.sequence_no;
                       const seqNo = rawSeq !== undefined && rawSeq !== null && String(rawSeq).trim() !== ""
                         ? (String(rawSeq).trim().startsWith("#") ? String(rawSeq).trim() : `#${String(rawSeq).trim()}`)

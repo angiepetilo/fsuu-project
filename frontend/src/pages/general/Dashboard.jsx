@@ -1,16 +1,16 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, lazy, Suspense } from "react";
 import { useOutletContext, useLocation } from "react-router-dom";
 import { AlertCircle } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import api from "@/lib/axios";
-import { formatTimeRange12 } from "@/lib/dateUtils";
-import StaffAnalyticsDashboard from "./dashboard/StaffAnalyticsDashboard";
+
+const StaffAnalyticsDashboard = lazy(() => import("./dashboard/StaffAnalyticsDashboard"));
 
 export default function Dashboard() {
   const context = useOutletContext();
   const location = useLocation();
-  const { user, isSuperAdmin, hasPermission } = usePermissions();
+  const { isSuperAdmin, hasPermission } = usePermissions();
 
   const isSysadRoute = location.pathname.startsWith("/sysad");
 
@@ -31,19 +31,35 @@ export default function Dashboard() {
   const [totalEquipBorrows, setTotalEquipBorrows] = useState(cachedData?.totalEquipBorrows || 0);
   const [totalDamaged, setTotalDamaged] = useState(cachedData?.totalDamaged || 0);
   const [totalLost, setTotalLost] = useState(cachedData?.totalLost || 0);
-  const [equipmentInventory, setEquipmentInventory] = useState(cachedData?.equipmentInventory || { total_active: 0, available: 0, damaged: 0, lost: 0, released: 0, disabled: 0 });
-  const [recentInventoryChanges, setRecentInventoryChanges] = useState([]);
+  const [equipmentInventory, setEquipmentInventory] = useState(
+    cachedData?.equipmentInventory || { total_active: 0, available: 0, damaged: 0, lost: 0, released: 0, disabled: 0 }
+  );
+  const [recentInventoryChanges, setRecentInventoryChanges] = useState(cachedData?.recentInventoryChanges || []);
 
-  // Dynamic Real Analytics Calculations
+  // Dynamic Real Analytics Calculations (seeded from cache for instant 0ms paint)
   const [topBookedDepartments, setTopBookedDepartments] = useState(cachedData?.topBookedDepartments || []);
-  const [mostUsedEquipment, setMostUsedEquipment] = useState([]);
+  const [mostUsedEquipment, setMostUsedEquipment] = useState(cachedData?.mostUsedEquipment || []);
   const [topViolatingDepartments, setTopViolatingDepartments] = useState(cachedData?.topViolatingDepartments || []);
-  const [topLateDepartment, setTopLateDepartment] = useState("None");
-  const [violatingStudents, setViolatingStudents] = useState([]);
+  const [topLateDepartment, setTopLateDepartment] = useState(cachedData?.topLateDepartment || "None");
+  const [violatingStudents, setViolatingStudents] = useState(cachedData?.violatingStudents || []);
 
   // Active Venue Bookings & Equipment Borrowings for Today's Scheduled Reservations
-  const [venueBookings, setVenueBookings] = useState([]);
-  const [equipBorrowings, setEquipBorrowings] = useState([]);
+  const [venueBookings, setVenueBookings] = useState(() => {
+    if (cachedData?.venueBookings) return cachedData.venueBookings;
+    try {
+      return JSON.parse(sessionStorage.getItem("fsuu_cache_venue_bookings") || "[]");
+    } catch {
+      return [];
+    }
+  });
+  const [equipBorrowings, setEquipBorrowings] = useState(() => {
+    if (cachedData?.equipBorrowings) return cachedData.equipBorrowings;
+    try {
+      return JSON.parse(sessionStorage.getItem("fsuu_cache_equip_borrowings") || "[]");
+    } catch {
+      return [];
+    }
+  });
 
   // Granular Section Permissions Calculation
   const hasSpecificSubPermission = useMemo(() => {
@@ -77,22 +93,32 @@ export default function Dashboard() {
     setError(null);
     try {
       const [statsRes, vRes, eRes] = await Promise.allSettled([
-        api.get(`/dashboard/stats?_t=${Date.now()}`),
-        api.get(`/avr-venue-bookings?all=1&_t=${Date.now()}`),
-        api.get(`/avr-equipment-borrowings?all=1&_t=${Date.now()}`),
+        api.get("/dashboard/stats"),
+        api.get("/avr-venue-bookings"),
+        api.get("/avr-equipment-borrowings"),
       ]);
 
       let statsData = null;
+      let nextCachePayload = {};
+
       if (statsRes.status === "fulfilled" && statsRes.value.data) {
         statsData = statsRes.value.data;
         const q = statsData.quick_stats || {};
-        setTotalVenueBookings(q.total_venue_bookings || 0);
-        setTotalEquipBorrows(q.total_equip_borrows || 0);
-        setPendingApproval(q.pending_approval !== undefined ? q.pending_approval : ((q.pending_bookings || 0) + (q.pending_borrowings || 0)));
-        setPendingEquipBorrowings(q.pending_borrowings || 0);
-        setTotalDamaged(q.total_equipment_damages || q.damage_reports || 0);
-        setTotalLost(q.total_equipment_lost || 0);
-        setTopLateDepartment(q.top_late_department || "None");
+        const nextTotalVb = q.total_venue_bookings || 0;
+        const nextTotalEb = q.total_equip_borrows || 0;
+        const nextPendingApp = q.pending_approval !== undefined ? q.pending_approval : ((q.pending_bookings || 0) + (q.pending_borrowings || 0));
+        const nextPendingEb = q.pending_borrowings || 0;
+        const nextDamaged = q.total_equipment_damages || q.damage_reports || 0;
+        const nextLost = q.total_equipment_lost || 0;
+        const nextTopLate = q.top_late_department || "None";
+
+        setTotalVenueBookings(nextTotalVb);
+        setTotalEquipBorrows(nextTotalEb);
+        setPendingApproval(nextPendingApp);
+        setPendingEquipBorrowings(nextPendingEb);
+        setTotalDamaged(nextDamaged);
+        setTotalLost(nextLost);
+        setTopLateDepartment(nextTopLate);
 
         const rawDepts = statsData.top_departments || [];
         const totalAllBookings = rawDepts.reduce((sum, d) => sum + (d.bookings || d.count || 0), 0) || 1;
@@ -102,7 +128,9 @@ export default function Dashboard() {
           pct: Math.round(((d.bookings || d.count || 0) / totalAllBookings) * 100)
         }));
         setTopBookedDepartments(finalDepts);
-        setMostUsedEquipment(statsData.top_equipment || []);
+
+        const nextTopEquip = statsData.top_equipment || [];
+        setMostUsedEquipment(nextTopEquip);
 
         const rawViolations = (statsData.programs_with_violations || []).map(p => ({
           dept: p.program || p.dept || "Academic Dept",
@@ -111,29 +139,40 @@ export default function Dashboard() {
           violations: p.violations || 0,
         }));
         setTopViolatingDepartments(rawViolations);
-        setViolatingStudents(statsData.violating_students || []);
-        setEquipmentInventory(statsData.equipment_inventory || { total_active: 0, available: 0, damaged: 0, lost: 0, released: 0, disabled: 0 });
-        setRecentInventoryChanges(statsData.recent_inventory_changes || []);
 
-        try {
-          localStorage.setItem("fsuu_cache_admin_dashboard", JSON.stringify({
-            totalVenueBookings: q.total_venue_bookings || 0,
-            pendingApproval: q.pending_approval !== undefined ? q.pending_approval : ((q.pending_bookings || 0) + (q.pending_borrowings || 0)),
-            pendingEquipBorrowings: q.pending_borrowings || 0,
-            totalEquipBorrows: q.total_equip_borrows || 0,
-            totalDamaged: q.total_equipment_damages || q.damage_reports || 0,
-            totalLost: q.total_equipment_lost || 0,
-            equipmentInventory: statsData.equipment_inventory || {},
-            topBookedDepartments: finalDepts,
-            topViolatingDepartments: rawViolations,
-          }));
-        } catch {}
+        const nextViolatingStudents = statsData.violating_students || [];
+        setViolatingStudents(nextViolatingStudents);
+
+        const nextEqInv = statsData.equipment_inventory || { total_active: 0, available: 0, damaged: 0, lost: 0, released: 0, disabled: 0 };
+        setEquipmentInventory(nextEqInv);
+
+        const nextRecentChanges = statsData.recent_inventory_changes || [];
+        setRecentInventoryChanges(nextRecentChanges);
+
+        nextCachePayload = {
+          totalVenueBookings: nextTotalVb,
+          pendingApproval: nextPendingApp,
+          pendingEquipBorrowings: nextPendingEb,
+          totalEquipBorrows: nextTotalEb,
+          totalDamaged: nextDamaged,
+          totalLost: nextLost,
+          topLateDepartment: nextTopLate,
+          equipmentInventory: nextEqInv,
+          recentInventoryChanges: nextRecentChanges,
+          topBookedDepartments: finalDepts,
+          mostUsedEquipment: nextTopEquip,
+          topViolatingDepartments: rawViolations,
+          violatingStudents: nextViolatingStudents,
+        };
       }
 
       // Process and merge venue bookings
       let rawV = [];
       if (vRes.status === "fulfilled") {
         rawV = vRes.value.data?.data ?? (Array.isArray(vRes.value.data) ? vRes.value.data : []);
+        try {
+          sessionStorage.setItem("fsuu_cache_venue_bookings", JSON.stringify(rawV));
+        } catch {}
       }
       const vMap = new Map();
       if (statsData?.today_reservations?.venues) {
@@ -144,12 +183,16 @@ export default function Dashboard() {
         const existing = vMap.get(id) || {};
         vMap.set(id, { ...existing, ...v });
       });
-      setVenueBookings(Array.from(vMap.values()));
+      const mergedVenues = Array.from(vMap.values());
+      setVenueBookings(mergedVenues);
 
       // Process and merge equipment borrowings
       let rawE = [];
       if (eRes.status === "fulfilled") {
         rawE = eRes.value.data?.data ?? (Array.isArray(eRes.value.data) ? eRes.value.data : []);
+        try {
+          sessionStorage.setItem("fsuu_cache_equip_borrowings", JSON.stringify(rawE));
+        } catch {}
       }
       const eMap = new Map();
       if (statsData?.today_reservations?.equipment) {
@@ -160,8 +203,18 @@ export default function Dashboard() {
         const existing = eMap.get(id) || {};
         eMap.set(id, { ...existing, ...e });
       });
-      setEquipBorrowings(Array.from(eMap.values()));
+      const mergedEquip = Array.from(eMap.values());
+      setEquipBorrowings(mergedEquip);
 
+      if (Object.keys(nextCachePayload).length > 0) {
+        try {
+          localStorage.setItem("fsuu_cache_admin_dashboard", JSON.stringify({
+            ...nextCachePayload,
+            venueBookings: mergedVenues.slice(0, 30),
+            equipBorrowings: mergedEquip.slice(0, 30),
+          }));
+        } catch {}
+      }
     } catch {
       if (!isSilent) setError("Unable to sync dashboard data.");
     } finally {
@@ -170,7 +223,7 @@ export default function Dashboard() {
   }, [cachedData]);
 
   useRealtimeSync(fetchData, {
-    interval: 10000,
+    interval: 25000,
     customEvents: [
       "venue_bookings_updated",
       "equipment_borrowings_updated",
@@ -199,34 +252,36 @@ export default function Dashboard() {
 
   // Unified Dashboard for All Roles (widgets dynamically toggled via permissions)
   return (
-    <StaffAnalyticsDashboard
-      loading={loading}
-      error={error}
-      onRefresh={handleRefresh}
-      canQuickVenue={canQuickVenue}
-      canQuickEquipment={canQuickEquipment}
-      canMetrics={canMetrics}
-      canAnalytics={canAnalytics}
-      canInventoryStatus={canInventoryStatus}
-      canInventoryChanges={canInventoryChanges}
-      canLateReturns={canLateReturns}
-      canTodayReservations={canTodayReservations}
-      totalVenueBookings={totalVenueBookings}
-      pendingApproval={pendingApproval}
-      postInspectionPending={0}
-      totalEquipBorrows={totalEquipBorrows}
-      totalDamaged={totalDamaged}
-      totalLost={totalLost}
-      equipmentInventory={equipmentInventory}
-      recentInventoryChanges={recentInventoryChanges}
-      topBookedDepartments={topBookedDepartments}
-      mostUsedEquipment={mostUsedEquipment}
-      topViolatingDepartments={topViolatingDepartments}
-      topLateDepartment={topLateDepartment}
-      violatingStudents={violatingStudents}
-      venueBookings={venueBookings}
-      equipBorrowings={equipBorrowings}
-      isSysadRoute={isSysadRoute}
-    />
+    <Suspense fallback={null}>
+      <StaffAnalyticsDashboard
+        loading={loading}
+        error={error}
+        onRefresh={handleRefresh}
+        canQuickVenue={canQuickVenue}
+        canQuickEquipment={canQuickEquipment}
+        canMetrics={canMetrics}
+        canAnalytics={canAnalytics}
+        canInventoryStatus={canInventoryStatus}
+        canInventoryChanges={canInventoryChanges}
+        canLateReturns={canLateReturns}
+        canTodayReservations={canTodayReservations}
+        totalVenueBookings={totalVenueBookings}
+        pendingApproval={pendingApproval}
+        postInspectionPending={0}
+        totalEquipBorrows={totalEquipBorrows}
+        totalDamaged={totalDamaged}
+        totalLost={totalLost}
+        equipmentInventory={equipmentInventory}
+        recentInventoryChanges={recentInventoryChanges}
+        topBookedDepartments={topBookedDepartments}
+        mostUsedEquipment={mostUsedEquipment}
+        topViolatingDepartments={topViolatingDepartments}
+        topLateDepartment={topLateDepartment}
+        violatingStudents={violatingStudents}
+        venueBookings={venueBookings}
+        equipBorrowings={equipBorrowings}
+        isSysadRoute={isSysadRoute}
+      />
+    </Suspense>
   );
 }

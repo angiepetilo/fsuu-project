@@ -694,7 +694,7 @@ export default function SystemSettingsTab() {
               <Lock size={13} className="absolute left-3 top-3 text-slate-400" />
               <input
                 type={showSmsKey ? "text" : "password"}
-                placeholder="Enter your SMS API key..."
+                placeholder="Paste your API key (e.g. sk_...)..."
                 value={settings.sms_api_key || ""}
                 onChange={(e) => handleChange("sms_api_key", e.target.value)}
                 className={`${inputCls(isFieldModified("sms_api_key"))} pl-8 pr-10`}
@@ -707,6 +707,9 @@ export default function SystemSettingsTab() {
                 {showSmsKey ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
             </div>
+            <span className="text-[10px] text-slate-400 mt-1 block">
+              UniSMS dashboard &rarr; <strong className="text-slate-600">Developers &rarr; API keys</strong>
+            </span>
           </div>
 
           <div>
@@ -715,12 +718,15 @@ export default function SystemSettingsTab() {
               <Server size={13} className="absolute left-3 top-3 text-slate-400" />
               <input
                 type="url"
-                placeholder="https://api.semaphore.co/api/v4/messages"
+                placeholder="https://unismsapi.com/api/sms"
                 value={settings.sms_api_url || ""}
                 onChange={(e) => handleChange("sms_api_url", e.target.value)}
                 className={`${inputCls(isFieldModified("sms_api_url"))} pl-8`}
               />
             </div>
+            <span className="text-[10px] text-slate-400 mt-1 block">
+              Endpoint: <code className="font-mono text-slate-600">https://unismsapi.com/api/sms</code>
+            </span>
           </div>
         </div>
 

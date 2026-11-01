@@ -57,10 +57,7 @@ class HistoryLogService
             });
 
         if ($academicTermId) {
-            $vbQuery->where(function ($q) use ($academicTermId) {
-                $q->where('venue_bookings.academic_term_id', $academicTermId)
-                  ->orWhereNull('venue_bookings.academic_term_id');
-            });
+            $vbQuery->where('venue_bookings.academic_term_id', $academicTermId);
         }
 
         $vbQuery->select(
@@ -384,10 +381,7 @@ class HistoryLogService
             ->orderBy('inspections.id', 'desc');
 
         if ($academicTermId) {
-            $ebQuery->where(function ($q) use ($academicTermId) {
-                $q->where('equipment_borrows.academic_term_id', $academicTermId)
-                  ->orWhereNull('equipment_borrows.academic_term_id');
-            });
+            $ebQuery->where('equipment_borrows.academic_term_id', $academicTermId);
         }
 
         $ebQuery->select(

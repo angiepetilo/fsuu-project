@@ -309,6 +309,12 @@ export default function Step2Equipment({
     }
   }, [activeBorrowDate]);
 
+  useEffect(() => {
+    if (!isPortal && startTimeVal < kioskClose && endTimeVal > kioskClose) {
+      setEndTime && setEndTime(`${activeBorrowDate}T${kioskClose}`);
+    }
+  }, [kioskClose, activeBorrowDate, isPortal]);
+
   const targetDateObj = borrowDateMode === "tomorrow" ? new Date(Date.now() + 86400000) : new Date();
   const formattedDisplayDate = targetDateObj.toLocaleDateString("en-US", {
     month: "long",
@@ -471,7 +477,7 @@ export default function Step2Equipment({
       </div>
 
       {/* Public Borrowing Policy Notice */}
-      {!isPortal && (
+      {false && !isPortal && (
         <div className="mb-6 px-4 py-3.5 bg-gradient-to-r from-blue-50/90 to-indigo-50/60 dark:from-slate-900/80 dark:to-slate-900/80 dark:bg-slate-900/80 border border-blue-200/80 dark:border-blue-900/50 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
           <div className="flex items-center gap-2.5">
             <span className="w-2 h-2 rounded-full bg-blue-600 dark:bg-blue-400 animate-pulse shrink-0" />
@@ -493,10 +499,24 @@ export default function Step2Equipment({
         {/* Left Column: Equipment Catalog (2x2 Grid) */}
         <div className="lg:col-span-7 sm:col-span-12 space-y-4">
           {catalogLoading && (filteredCatalog || []).length === 0 ? (
-            <div className="p-12 text-center bg-white dark:bg-slate-900/80 rounded-3xl border border-slate-200/80 dark:border-slate-800 space-y-3">
-              <Loader2 size={32} className="mx-auto text-blue-600 animate-spin" />
-              <p className="text-xs font-bold text-slate-700 dark:text-slate-200">Loading equipment inventory...</p>
-              <p className="text-[11px] text-slate-400">Loading live stock availability</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" aria-busy="true" aria-label="Loading equipment inventory">
+              {Array.from({ length: 4 }).map((_, idx) => (
+                <div
+                  key={`equip-skel-${idx}`}
+                  className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-card rounded-2xl p-4 flex flex-col justify-between overflow-hidden animate-pulse"
+                >
+                  <div>
+                    <div className="w-full aspect-video bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200/60 dark:border-slate-700/50" />
+                    <div className="mt-3.5 space-y-2">
+                      <div className="h-4 w-36 bg-slate-200 dark:bg-slate-800 rounded-md" />
+                      <div className="h-5 w-28 bg-slate-100 dark:bg-slate-800/80 rounded-full" />
+                    </div>
+                  </div>
+                  <div className="mt-5">
+                    <div className="w-full h-9 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : catalogList.length === 0 ? (
             <div className="p-8 text-center bg-white dark:bg-slate-900/80 rounded-3xl border border-slate-200/80 dark:border-slate-800">
@@ -669,6 +689,9 @@ export default function Step2Equipment({
           <div className="bg-white dark:bg-[#111C38] p-5 rounded-[28px] border border-slate-200/90 dark:border-[#1E2D56] shadow-md space-y-4 static lg:sticky lg:top-24 z-10">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <span className={`order-2 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border transition-all ${totalSelectedCount > 0 ? "bg-blue-50 dark:bg-blue-950/60 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300" : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400"}`}>
+                Qty Selected: {totalSelectedCount}
+              </span>
               <h4 className="font-extrabold text-slate-900 dark:text-[#F8FAFC] text-xs uppercase tracking-wider">
                 Borrow Schedule
               </h4>
@@ -768,7 +791,9 @@ export default function Step2Equipment({
                     const startMins = (sh || 0) * 60 + (sm || 0);
                     const endMins = (eh || 0) * 60 + (em || 0);
                     if (endMins <= startMins) {
-                      const newEndMins = Math.min(1439, startMins + 60);
+                      const [ch, cm] = (kioskClose || "17:00").split(":").map(Number);
+                      const closeMins = (ch || 17) * 60 + (cm || 0);
+                      const newEndMins = (!isPortal && startMins < closeMins) ? Math.min(closeMins, startMins + 60) : Math.min(1439, startMins + 60);
                       const nH = String(Math.floor(newEndMins / 60)).padStart(2, '0');
                       const nM = String(newEndMins % 60).padStart(2, '0');
                       setEndTime && setEndTime(`${activeBorrowDate}T${nH}:${nM}`);
@@ -798,14 +823,14 @@ export default function Step2Equipment({
               {endTimeVal <= startTimeVal && (
                 <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 rounded-2xl text-xs font-bold text-rose-800 dark:text-[#FCA5A5] flex items-center gap-2">
                   <AlertTriangle size={15} className="text-rose-600 dark:text-[#FCA5A5] shrink-0" />
-                  <span>Expected return time ({formatTime12(endTimeVal)}) cannot be earlier than or equal to start time ({formatTime12(startTimeVal)}).</span>
+                  <span>End time must be later than start time.</span>
                 </div>
               )}
 
-              {borrowDateMode === "today" && isPastTimeToday(todayISO, startTimeVal) && (
+              {endTimeVal > startTimeVal && !(startTimeVal < kioskOpen || endTimeVal > kioskClose) && borrowDateMode === "today" && isPastTimeToday(todayISO, startTimeVal) && (
                 <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 rounded-2xl text-xs font-bold text-rose-800 dark:text-[#FCA5A5] flex items-center gap-2">
                   <AlertTriangle size={15} className="text-rose-600 dark:text-[#FCA5A5] shrink-0" />
-                  <span>Selected start time ({formatTime12(startTimeVal)}) has already passed for today. Please select a future time slot or reserve for tomorrow.</span>
+                  <span>Please select a future start time.</span>
                 </div>
               )}
 
@@ -852,7 +877,7 @@ export default function Step2Equipment({
             {(() => {
               const isOutside = startTimeVal < kioskOpen || endTimeVal > kioskClose;
 
-              if (isOutside) {
+              if (isOutside && endTimeVal > startTimeVal) {
                 if (isPortal) {
                   return (
                     <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-700 space-y-2 mt-2">
@@ -894,9 +919,9 @@ export default function Step2Equipment({
                     <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-800 space-y-1 mt-2">
                       <div className="flex items-center gap-1.5 font-bold text-rose-900">
                         <AlertTriangle size={14} className="text-rose-600 shrink-0" />
-                        <span>Outside Operating Hours</span>
+                        <span>Available within operating hours ({formatTime12(kioskOpen)} – {formatTime12(kioskClose)}).</span>
                       </div>
-                      <p className="text-[11px] font-semibold text-rose-700 leading-snug">
+                      <p className="hidden">
                         Must be schedule within Operating Hours [ {formatTime12(kioskOpen)} - {formatTime12(kioskClose)} ].
                       </p>
                     </div>

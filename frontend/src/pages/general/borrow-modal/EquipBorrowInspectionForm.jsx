@@ -1,7 +1,33 @@
 import { useState, useEffect } from "react";
-import { FileCheck, Loader2, CheckCircle2, AlertTriangle, HelpCircle, Camera, Clock, XCircle, CheckSquare, Square } from "lucide-react";
+import { FileCheck, Loader2, CheckCircle2, AlertTriangle, HelpCircle, Camera, Clock, XCircle, CheckSquare, Square, ArrowUpDown } from "lucide-react";
 import InspectionPhotoUploader from "@/components/ui/InspectionPhotoUploader";
 import { getOverdueMinutes, formatOverdueDuration } from "@/lib/dateTimeUtils";
+
+const extractSeqNum = (unit) => {
+  if (!unit) return null;
+  const raw = unit.seq_no ?? unit.sequence_no ?? unit.seqNo;
+  if (raw !== null && raw !== undefined && String(raw).trim() !== "") {
+    const m = String(raw).trim().match(/\d+/);
+    if (m) return parseInt(m[0], 10);
+  }
+  const fb = `${unit.name || ""} ${unit.model || ""}`.match(/#(\d+)/);
+  return fb ? parseInt(fb[1], 10) : null;
+};
+
+const compareBySeqNo = (a, b, order = "asc") => {
+  const seqA = extractSeqNum(a);
+  const seqB = extractSeqNum(b);
+  if (seqA !== null && seqB !== null && seqA !== seqB) {
+    return order === "asc" ? seqA - seqB : seqB - seqA;
+  }
+  if (seqA !== null && seqB === null) return -1;
+  if (seqA === null && seqB !== null) return 1;
+  const codeA = String(a?.barcode || a?.serial_number || a?.code || a?.id || "");
+  const codeB = String(b?.barcode || b?.serial_number || b?.code || b?.id || "");
+  return order === "asc"
+    ? codeA.localeCompare(codeB, undefined, { numeric: true })
+    : codeB.localeCompare(codeA, undefined, { numeric: true });
+};
 
 /**
  * EquipBorrowInspectionForm — Physical unit inspection checklist with missing parts spec & condition triggers.
@@ -35,6 +61,7 @@ export default function EquipBorrowInspectionForm({
 }) {
   // Local state for missing parts text if not passed
   const [localMissingParts, setLocalMissingParts] = useState(missingPartsDetails || {});
+  const [seqSortOrder, setSeqSortOrder] = useState("asc");
 
   const delayMins = minutesLate > 0 ? minutesLate : getOverdueMinutes(scheduledDate, scheduledTime);
 
@@ -240,9 +267,20 @@ export default function EquipBorrowInspectionForm({
 
       {/* Itemized Physical Units Checklist */}
       <div className="space-y-2.5">
-        <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-          Physical Unit Checklist &amp; Component Verification
-        </label>
+        <div className="flex items-center justify-between">
+          <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            Physical Unit Checklist &amp; Component Verification
+          </label>
+          <button
+            type="button"
+            onClick={() => setSeqSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
+            title="Sort released units by sequence number"
+          >
+            <ArrowUpDown size={10} />
+            <span>Seq # {seqSortOrder === "asc" ? "↑" : "↓"}</span>
+          </button>
+        </div>
 
         {categoriesToRender.length === 0 ? (
           <p className="text-xs text-slate-400 italic py-2">No equipment items specified.</p>
@@ -263,20 +301,24 @@ export default function EquipBorrowInspectionForm({
 
                 {/* Per-Unit Checklist Cards */}
                 <div className="space-y-2">
-                  {Array.from({ length: reqQty }).map((_, uIdx) => {
-                    const idxKey = getUnitKey(catIdx, uIdx, reqCat);
-                    const catKey = `${reqCat.category}-${uIdx}`;
-                    const val =
-                      assignedUnitSelections[idxKey] ||
-                      assignedUnitSelections[catKey] ||
-                      assignedUnitSelections[uIdx] ||
-                      "";
-
-                    const matched = (physicalUnits || []).find((u) => {
-                      const code = String(u.barcode || u.serial_number || "").trim().toUpperCase();
-                      const target = String(val).trim().toUpperCase();
-                      return code && target && code === target;
-                    });
+                  {Array.from({ length: reqQty })
+                    .map((_, uIdx) => {
+                      const idxKey = getUnitKey(catIdx, uIdx, reqCat);
+                      const catKey = `${reqCat.category}-${uIdx}`;
+                      const val =
+                        assignedUnitSelections[idxKey] ||
+                        assignedUnitSelections[catKey] ||
+                        assignedUnitSelections[uIdx] ||
+                        "";
+                      const matched = (physicalUnits || []).find((u) => {
+                        const code = String(u.barcode || u.serial_number || "").trim().toUpperCase();
+                        const target = String(val).trim().toUpperCase();
+                        return code && target && code === target;
+                      });
+                      return { uIdx, idxKey, catKey, val, matched };
+                    })
+                    .sort((a, b) => compareBySeqNo(a.matched || { barcode: a.val }, b.matched || { barcode: b.val }, seqSortOrder))
+                    .map(({ uIdx, idxKey, catKey, val, matched }) => {
 
                     const rawSeq = matched?.seq_no ?? matched?.sequence_no;
                     const seqNo = rawSeq !== undefined && rawSeq !== null && String(rawSeq).trim() !== ""

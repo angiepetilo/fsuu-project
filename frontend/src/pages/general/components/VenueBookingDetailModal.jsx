@@ -194,12 +194,17 @@ export default function VenueBookingDetailModal({
           restricted_equipment: nextRestricted
         }));
       }
-      notify.success(
-        isCurrentlyRestricted ? "Category Unrestricted" : "Category Restricted",
-        isCurrentlyRestricted
-          ? `"${catName}" has been unrestricted.`
-          : `"${catName}" is marked as restricted and will not be approved.`
-      );
+      if (isCurrentlyRestricted) {
+        notify.success(
+          "Category Unrestricted",
+          `"${catName}" has been unrestricted.`
+        );
+      } else {
+        notify.error(
+          "Category Restricted",
+          `"${catName}" is marked as restricted and will not be approved.`
+        );
+      }
     } catch (err) {
       setRestrictedCategories(restrictedCategories);
       notify.error("Failed to update restriction", err.response?.data?.message || err.message);
@@ -957,9 +962,13 @@ export default function VenueBookingDetailModal({
           equipment_type_id: typeIdVal
         };
       }).filter(c => c && c.category && c.category !== "None" && c.quantity > 0);
+    } else if (Array.isArray(rawItems) && rawItems.length === 0) {
+      // Explicitly empty equipment_items: user did NOT select equipment from allowed types
+      return [];
     } else if (notesStr && notesStr.includes('(Qty:')) {
-      // Only parse structured legacy format "Category (Qty: N)" - ignore free-text remarks
-      const structuredPart = notesStr.split('|')[0] || '';
+      // Only parse structured legacy format "Category (Qty: N)" before any free-text remarks (e.g. "| Equipment-Needed:")
+      const structuredPart = notesStr.split(/\||Equipment-Needed:/i)[0] || '';
+      if (!structuredPart.includes('(Qty:')) return [];
       categories = structuredPart.split(',').map(s => {
         const cleanStr = s.trim();
         const match = cleanStr.match(/^(.*?)\s*\(Qty:\s*(\d+)\)/i);
@@ -1245,6 +1254,25 @@ export default function VenueBookingDetailModal({
       }
 
       return true;
+    });
+
+    // Sort available units by sequence number (seq_no) ascending (#001, #002, ...)
+    available.sort((a, b) => {
+      const extractSeq = (item) => {
+        const raw = item?.seq_no ?? item?.sequence_no ?? item?.seqNo;
+        if (raw !== null && raw !== undefined && String(raw).trim() !== "") {
+          const m = String(raw).trim().match(/\d+/);
+          if (m) return parseInt(m[0], 10);
+        }
+        const fb = `${item?.name || ""} ${item?.model || ""}`.match(/#(\d+)/);
+        return fb ? parseInt(fb[1], 10) : Number.MAX_SAFE_INTEGER;
+      };
+      const seqA = extractSeq(a);
+      const seqB = extractSeq(b);
+      if (seqA !== seqB) return seqA - seqB;
+      const codeA = String(a?.barcode || a?.serial_number || a?.id || "");
+      const codeB = String(b?.barcode || b?.serial_number || b?.id || "");
+      return codeA.localeCompare(codeB, undefined, { numeric: true });
     });
 
     // 5. Soft-Reservation by Quantity:
@@ -1590,6 +1618,7 @@ export default function VenueBookingDetailModal({
                 requestedCategories={requestedCategories}
                 setFullImageModal={setFullImageModal}
                 onBookingUpdated={setSelected}
+                restrictedCategories={restrictedCategories}
               />
               <div className={`p-4 rounded-xl border flex items-start gap-3.5 ${
                 currentStatus.includes("reject")
@@ -1853,6 +1882,7 @@ export default function VenueBookingDetailModal({
                 getAvailableUnitsForCategory={getAvailableUnitsForCategory}
                 isOngoing={isOngoing}
                 isApproved={isApproved}
+                restrictedCategories={restrictedCategories}
               />
 
               <div className="p-6 bg-white border border-slate-200/90 rounded-2xl text-center space-y-3 flex flex-col items-center justify-center min-h-[160px] shadow-xs">
@@ -1886,7 +1916,6 @@ export default function VenueBookingDetailModal({
                 isOngoing={isOngoing}
                 isApproved={isApproved}
                 restrictedCategories={restrictedCategories}
-                onToggleRestrictCategory={handleToggleRestrictCategory}
               />
 
               {/* Single Inspection Row: Left = Equipment Return Inspection | Right = Venue Facility Post Inspection */}

@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from "react";
 import { useOutletContext, useLocation } from "react-router-dom";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
+import AlertModal from "@/components/ui/AlertModal";
 import {
   Loader2, AlertCircle, Eye, Building2, ChevronLeft, ChevronRight,
   Search, Calendar, X, Filter
@@ -113,8 +114,20 @@ export default function VenueBookings() {
   const { hasPermission } = usePermissions();
   const context = useOutletContext();
   const location = useLocation();
-  const [bookings, setBookings] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [bookings, setBookings] = useState(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem("fsuu_cache_venue_bookings") || "[]");
+    } catch {
+      return [];
+    }
+  });
+  const [loading, setLoading] = useState(() => {
+    try {
+      return !sessionStorage.getItem("fsuu_cache_venue_bookings");
+    } catch {
+      return true;
+    }
+  });
   const [actionLoading, setActionLoading] = useState(null);
   const [error, setError] = useState(null);
 
@@ -133,16 +146,43 @@ export default function VenueBookings() {
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejectionComments, setRejectionComments] = useState("");
   const [feedbackMessage, setFeedbackMessage] = useState(null);
+  const [completeSuccessModal, setCompleteSuccessModal] = useState({
+    open: false,
+    title: "",
+    message: "",
+  });
+  const handledTargetRef = useRef(null);
+
+  const clearDeepLinkUrl = useCallback(() => {
+    try {
+      if (window.history.replaceState) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+      if (location.state?.selectedId) {
+        location.state.selectedId = null;
+      }
+    } catch {}
+  }, [location.state]);
 
   const selected = bookings.find((b) => String(b.id) === String(selectedId)) || null;
 
   const setSelected = (val) => {
     if (!val) {
       setSelectedId(null);
+      clearDeepLinkUrl();
+    } else if (typeof val === "function") {
+      setBookings(prev => {
+        const currentItem = prev.find(b => String(b.id) === String(selectedId));
+        if (!currentItem) return prev;
+        const updated = val(currentItem);
+        return prev.map(b => String(b.id) === String(selectedId) ? { ...b, ...updated } : b);
+      });
     } else if (val.id) {
       setSelectedId(val.id);
+      setBookings(prev => prev.map(b => String(b.id) === String(val.id) ? { ...b, ...val } : b));
     } else {
       setSelectedId(null);
+      clearDeepLinkUrl();
     }
   };
 
@@ -171,6 +211,9 @@ export default function VenueBookings() {
       const res = await api.get("/avr-venue-bookings");
       const data = res.data?.data ?? (Array.isArray(res.data) ? res.data : []);
       setBookings(data);
+      try {
+        sessionStorage.setItem("fsuu_cache_venue_bookings", JSON.stringify(data));
+      } catch {}
     } catch {
       if (!isSilent) setError("Unable to sync venue bookings data.");
     } finally {
@@ -215,6 +258,9 @@ export default function VenueBookings() {
     }
     if (!targetId && !targetRef) return;
 
+    const targetKey = `${targetId || ""}-${targetRef || ""}`;
+    if (handledTargetRef.current === targetKey) return;
+
     // 1. Try finding in loaded bookings list
     if (bookings.length > 0) {
       const match = bookings.find(b => 
@@ -222,14 +268,12 @@ export default function VenueBookings() {
         (targetRef && (b.reference_code === targetRef || b.tracking_number?.reference_code === targetRef))
       );
       if (match) {
+        handledTargetRef.current = targetKey;
         setSelectedId(match.id);
         const matchStatus = (match.status || match.tracking_number?.status || "").toLowerCase();
-        if (!paramStatus) {
-          if (["pending", "approved", "ongoing", "on-going", "incomplete"].includes(matchStatus)) {
-            setStatusFilter(matchStatus === "on-going" ? "ongoing" : matchStatus);
-          } else {
-            setStatusFilter("all");
-          }
+        // Keep current statusFilter or 'all' unless an explicit ?status= parameter was passed in URL
+        if (paramStatus && ["pending", "approved", "ongoing", "incomplete"].includes(paramStatus)) {
+          setStatusFilter(paramStatus);
         }
         return;
       }
@@ -252,18 +296,16 @@ export default function VenueBookings() {
         }
 
         if (isSubscribed && record && record.id) {
+          handledTargetRef.current = targetKey;
           setBookings(prev => {
             if (prev.some(b => String(b.id) === String(record.id))) return prev;
             return [record, ...prev];
           });
           setSelectedId(record.id);
           const matchStatus = (record.status || record.tracking_number?.status || "").toLowerCase();
-          if (!paramStatus) {
-            if (["pending", "approved", "ongoing", "on-going", "incomplete"].includes(matchStatus)) {
-              setStatusFilter(matchStatus === "on-going" ? "ongoing" : matchStatus);
-            } else {
-              setStatusFilter("all");
-            }
+          // Keep current statusFilter or 'all' unless an explicit ?status= parameter was passed in URL
+          if (paramStatus && ["pending", "approved", "ongoing", "incomplete"].includes(paramStatus)) {
+            setStatusFilter(paramStatus);
           }
         }
       } catch (err) {
@@ -396,17 +438,25 @@ export default function VenueBookings() {
       const timeNow = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true });
 
       if (action === "complete") {
-        notify.success("Reservation Completed", `Venue booking (${refCode}) transferred to History Log.`);
         setSelectedId(null);
         setShowRejectForm(false);
+        clearDeepLinkUrl();
+        handledTargetRef.current = `${bookingId}-completed`;
+        setCompleteSuccessModal({
+          open: true,
+          title: "Successfully Completed",
+          message: `Venue booking reservation (${refCode}) has been successfully completed and archived to the History Log.`,
+        });
       } else if (action === "reject") {
         notify.error("Reservation Rejected", `Venue booking (${refCode}) rejected and transferred to History Log.`);
         setSelectedId(null);
         setShowRejectForm(false);
+        clearDeepLinkUrl();
       } else if (action === "cancel") {
         notify.warning("Reservation Cancelled", `Venue booking (${refCode}) cancelled and transferred to History Log.`);
         setSelectedId(null);
         setShowRejectForm(false);
+        clearDeepLinkUrl();
       } else if (action === "mark-incomplete") {
         notify.warning("Marked Incomplete", `Venue booking (${refCode}) marked incomplete. Alert email sent with 24-48h deadline.`);
       } else if (action === "approve") {
@@ -603,7 +653,7 @@ export default function VenueBookings() {
                       </td>
                       <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{usageDate}</td>
                       <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{timeRange}</td>
-                      <td className="px-4 py-3.5">
+                      <td className="px-4 py-3.5 whitespace-nowrap">
                         <div className="flex flex-col items-start gap-1">
                           <StatusBadge status={currentStatus} />
                           {overdueMins > 0 && <OverdueBadge minutesOverdue={overdueMins} />}
@@ -759,6 +809,17 @@ export default function VenueBookings() {
           setNotifyReason={setNotifyReason}
         />
       </Suspense>
+
+      {/* Completion Confirmation Dialog with Done Button */}
+      <AlertModal
+        open={completeSuccessModal.open}
+        onClose={() => setCompleteSuccessModal({ open: false, title: "", message: "" })}
+        variant="success"
+        title={completeSuccessModal.title || "Successfully Completed"}
+        message={completeSuccessModal.message}
+        buttonLabel="Done"
+        buttonClassName="mt-5 w-full py-2.5 min-h-[42px] bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
+      />
     </div>
   );
 }

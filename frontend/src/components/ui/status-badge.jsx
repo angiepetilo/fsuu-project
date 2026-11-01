@@ -53,7 +53,7 @@ export function StatusBadge({ status, className, children }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border transition-colors tracking-wide uppercase shadow-2xs",
+        "inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border transition-colors tracking-wide uppercase shadow-2xs whitespace-nowrap shrink-0",
         colorClass,
         className
       )}

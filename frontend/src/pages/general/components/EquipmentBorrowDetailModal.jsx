@@ -190,12 +190,17 @@ export default function EquipmentBorrowDetailModal({
           restricted_equipment: nextRestricted
         }));
       }
-      notify.success(
-        isCurrentlyRestricted ? "Category Unrestricted" : "Category Restricted",
-        isCurrentlyRestricted
-          ? `"${catName}" has been unrestricted.`
-          : `"${catName}" is marked as restricted and will not be approved.`
-      );
+      if (isCurrentlyRestricted) {
+        notify.success(
+          "Category Unrestricted",
+          `"${catName}" has been unrestricted.`
+        );
+      } else {
+        notify.error(
+          "Category Restricted",
+          `"${catName}" is marked as restricted and will not be approved.`
+        );
+      }
     } catch (err) {
       // Revert on failure
       setRestrictedCategories(restrictedCategories);
@@ -879,6 +884,25 @@ export default function EquipmentBorrowDetailModal({
     // a conflicting booking (via overlappingReservedBarcodes above).
     // A quantity-only soft-reserve would incorrectly hide units from admins when
     // another borrowing has requested but not yet assigned any specific barcodes.
+    // Sort available units by sequence number (seq_no) ascending (#001, #002, ...)
+    available.sort((a, b) => {
+      const extractSeq = (item) => {
+        const raw = item?.seq_no ?? item?.sequence_no ?? item?.seqNo;
+        if (raw !== null && raw !== undefined && String(raw).trim() !== "") {
+          const m = String(raw).trim().match(/\d+/);
+          if (m) return parseInt(m[0], 10);
+        }
+        const fb = `${item?.name || ""} ${item?.model || ""}`.match(/#(\d+)/);
+        return fb ? parseInt(fb[1], 10) : Number.MAX_SAFE_INTEGER;
+      };
+      const seqA = extractSeq(a);
+      const seqB = extractSeq(b);
+      if (seqA !== seqB) return seqA - seqB;
+      const codeA = String(a?.barcode || a?.serial_number || a?.id || "");
+      const codeB = String(b?.barcode || b?.serial_number || b?.id || "");
+      return codeA.localeCompare(codeB, undefined, { numeric: true });
+    });
+
     return available;
   };
 
@@ -1372,17 +1396,19 @@ export default function EquipmentBorrowDetailModal({
                           slot: u + 1,
                           barcode: bCode,
                           seqNo,
+                          seqNum: seqNo ? parseInt(String(seqNo).replace(/\D/g, ""), 10) || Number.MAX_SAFE_INTEGER : Number.MAX_SAFE_INTEGER,
                           brandModel,
                         });
                       }
                     }
+                    assignedList.sort((a, b) => a.seqNum - b.seqNum || a.slot - b.slot);
 
                     const isRestricted = restrictedCategories.some(
                       (c) => String(c).toLowerCase().trim() === String(catItem.category).toLowerCase().trim()
                     );
 
                     return (
-                      <div key={cIdx} className={`py-2.5 flex items-start justify-between gap-3 ${isRestricted ? "opacity-60 bg-slate-50 dark:bg-slate-900/50 p-2 rounded-xl" : ""}`}>
+                      <div key={cIdx} className={`py-2.5 flex items-start justify-between gap-3 transition-all ${isRestricted ? "opacity-60 grayscale bg-slate-200/60 dark:bg-slate-800/80 p-2.5 rounded-xl border border-slate-300 dark:border-slate-700" : ""}`}>
                         <div className="space-y-1 min-w-0 flex-1">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className={`font-extrabold text-xs block ${isRestricted ? "line-through text-slate-500 dark:text-slate-400" : "text-slate-900 dark:text-white"}`}>
@@ -1470,7 +1496,7 @@ export default function EquipmentBorrowDetailModal({
                 loadingUnits={eqLoading}
                 isSuperAdmin={isSuperAdmin}
                 restrictedCategories={restrictedCategories}
-                onToggleRestrictCategory={handleToggleRestrictCategory}
+                onToggleRestrictCategory={(isPending || isApproved) && !isOngoing && !isCompleted ? handleToggleRestrictCategory : undefined}
               />
             </div>
 
@@ -1694,7 +1720,7 @@ export default function EquipmentBorrowDetailModal({
         }}
         variant="confirm"
         title="Complete Equipment Borrowing"
-        message="Do you want to complete this equipment borrowing? If confirmed, the transaction will be completed and moved to the History Log."
+        message="Do you want to complete this equipment borrowing? If confirmed, an official Equipment Clearance Receipt email will be sent to the borrower and the transaction will be moved to the History Log."
         confirmLabel="Yes, Complete"
         cancelLabel="No"
         loading={actionLoading === `${selected.id}-complete` || actionLoading === "complete"}

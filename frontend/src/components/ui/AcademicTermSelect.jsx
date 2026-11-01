@@ -27,7 +27,7 @@ export default function AcademicTermSelect({ terms = [], selectedId, onSelect, c
         className="flex items-center justify-between gap-2 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-100 shadow-2xs hover:bg-slate-50 dark:hover:bg-slate-800/80 cursor-pointer min-w-[200px] transition-colors"
       >
         <span className="truncate">
-          {selectedTerm ? `${selectedTerm.name} ${selectedTerm.is_active ? "(Active)" : "(Archived)"}` : "All Academic Terms (TiDB Archive)"}
+          {selectedTerm ? `${selectedTerm.name} ${selectedTerm.is_active ? "(Active)" : "(Archived)"}` : "All Academic Terms"}
         </span>
         <ChevronDown size={14} className={`transition-transform text-slate-400 shrink-0 ${open ? "rotate-180" : ""}`} />
       </button>
@@ -42,7 +42,7 @@ export default function AcademicTermSelect({ terms = [], selectedId, onSelect, c
             onClick={() => { onSelect(""); setOpen(false); }}
             className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between hover:bg-blue-50 dark:hover:bg-blue-950/40 cursor-pointer transition-colors ${!selectedId ? "bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-extrabold" : "text-slate-700 dark:text-slate-300"}`}
           >
-            <span>All Academic Terms (TiDB Archive)</span>
+            <span>All Academic Terms</span>
             {!selectedId && <Check size={13} className="text-blue-600 dark:text-blue-400" />}
           </button>
           {terms.map((t) => (

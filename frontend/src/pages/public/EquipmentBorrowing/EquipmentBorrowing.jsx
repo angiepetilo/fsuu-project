@@ -110,12 +110,14 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
 
   const getCurrentLiveTime = () => {
     const now = new Date();
+    now.setMinutes(Math.ceil((now.getMinutes() + 1) / 5) * 5, 0, 0);
     const pad = n => String(n).padStart(2, '0');
     return `${pad(now.getHours())}:${pad(now.getMinutes())}`;
   };
 
   const getLaterLiveTime = (hoursToAdd = 1) => {
     const now = new Date();
+    now.setMinutes(Math.ceil((now.getMinutes() + 1) / 5) * 5, 0, 0);
     now.setHours(now.getHours() + hoursToAdd);
     const pad = n => String(n).padStart(2, '0');
     return `${pad(now.getHours())}:${pad(now.getMinutes())}`;
