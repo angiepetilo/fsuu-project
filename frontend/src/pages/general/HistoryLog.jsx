@@ -579,7 +579,7 @@ export default function HistoryLog() {
             />
 
             {/* Clear History Button (Preserves all Reports & DB) */}
-            {(isSuperAdmin || hasPermission("history_log.clear") || hasPermission("history_log")) && (
+            {(isSuperAdmin || hasPermission("history_log.clear") || hasPermission("history_log.disable")) && (
               <button
                 type="button"
                 onClick={handleClearAllHistory}

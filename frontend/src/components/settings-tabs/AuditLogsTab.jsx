@@ -9,8 +9,10 @@ import {
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import { usePermissions } from "@/hooks/usePermissions";
 
 export default function AuditLogsTab() {
+  const { isSuperAdmin } = usePermissions();
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -285,16 +287,18 @@ export default function AuditLogsTab() {
           </div>
         </form>
 
-        <button
-          type="button"
-          onClick={() => setShowClearModal(true)}
-          disabled={pagination.total === 0 || loading}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:hover:bg-rose-900/60 dark:text-rose-300 font-bold text-xs rounded-xl border border-rose-200 dark:border-rose-900/50 transition-all shadow-2xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0"
-          title="Clear all activity audit trail records"
-        >
-          <Trash2 size={13} className="shrink-0 text-rose-600 dark:text-rose-400" />
-          <span>Clear Logs</span>
-        </button>
+        {isSuperAdmin && (
+          <button
+            type="button"
+            onClick={() => setShowClearModal(true)}
+            disabled={pagination.total === 0 || loading}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:hover:bg-rose-900/60 dark:text-rose-300 font-bold text-xs rounded-xl border border-rose-200 dark:border-rose-900/50 transition-all shadow-2xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0"
+            title="Clear all activity audit trail records (Super Admin only)"
+          >
+            <Trash2 size={13} className="shrink-0 text-rose-600 dark:text-rose-400" />
+            <span>Clear Logs</span>
+          </button>
+        )}
       </div>
 
       {/* Audit Log Table */}

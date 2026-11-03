@@ -81,7 +81,6 @@ export const SETTINGS_CATEGORIES = [
         desc: "System transactions & action trail",
         icon: Activity,
         permissionKey: "settings.audit_logs",
-        altPermissionKeys: ["history_log.view"],
       },
       {
         id: "communication_logs",

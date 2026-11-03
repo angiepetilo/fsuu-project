@@ -160,8 +160,9 @@ class User extends Authenticatable
         if ($this->role_id === 1) {
             return true;
         }
-        if ($this->role) {
-            $r = strtolower($this->role->slug ?? $this->role->name ?? '');
+        $role = $this->relationLoaded('role') ? $this->role : null;
+        if ($role) {
+            $r = strtolower($role->slug ?? $role->name ?? '');
             return in_array($r, ['super_admin', 'super-admin', 'superadmin', 'super admin', 'sysad']);
         }
         return str_contains(strtolower($this->email ?? ''), 'superadmin');
@@ -169,20 +170,34 @@ class User extends Authenticatable
 
     public function isStaff(): bool
     {
+        if ($this->role_id === 2) {
+            return true;
+        }
         if ($this->isSuperAdmin()) {
             return false;
         }
-        $r = strtolower($this->role?->slug ?? $this->role?->name ?? '');
-        return in_array($r, ['staff', 'admin', 'office_admin', 'general', 'general_operations']) || $this->role_id === 2;
+        $role = $this->relationLoaded('role') ? $this->role : null;
+        if ($role) {
+            $r = strtolower($role->slug ?? $role->name ?? '');
+            return in_array($r, ['staff', 'admin', 'office_admin', 'general', 'general_operations']);
+        }
+        return false;
     }
 
     public function isStudentAssistant(): bool
     {
+        if ($this->role_id === 3) {
+            return true;
+        }
         if ($this->isSuperAdmin()) {
             return false;
         }
-        $r = strtolower($this->role?->slug ?? $this->role?->name ?? '');
-        return in_array($r, ['student_assistant', 'student-assistant', 'student assistant', 'sa']) || $this->role_id === 3;
+        $role = $this->relationLoaded('role') ? $this->role : null;
+        if ($role) {
+            $r = strtolower($role->slug ?? $role->name ?? '');
+            return in_array($r, ['student_assistant', 'student-assistant', 'student assistant', 'sa']);
+        }
+        return false;
     }
 
     public function isGeneral(): bool
@@ -227,6 +242,23 @@ class User extends Authenticatable
         $areaStr = is_object($area) && isset($area->value) ? $area->value : (string)$area;
         $actionStr = is_object($action) && isset($action->value) ? $action->value : (string)$action;
 
+        // Support single string with dot notation: e.g. hasPermission('venue_bookings.approve')
+        if (str_contains($areaStr, '.') && empty($actionStr)) {
+            [$areaStr, $actionStr] = explode('.', $areaStr, 2);
+        }
+
+        // Normalize area aliases (e.g. venue_booking <=> venue_bookings)
+        $areaAliases = [$areaStr];
+        if (str_ends_with($areaStr, 's')) {
+            $areaAliases[] = rtrim($areaStr, 's');
+        } else {
+            $areaAliases[] = $areaStr . 's';
+        }
+        if ($areaStr === 'venue_management') $areaAliases[] = 'manage_venues';
+        if ($areaStr === 'manage_venues') $areaAliases[] = 'venue_management';
+        if ($areaStr === 'equipment_management') $areaAliases[] = 'manage_equipments';
+        if ($areaStr === 'manage_equipments') $areaAliases[] = 'equipment_management';
+
         $perms = $this->permissions ?? [];
         if (empty($perms) && !empty($this->role_id)) {
             $role = $this->relationLoaded('role') ? $this->role : Role::find($this->role_id);
@@ -241,16 +273,44 @@ class User extends Authenticatable
         }
 
         if (is_array($perms)) {
-            if (in_array('*', $perms) || in_array($areaStr, $perms)) {
+            if (in_array('*', $perms)) {
                 return true;
             }
+
+            // If action is specified, check granular action permission across all aliases
             if ($actionStr) {
-                return in_array("{$areaStr}.{$actionStr}", $perms) || in_array("{$areaStr}:{$actionStr}", $perms);
+                foreach ($areaAliases as $alias) {
+                    if (in_array("{$alias}.{$actionStr}", $perms) || in_array("{$alias}:{$actionStr}", $perms)) {
+                        return true;
+                    }
+                }
+                // If the user has broad area permission without granular restrictions
+                foreach ($areaAliases as $alias) {
+                    if (in_array($alias, $perms)) {
+                        $hasGranularForModule = false;
+                        foreach ($perms as $p) {
+                            if (str_starts_with($p, "{$alias}.")) {
+                                $hasGranularForModule = true;
+                                break;
+                            }
+                        }
+                        if (!$hasGranularForModule) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
             }
-            // Check if user has any action in this area/module
-            foreach ($perms as $p) {
-                if ($p === $areaStr || str_starts_with($p, "{$areaStr}.") || str_starts_with($p, "{$areaStr}:")) {
+
+            // If no action specified, check if user has access to area
+            foreach ($areaAliases as $alias) {
+                if (in_array($alias, $perms)) {
                     return true;
+                }
+                foreach ($perms as $p) {
+                    if ($p === $alias || str_starts_with($p, "{$alias}.") || str_starts_with($p, "{$alias}:")) {
+                        return true;
+                    }
                 }
             }
         }

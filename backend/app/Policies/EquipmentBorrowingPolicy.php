@@ -26,49 +26,61 @@ class EquipmentBorrowingPolicy
 
     public function approve(User $user, EquipmentBorrow $borrowing): bool
     {
-        if ($user->isSuperAdmin() || $user->isStaff() || $user->isAdmin() || $user->isGeneral()) {
+        if ($user->isSuperAdmin()) {
             return true;
         }
 
-        return $user->hasPermission(PermissionArea::EquipmentBorrowing, PermissionAction::Approve);
+        return $user->hasPermission('equipment_borrowing', 'approve')
+            || $user->hasPermission(PermissionArea::EquipmentBorrowing, PermissionAction::Approve);
     }
 
     public function reject(User $user, EquipmentBorrow $borrowing): bool
     {
-        if ($user->isSuperAdmin() || $user->isStaff() || $user->isAdmin() || $user->isGeneral()) {
+        if ($user->isSuperAdmin()) {
             return true;
         }
 
-        return $user->hasPermission(PermissionArea::EquipmentBorrowing, PermissionAction::Approve);
+        return $user->hasPermission('equipment_borrowing', 'reject')
+            || $user->hasPermission(PermissionArea::EquipmentBorrowing, PermissionAction::Reject ?? 'reject');
     }
 
     public function ongoing(User $user, EquipmentBorrow $borrowing): bool
     {
-        return $user->isSuperAdmin() || $user->isStaff() || $user->isStudentAssistant() || $user->isAdmin() || $user->isGeneral();
+        if ($user->isSuperAdmin()) return true;
+        return $user->hasPermission('equipment_borrowing', 'assign_checkout')
+            || $user->hasPermission('equipment_borrowing', 'ongoing')
+            || $user->hasPermission('equipment_borrowing');
     }
 
     public function inspection(User $user, EquipmentBorrow $borrowing): bool
     {
-        return $user->isSuperAdmin() || $user->isStaff() || $user->isStudentAssistant() || $user->isAdmin() || $user->isGeneral();
+        if ($user->isSuperAdmin()) return true;
+        return $user->hasPermission('equipment_borrowing', 'process_return')
+            || $user->hasPermission('equipment_borrowing', 'inspection')
+            || $user->hasPermission('equipment_borrowing');
     }
 
     public function complete(User $user, EquipmentBorrow $borrowing): bool
     {
-        return $user->isSuperAdmin() || $user->isStaff() || $user->isStudentAssistant() || $user->isAdmin() || $user->isGeneral();
+        if ($user->isSuperAdmin()) return true;
+        return $user->hasPermission('equipment_borrowing', 'complete')
+            || $user->hasPermission('equipment_borrowing');
     }
 
     public function undo(User $user, EquipmentBorrow $borrowing): bool
     {
-        return $user->isSuperAdmin() || $user->isStaff() || $user->isStudentAssistant() || $user->isAdmin() || $user->isGeneral();
+        if ($user->isSuperAdmin()) return true;
+        return $user->hasPermission('equipment_borrowing', 'complete')
+            || $user->hasPermission('equipment_borrowing');
     }
 
     public function cancel(User $user, EquipmentBorrow $borrowing): bool
     {
-        if ($user->isSuperAdmin() || $user->isAdmin() || $user->isGeneral()) {
+        if ($user->isSuperAdmin() || $user->isAdmin()) {
             return true;
         }
 
-        if (! $user->hasPermission(PermissionArea::EquipmentBorrowing, PermissionAction::Approve)) {
+        if (! $user->hasPermission('equipment_borrowing', 'approve')) {
             return false;
         }
 
@@ -83,6 +95,8 @@ class EquipmentBorrowingPolicy
 
     public function assignUnit(User $user, EquipmentBorrow $borrowing): bool
     {
-        return $user->isSuperAdmin() || $user->isStaff() || $user->isStudentAssistant() || $user->isAdmin() || $user->isGeneral();
+        if ($user->isSuperAdmin()) return true;
+        return $user->hasPermission('equipment_borrowing', 'assign_checkout')
+            || $user->hasPermission('equipment_borrowing');
     }
 }

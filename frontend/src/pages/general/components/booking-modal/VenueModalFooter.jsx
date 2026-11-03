@@ -100,59 +100,72 @@ export default function VenueModalFooter({
     <>
       <div className="px-6 py-3.5 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-blue-900/50 flex items-center justify-end gap-3 shrink-0">
       {isPending ? (
-        <div className="flex items-center gap-2 flex-wrap justify-end">
-          {/* Mark Incomplete is available to both Student Assistants and Staff/Admins */}
-          <button
-            type="button"
-            onClick={() => {
-              if (setShowIncompleteForm) setShowIncompleteForm(prev => !prev);
-              if (setShowRejectForm) setShowRejectForm(false);
-            }}
-            disabled={!!actionLoading}
-            className="px-4 py-2.5 bg-amber-50 hover:bg-amber-100 active:bg-amber-200 dark:bg-amber-950/60 dark:hover:bg-amber-900/80 dark:text-amber-200 dark:border-amber-800/80 text-amber-900 border border-amber-300 font-extrabold text-xs rounded-xl shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
-            title="Mark booking incomplete and set 24-48h grace period"
-          >
-            <AlertTriangle size={14} className="text-amber-600 dark:text-amber-400" />
-            <span>Mark Incomplete</span>
-          </button>
-
+        <div className="flex items-center gap-2.5 flex-wrap justify-between w-full">
+          {/* Informational banner acknowledging when approval is restricted for current role */}
           {!canApprove ? (
-            <button
-              type="button"
-              onClick={handleNotifyUrgent}
-              disabled={notifyingUrgent}
-              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 dark:bg-amber-600 dark:hover:bg-amber-500 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
-              title="Urgent Approval"
-            >
-              {notifyingUrgent ? <Loader2 size={14} className="animate-spin" /> : <BellRing size={14} />}
-              <span>Urgent Approval</span>
-            </button>
-          ) : (
-            <>
-              {canReject && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowRejectForm(true);
-                    if (setShowIncompleteForm) setShowIncompleteForm(false);
-                  }}
-                  disabled={!!actionLoading}
-                  className="px-5 py-2.5 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 hover:border-rose-600 dark:bg-rose-950/60 dark:hover:bg-rose-600 dark:text-rose-300 dark:hover:text-white dark:border-rose-900/60 font-bold text-xs rounded-xl shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-50"
-                >
-                  Reject Booking
-                </button>
-              )}
+            <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/70 px-3 py-1.5 rounded-xl text-xs text-amber-900 dark:text-amber-200 shadow-2xs">
+              <ShieldAlert size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
+              <span className="text-[11px] leading-tight">
+                <strong>Awaiting Custodian Approval:</strong> Your account does not have approval permissions. Only authorized Staff or Super Admin can approve.
+              </span>
+            </div>
+          ) : <div />}
+
+          <div className="flex items-center gap-2 flex-wrap ml-auto justify-end">
+            {canReject && (
               <button
                 type="button"
-                onClick={() => handleAction(selected.id, "approve", { restricted_equipment: restrictedCategories })}
+                onClick={() => {
+                  if (setShowIncompleteForm) setShowIncompleteForm(prev => !prev);
+                  if (setShowRejectForm) setShowRejectForm(false);
+                }}
                 disabled={!!actionLoading}
-                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-500 text-white font-extrabold text-xs rounded-xl shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                className="px-4 py-2.5 bg-amber-50 hover:bg-amber-100 active:bg-amber-200 dark:bg-amber-950/60 dark:hover:bg-amber-900/80 dark:text-amber-200 dark:border-amber-800/80 text-amber-900 border border-amber-300 font-extrabold text-xs rounded-xl shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                title="Mark booking incomplete and set 24-48h grace period"
               >
-                {actionLoading === `${selected.id}-approve` ? <Loader2 size={14} className="animate-spin" /> : null}
-                <span>Approve Booking</span>
+                <AlertTriangle size={14} className="text-amber-600 dark:text-amber-400" />
+                <span>Mark Incomplete</span>
               </button>
-            </>
-          )}
+            )}
+
+            {!canApprove ? (
+              <button
+                type="button"
+                onClick={handleNotifyUrgent}
+                disabled={notifyingUrgent}
+                className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 dark:bg-amber-600 dark:hover:bg-amber-500 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                title="Dispatch urgent approval alert to Staff and Super Admin"
+              >
+                {notifyingUrgent ? <Loader2 size={14} className="animate-spin" /> : <BellRing size={14} />}
+                <span>Request Urgent Approval</span>
+              </button>
+            ) : (
+              <>
+                {canReject && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowRejectForm(true);
+                      if (setShowIncompleteForm) setShowIncompleteForm(false);
+                    }}
+                    disabled={!!actionLoading}
+                    className="px-5 py-2.5 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 hover:border-rose-600 dark:bg-rose-950/60 dark:hover:bg-rose-600 dark:text-rose-300 dark:hover:text-white dark:border-rose-900/60 font-bold text-xs rounded-xl shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-50"
+                  >
+                    Reject Booking
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => handleAction(selected.id, "approve", { restricted_equipment: restrictedCategories })}
+                  disabled={!!actionLoading}
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-500 text-white font-extrabold text-xs rounded-xl shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {actionLoading === `${selected.id}-approve` ? <Loader2 size={14} className="animate-spin" /> : null}
+                  <span>Approve Booking</span>
+                </button>
+              </>
+            )}
+          </div>
         </div>
       ) : isApproved ? (
         <div className="flex items-center gap-2.5 flex-wrap justify-end">

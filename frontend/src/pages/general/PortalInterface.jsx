@@ -1,23 +1,32 @@
-import { useState } from "react";
-import { useLocation } from "react-router-dom";
-import { Building2, PackageOpen, ShieldCheck, KeyRound } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { Building2, PackageOpen, ShieldCheck } from "lucide-react";
 import VenueBooking from "@/pages/public/VenueBooking/VenueBooking";
 import EquipmentBorrowing from "@/pages/public/EquipmentBorrowing/EquipmentBorrowing";
 
 export default function PortalInterface() {
-  const location = useLocation();
-  const searchParams = new URLSearchParams(location.search);
-  const initialTab = searchParams.get("tab") === "equipment" ? "equipment" : "venue";
-  const [activeTab, setActiveTab] = useState(initialTab);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") === "equipment" ? "equipment" : "venue";
+
+  const handleTabChange = (tab) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (tab === "equipment") {
+        next.set("tab", "equipment");
+      } else {
+        next.delete("tab");
+      }
+      return next;
+    }, { replace: true });
+  };
 
   return (
     <div className="space-y-6">
       {/* Top Banner with Mode Indicator */}
-      <div className="flex flex-col gap-4 p-5 bg-gradient-to-r from-slate-900 to-blue-950 text-white rounded-3xl border border-slate-800 shadow-md">
+      <div className="flex flex-col gap-4 p-5 bg-gradient-to-r from-slate-900 via-slate-800 to-blue-950 text-white rounded-3xl border border-slate-800 shadow-md">
         {/* Header Row */}
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase bg-blue-500 text-white">
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase bg-blue-500 text-white shadow-xs">
               Internal Portal Mode
             </span>
             <span className="flex items-center gap-1 text-xs font-bold text-slate-300">
@@ -33,11 +42,11 @@ export default function PortalInterface() {
           </p>
         </div>
 
-        {/* Tab Switcher — on its own row below the header */}
-        <div className="flex items-center p-1 bg-slate-800/90 border border-slate-700 rounded-2xl self-start">
+        {/* Tab Switcher */}
+        <div className="flex items-center p-1 bg-slate-800/90 border border-slate-700/80 rounded-2xl self-start">
           <button
             type="button"
-            onClick={() => setActiveTab("venue")}
+            onClick={() => handleTabChange("venue")}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
               activeTab === "venue"
                 ? "bg-blue-600 text-white shadow-sm"
@@ -50,7 +59,7 @@ export default function PortalInterface() {
 
           <button
             type="button"
-            onClick={() => setActiveTab("equipment")}
+            onClick={() => handleTabChange("equipment")}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
               activeTab === "equipment"
                 ? "bg-blue-600 text-white shadow-sm"
@@ -63,13 +72,14 @@ export default function PortalInterface() {
         </div>
       </div>
 
-      {/* Booking Form Canvas */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
-        {activeTab === "venue" ? (
+      {/* Booking Form Canvas — State-preserving tab switching with Dark Mode support */}
+      <div className="bg-card text-card-foreground rounded-3xl border border-border shadow-xs overflow-hidden">
+        <div className={activeTab === "venue" ? "block" : "hidden"}>
           <VenueBooking isPortal={true} />
-        ) : (
+        </div>
+        <div className={activeTab === "equipment" ? "block" : "hidden"}>
           <EquipmentBorrowing isPortal={true} />
-        )}
+        </div>
       </div>
     </div>
   );

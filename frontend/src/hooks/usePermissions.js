@@ -80,10 +80,14 @@ export function usePermissions() {
     );
     if (hasAnyActionInModule) return true;
 
-    // 4. Action check: If checking action key (e.g. "venue_bookings.approve"), check if user has parent module access
+    // 4. Action check: If checking action key (e.g. "venue_bookings.approve")
+    // Only inherit parent module access if NO granular action permissions exist for that module
     if (permissionKey.includes(".")) {
       const parentModule = permissionKey.split(".")[0];
-      if (permissionSet.has(parentModule)) return true;
+      if (permissionSet.has(parentModule)) {
+        const hasGranularActions = userPermissions.some((p) => p.startsWith(`${parentModule}.`));
+        if (!hasGranularActions) return true;
+      }
     }
 
     return false;

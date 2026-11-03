@@ -1565,45 +1565,54 @@ export default function EquipmentBorrowDetailModal({
         {/* Modal Footer: Action Buttons with Vivid Hover Colors */}
         <div className="px-6 py-3.5 bg-white dark:bg-slate-900/80 border-t border-slate-200 dark:border-blue-900/50 flex items-center justify-end gap-3 shrink-0">
           {isPending ? (
-            <>
+            <div className="flex items-center gap-2.5 flex-wrap justify-between w-full">
               {!canApprove ? (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/70 px-3 py-1.5 rounded-xl text-xs text-amber-900 dark:text-amber-200 shadow-2xs">
+                  <ShieldAlert size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                  <span className="text-[11px] leading-tight">
+                    <strong>Awaiting Custodian Approval:</strong> Your account does not have approval permissions. Only authorized Staff or Super Admin can approve.
+                  </span>
+                </div>
+              ) : <div />}
+
+              <div className="flex items-center gap-2 flex-wrap ml-auto justify-end">
+                {!canApprove ? (
                   <button
                     type="button"
                     onClick={handleNotifyUrgent}
                     disabled={notifyingUrgent}
                     className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
-                    title="Urgent Approval"
+                    title="Dispatch urgent approval alert to Staff and Super Admin"
                   >
                     {notifyingUrgent ? <Loader2 size={14} className="animate-spin" /> : <BellRing size={14} />}
-                    <span>Urgent Approval</span>
+                    <span>Request Urgent Approval</span>
                   </button>
-                </div>
-              ) : (
-                <>
-                  {canReject && (
+                ) : (
+                  <>
+                    {canReject && (
+                      <button
+                        type="button"
+                        onClick={() => handleAction(selected.id, "reject")}
+                        disabled={!!actionLoading}
+                        className="px-6 py-2 bg-rose-50 hover:bg-rose-600 dark:bg-rose-950/60 dark:hover:bg-rose-700 text-rose-700 hover:text-white dark:text-rose-300 border border-rose-200 hover:border-rose-600 dark:border-rose-900 font-bold text-xs rounded-lg shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                      >
+                        {actionLoading === `${selected.id}-reject` ? <Loader2 size={14} className="animate-spin" /> : null}
+                        Reject
+                      </button>
+                    )}
                     <button
                       type="button"
-                      onClick={() => handleAction(selected.id, "reject")}
+                      onClick={() => handleAction(selected.id, "approve", { restricted_equipment: restrictedCategories })}
                       disabled={!!actionLoading}
-                      className="px-6 py-2 bg-rose-50 hover:bg-rose-600 dark:bg-rose-950/60 dark:hover:bg-rose-700 text-rose-700 hover:text-white dark:text-rose-300 border border-rose-200 hover:border-rose-600 dark:border-rose-900 font-bold text-xs rounded-lg shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                      className="px-6 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold text-xs rounded-lg shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
                     >
-                      {actionLoading === `${selected.id}-reject` ? <Loader2 size={14} className="animate-spin" /> : null}
-                      Reject
+                      {actionLoading === `${selected.id}-approve` ? <Loader2 size={14} className="animate-spin" /> : null}
+                      Approve
                     </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => handleAction(selected.id, "approve", { restricted_equipment: restrictedCategories })}
-                    disabled={!!actionLoading}
-                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold text-xs rounded-lg shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
-                  >
-                    {actionLoading === `${selected.id}-approve` ? <Loader2 size={14} className="animate-spin" /> : null}
-                    Approve
-                  </button>
-                </>
-              )}
-            </>
+                  </>
+                )}
+              </div>
+            </div>
           ) : (
             <div className="flex items-center gap-2.5 flex-wrap justify-end">
               {isApproved && (

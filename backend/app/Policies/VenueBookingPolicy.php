@@ -26,57 +26,60 @@ class VenueBookingPolicy
 
     public function approve(User $user, VenueBooking $booking): bool
     {
-        if ($user->isSuperAdmin() || $user->isStaff() || $user->isAdmin() || $user->isGeneral()) {
+        if ($user->isSuperAdmin()) {
             return true;
         }
 
-        if (method_exists($user, 'hasPermission')) {
-            return $user->hasPermission(PermissionArea::VenueBooking, PermissionAction::Approve);
-        }
-
-        return false;
+        return $user->hasPermission('venue_bookings', 'approve')
+            || $user->hasPermission(PermissionArea::VenueBooking, PermissionAction::Approve);
     }
 
     public function reject(User $user, VenueBooking $booking): bool
     {
-        if ($user->isSuperAdmin() || $user->isStaff() || $user->isAdmin() || $user->isGeneral()) {
+        if ($user->isSuperAdmin()) {
             return true;
         }
 
-        if (method_exists($user, 'hasPermission')) {
-            return $user->hasPermission(PermissionArea::VenueBooking, PermissionAction::Approve);
-        }
-
-        return false;
+        return $user->hasPermission('venue_bookings', 'reject')
+            || $user->hasPermission(PermissionArea::VenueBooking, PermissionAction::Reject ?? 'reject');
     }
 
     public function ongoing(User $user, VenueBooking $booking): bool
     {
-        return $user->isSuperAdmin() || $user->isStaff() || $user->isStudentAssistant() || $user->isAdmin() || $user->isGeneral();
+        if ($user->isSuperAdmin()) return true;
+        return $user->hasPermission('venue_bookings', 'set_ongoing') 
+            || $user->hasPermission('venue_bookings', 'ongoing')
+            || $user->hasPermission('venue_bookings');
     }
 
     public function postInspection(User $user, VenueBooking $booking): bool
     {
-        return $user->isSuperAdmin() || $user->isStaff() || $user->isStudentAssistant() || $user->isAdmin() || $user->isGeneral();
+        if ($user->isSuperAdmin()) return true;
+        return $user->hasPermission('venue_bookings', 'post_inspection')
+            || $user->hasPermission('venue_bookings');
     }
 
     public function complete(User $user, VenueBooking $booking): bool
     {
-        return $user->isSuperAdmin() || $user->isStaff() || $user->isStudentAssistant() || $user->isAdmin() || $user->isGeneral();
+        if ($user->isSuperAdmin()) return true;
+        return $user->hasPermission('venue_bookings', 'complete')
+            || $user->hasPermission('venue_bookings');
     }
 
     public function undo(User $user, VenueBooking $booking): bool
     {
-        return $user->isSuperAdmin() || $user->isStaff() || $user->isStudentAssistant() || $user->isAdmin() || $user->isGeneral();
+        if ($user->isSuperAdmin()) return true;
+        return $user->hasPermission('venue_bookings', 'complete')
+            || $user->hasPermission('venue_bookings');
     }
 
     public function cancel(User $user, VenueBooking $booking): bool
     {
-        if ($user->isSuperAdmin() || $user->isAdmin() || $user->isGeneral()) {
+        if ($user->isSuperAdmin() || $user->isAdmin()) {
             return true;
         }
 
-        if (! $user->hasPermission(PermissionArea::VenueBooking, PermissionAction::Approve)) {
+        if (! $user->hasPermission('venue_bookings', 'approve')) {
             return false;
         }
 
@@ -91,6 +94,8 @@ class VenueBookingPolicy
 
     public function assignUnit(User $user, VenueBooking $booking): bool
     {
-        return $user->isSuperAdmin() || $user->isStaff() || $user->isStudentAssistant() || $user->isAdmin() || $user->isGeneral();
+        if ($user->isSuperAdmin()) return true;
+        return $user->hasPermission('venue_bookings', 'assign_checkout')
+            || $user->hasPermission('venue_bookings');
     }
 }
