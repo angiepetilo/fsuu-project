@@ -1,13 +1,13 @@
 # 🏛️ FSUU Facilities & Equipment Reservation System — Backend REST API
 
 **Father Saturnino Urios University (FSUU)**  
-*Laravel 11 REST API Service with Pusher Real-Time Broadcasting & Multi-Office Support*
+*Laravel 12 REST API Service with Pusher Real-Time Broadcasting & Multi-Office Support*
 
 ---
 
 ## 📋 Overview
 
-This directory contains the **Laravel 11 backend service** for the FSUU Venue Reservation & Equipment Borrowing System. It manages database persistence, authentication (Sanctum & Google OAuth), real-time WebSockets via Pusher, PDF generation, email notifications, and automated department accountability analytics.
+This directory contains the **Laravel 12 backend service** for the FSUU Venue Reservation & Equipment Borrowing System. It manages database persistence, authentication (Sanctum & Google OAuth), real-time WebSockets via Pusher, PDF generation, email notifications, and automated department accountability analytics.
 
 ---
 
