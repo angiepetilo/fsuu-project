@@ -15,6 +15,18 @@ export default defineConfig({
     },
   },
   build: {
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/lucide-react')) {
+            return 'lucide-icons';
+          }
+          if (id.includes('node_modules/@tanstack')) {
+            return 'vendor-tanstack';
+          }
+        },
+      },
+    },
   },
 })
