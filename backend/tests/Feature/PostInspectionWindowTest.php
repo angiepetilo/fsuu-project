@@ -37,6 +37,12 @@ class PostInspectionWindowTest extends TestCase
             'email' => 'staff@urios.edu.ph',
             'password' => bcrypt('password123'),
             'role_id' => $staffRole->id,
+            'permissions' => [
+                'venue_bookings.post_inspection',
+                'venue_bookings.view',
+                'equipment_borrowing.process_return',
+                'equipment_borrowing.view',
+            ],
         ]);
     }
 
