@@ -28,7 +28,6 @@ class User extends Authenticatable
         'suffix',
         'email_address',
         'email',
-        'google_id',
         'avatar',
         'password',
         'location',

@@ -7,7 +7,7 @@
 
 ## 📋 Overview
 
-This directory contains the **Laravel 12 backend service** for the FSUU Venue Reservation & Equipment Borrowing System. It manages database persistence, authentication (Sanctum & Google OAuth), real-time WebSockets via Pusher, PDF generation, email notifications, and automated department accountability analytics.
+This directory contains the **Laravel 12 backend service** for the FSUU Venue Reservation & Equipment Borrowing System. It manages database persistence, authentication (Laravel Sanctum & RBAC Token Security), real-time WebSockets via Pusher, PDF generation, email notifications, and automated department accountability analytics.
 
 ---
 
@@ -18,7 +18,7 @@ This directory contains the **Laravel 12 backend service** for the FSUU Venue Re
 * **Database**: MySQL 8.0+ / MariaDB / SQLite
 * **Real-time WebSockets**: Pusher Channels / Laravel Reverb (`pusher/pusher-php-server`)
 * **Email Delivery**: Resend API (`resend/resend-laravel`)
-* **Authentication**: Laravel Sanctum & Laravel Socialite (Google OAuth)
+* **Authentication**: Laravel Sanctum (Token-based Session Auth & RBAC)
 
 ---
 
