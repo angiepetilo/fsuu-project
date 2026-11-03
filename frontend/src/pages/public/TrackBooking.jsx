@@ -1042,13 +1042,17 @@ export default function TrackBooking() {
                           Reason for Rejection:
                         </span>
                         <p className="text-xs font-semibold text-foreground leading-relaxed whitespace-pre-wrap">
-                          {booking.rejection_reason || booking.remarks || "This request was not approved because another reservation for the same venue and time was approved first. Please submit a new reservation for a different venue or schedule."}
+                          {booking.rejection_reason || booking.remarks || (isVenue 
+                            ? "This request was not approved because another reservation for the same venue and time was approved first. Please submit a new reservation for a different venue or schedule."
+                            : "This borrowing request was not approved due to equipment availability or administrative policy. Please submit a new request or consult the facility custodian.")}
                         </p>
                       </div>
 
                       {/* Conflict & Re-booking Policy Guidance */}
                       <p className="text-[11.5px] text-rose-900/80 dark:text-rose-300/80 mt-2 font-medium leading-relaxed">
-                        Under university facility booking policies, reservations for the same venue and timeslot are processed on a First-Come, First-Served basis among applicants who have completed all required endorsements. You may submit a new reservation for an available vacant venue or alternative schedule.
+                        {isVenue 
+                          ? "Under university facility booking policies, reservations for the same venue and timeslot are processed on a First-Come, First-Served basis among applicants who have completed all required endorsements. You may submit a new reservation for an available vacant venue or alternative schedule."
+                          : "Equipment loans are allocated based on available physical units and verified academic requirements. You may submit a new borrowing request for an alternative date or visit the PMO/AVR office."}
                       </p>
                     </div>
                   </div>
@@ -1056,9 +1060,25 @@ export default function TrackBooking() {
               )}
 
               {(activeStatus || '').toLowerCase() === 'cancelled' && (
-                <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-rose-900 text-xs font-bold flex items-center gap-2">
-                  <AlertCircle size={18} className="text-rose-600 shrink-0" />
-                  <span><strong>Reservation Cancelled:</strong> This reservation has been cancelled.</span>
+                <div className="p-4 bg-gradient-to-r from-rose-500/15 via-rose-500/10 to-transparent border-2 border-rose-500/40 rounded-2xl text-rose-950 dark:text-rose-200 shadow-sm space-y-2.5 animate-in fade-in slide-in-from-top-2">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-rose-500/20 text-rose-600 dark:text-rose-400 rounded-xl shrink-0 mt-0.5 shadow-2xs">
+                      <AlertCircle size={22} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-xs font-black uppercase tracking-wider text-rose-700 dark:text-rose-300">
+                        Reservation Cancelled
+                      </h4>
+                      <div className="mt-2 p-3 bg-card/90 border border-rose-500/30 rounded-xl shadow-2xs space-y-1">
+                        <span className="text-[11px] font-extrabold uppercase tracking-wide text-rose-600 dark:text-rose-400 block">
+                          Cancellation Reason:
+                        </span>
+                        <p className="text-xs font-semibold text-foreground leading-relaxed whitespace-pre-wrap">
+                          {booking.rejection_reason || booking.remarks || booking.cancel_reason || "This reservation was cancelled by the applicant or administrative staff."}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 

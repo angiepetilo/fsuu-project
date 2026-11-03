@@ -107,6 +107,8 @@ export default function EquipmentBorrowDetailModal({
   const [showEarlyReturnModal, setShowEarlyReturnModal] = useState(false);
   const [showCancelApprovedModal, setShowCancelApprovedModal] = useState(false);
   const [cancelRemarks, setCancelRemarks] = useState("");
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectionRemarks, setRejectionRemarks] = useState("");
 
   const handleStartInspection = async (forceOptions = {}) => {
     setIsReadyForPostInspection(true);
@@ -525,6 +527,7 @@ export default function EquipmentBorrowDetailModal({
   const isOngoing = currentStatus === "ongoing" || currentStatus === "on-going";
   const isInspection = currentStatus === "inspection" || currentStatus === "post-inspection";
   const isCompleted = currentStatus === "completed" || currentStatus === "done" || currentStatus === "returned" || currentStatus === "damaged" || currentStatus === "lost" || currentStatus === "late return" || currentStatus === "returned late";
+  const isCancelledOrRejected = currentStatus.includes("reject") || currentStatus.includes("cancel");
   const isPostUseEligible = isOngoing || isInspection || isCompleted;
 
   useEffect(() => {
@@ -1560,6 +1563,34 @@ export default function EquipmentBorrowDetailModal({
             </div>
           ) : null}
 
+          {isCancelledOrRejected && (
+            <div className="pt-2 border-t border-slate-200 dark:border-blue-900/50">
+              <div className="p-4 bg-rose-50/90 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-2xl flex items-start gap-3 shadow-2xs">
+                <div className="p-2 bg-rose-100 dark:bg-rose-900/60 text-rose-600 dark:text-rose-400 rounded-xl shrink-0">
+                  <AlertCircle size={20} />
+                </div>
+                <div className="space-y-1.5 flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <span className="text-xs font-black uppercase tracking-wider text-rose-800 dark:text-rose-300">
+                      {currentStatus.includes("reject") ? "Equipment Borrowing Rejected" : "Equipment Borrowing Cancelled"}
+                    </span>
+                  </div>
+                  <p className="text-xs font-medium text-slate-600 dark:text-slate-400 leading-relaxed">
+                    This equipment loan was {currentStatus.includes("reject") ? "rejected" : "cancelled"}. No physical check-out or post-inspection is required.
+                  </p>
+                  <div className="mt-2 text-xs font-bold text-rose-900 dark:text-rose-200 bg-white/95 dark:bg-slate-900/90 p-3 rounded-xl border border-rose-200 dark:border-rose-900/50 shadow-2xs space-y-1">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-rose-700 dark:text-rose-400 block">
+                      Reason:
+                    </span>
+                    <p className="font-semibold text-slate-800 dark:text-slate-200 leading-relaxed text-xs whitespace-pre-wrap">
+                      {selected.rejection_reason || selected.remarks || selected.comments || "No specific reason provided."}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
         </div>
 
         {/* Modal Footer: Action Buttons with Vivid Hover Colors */}
@@ -1592,12 +1623,15 @@ export default function EquipmentBorrowDetailModal({
                     {canReject && (
                       <button
                         type="button"
-                        onClick={() => handleAction(selected.id, "reject")}
+                        onClick={() => {
+                          setRejectionRemarks("");
+                          setShowRejectModal(true);
+                        }}
                         disabled={!!actionLoading}
                         className="px-6 py-2 bg-rose-50 hover:bg-rose-600 dark:bg-rose-950/60 dark:hover:bg-rose-700 text-rose-700 hover:text-white dark:text-rose-300 border border-rose-200 hover:border-rose-600 dark:border-rose-900 font-bold text-xs rounded-lg shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
                       >
                         {actionLoading === `${selected.id}-reject` ? <Loader2 size={14} className="animate-spin" /> : null}
-                        Reject
+                        Reject Borrowing
                       </button>
                     )}
                     <button
@@ -1796,6 +1830,63 @@ export default function EquipmentBorrowDetailModal({
             placeholder="e.g., Borrowing cancelled by requestor or department..."
             className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-white focus:outline-none focus:border-rose-500"
           />
+        </div>
+      </ConfirmModal>
+
+      {/* Reject Equipment Borrowing Confirmation Modal */}
+      <ConfirmModal
+        open={showRejectModal}
+        onClose={() => {
+          setShowRejectModal(false);
+          setRejectionRemarks("");
+        }}
+        onConfirm={async () => {
+          const finalRemarks = rejectionRemarks.trim() || "Borrowing request rejected by administrator";
+          setShowRejectModal(false);
+          await handleAction(selected?.id, "reject", { remarks: finalRemarks, rejection_reason: finalRemarks });
+        }}
+        variant="danger"
+        title="Reject Equipment Borrowing Request"
+        message="Please provide a clear reason for rejecting this equipment borrowing request so the applicant is informed."
+        confirmLabel="Confirm Rejection"
+        cancelLabel="Cancel"
+        loading={actionLoading === `${selected?.id}-reject`}
+        confirmDisabled={!rejectionRemarks.trim()}
+      >
+        <div className="space-y-2.5 mt-2">
+          <span className="text-[10.5px] font-extrabold uppercase text-slate-500 dark:text-slate-400 tracking-wider block">
+            Quick Reason Templates:
+          </span>
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              "Insufficient available stock / equipment in maintenance",
+              "Missing official faculty / dean endorsement",
+              "Borrowing schedule outside facility operating hours",
+              "Unreturned overdue equipment on borrower record",
+            ].map((tmpl, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => setRejectionRemarks(tmpl)}
+                className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-700 dark:hover:text-rose-300 text-slate-700 dark:text-slate-300 text-[11px] font-semibold border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer text-left"
+              >
+                ⚡ {tmpl}
+              </button>
+            ))}
+          </div>
+
+          <div className="pt-1">
+            <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+              Reason for Rejection *
+            </label>
+            <textarea
+              rows={3}
+              value={rejectionRemarks}
+              onChange={(e) => setRejectionRemarks(e.target.value)}
+              placeholder="Explain why this borrowing request was rejected (e.g., Units undergoing routine maintenance, endorsement lacking)..."
+              className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-white focus:outline-none focus:border-rose-500 leading-relaxed"
+            />
+          </div>
         </div>
       </ConfirmModal>
     </div>

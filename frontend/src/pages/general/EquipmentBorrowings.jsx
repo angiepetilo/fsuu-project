@@ -478,6 +478,8 @@ export default function EquipmentBorrowings() {
               ...b,
               ...updatedRecord,
               status: newStatus,
+              rejection_reason: dataPayload.remarks || dataPayload.rejection_reason || b.rejection_reason,
+              remarks: dataPayload.remarks || dataPayload.rejection_reason || b.remarks,
               tracking_number: updatedTracking,
               trackingNumber: updatedTracking,
             };

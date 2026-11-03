@@ -480,6 +480,8 @@ export default function VenueBookings() {
               ...b,
               ...updatedRecord,
               status: newStatus,
+              rejection_reason: payload.rejection_reason || payload.remarks || b.rejection_reason,
+              remarks: payload.remarks || payload.rejection_reason || b.remarks,
               tracking_number: updatedTracking,
               trackingNumber: updatedTracking,
             };
