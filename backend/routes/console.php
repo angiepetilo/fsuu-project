@@ -31,7 +31,7 @@ Artisan::command('bookings:send-venue-reminders {--minutes=120}', function () {
 \Illuminate\Support\Facades\Schedule::command('bookings:auto-release-no-shows')->everyMinute();
 \Illuminate\Support\Facades\Schedule::command('bookings:check-overdue-and-exceeded')->everyFiveMinutes();
 \Illuminate\Support\Facades\Schedule::command('bookings:send-venue-reminders')->everyTenMinutes();
-\Illuminate\Support\Facades\Schedule::command('equipment:check-overdue')->everyFiveMinutes();
+// Note: Advance due reminder for equipment borrowing ('equipment:check-overdue') removed per request.
 \Illuminate\Support\Facades\Schedule::command('email:update-disposable-domains')->weekly();
 
 

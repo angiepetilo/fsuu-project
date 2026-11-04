@@ -89,8 +89,9 @@ export default function EquipBorrowHeader({
     ? getInspectionEligibility(scheduledEndDate, scheduledEndTime, 30)
     : { isReady: false, minutesUntilUnlock: 0, reason: "" };
 
-  // Send Reminder button appears only starting 30 minutes before the end time (or when overdue)
-  const canSendReminder = isReleasedOrOngoing && (inspectionEligibility.isReady || overdueMins > 0);
+  // Overdue notice appears ONLY when equipment is ongoing and genuinely past due (overdueMins > 0)
+  // Advance due reminders before end time have been removed
+  const canSendOverdueAlert = isReleasedOrOngoing && overdueMins > 0;
 
   return (
     <div className="px-6 py-4 bg-white dark:bg-slate-900/80 border-b border-slate-200 dark:border-blue-900/50 shrink-0">
@@ -116,27 +117,16 @@ export default function EquipBorrowHeader({
 
               {/* Inline Action Buttons to the right of Time and Date Filed */}
               <div className="flex items-center gap-1.5 flex-wrap">
-                <button
-                  type="button"
-                  onClick={handleResendEmail}
-                  disabled={resendLoading}
-                  className="px-2.5 py-1 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-[11px] font-bold border border-slate-300 dark:border-slate-700 flex items-center gap-1 cursor-pointer disabled:opacity-50 transition-colors shadow-2xs"
-                  title={isCompletedOrReturned ? "Send Equipment Clearance Receipt email to borrower" : "Resend email confirmation to borrower"}
-                >
-                  {resendLoading ? <Loader2 size={12} className="animate-spin" /> : <Mail size={12} className="text-slate-600 dark:text-slate-300" />}
-                  <span>{isCompletedOrReturned ? "Send Clearance Receipt" : "Resend Email"}</span>
-                </button>
-
-                {canSendReminder && (
+                {canSendOverdueAlert && (
                   <button
                     type="button"
                     onClick={() => handleSendReturnReminder ? handleSendReturnReminder("both") : handleSendOverdueSms()}
                     disabled={smsLoading}
-                    className="px-2.5 py-1 text-amber-900 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100/90 dark:hover:bg-amber-900/60 rounded-lg text-[11px] font-extrabold border border-amber-300 dark:border-amber-800/80 flex items-center gap-1 cursor-pointer disabled:opacity-50 transition-colors shadow-2xs animate-in fade-in"
-                    title="Send return reminder notice to borrower via SMS & Email (Available starting 30 mins before end time)"
+                    className="px-2.5 py-1 text-rose-900 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100/90 dark:hover:bg-rose-900/60 rounded-lg text-[11px] font-extrabold border border-rose-300 dark:border-rose-800/80 flex items-center gap-1 cursor-pointer disabled:opacity-50 transition-colors shadow-2xs animate-in fade-in"
+                    title="Send urgent overdue return notice to borrower via SMS and Email"
                   >
-                    {smsLoading ? <Loader2 size={12} className="animate-spin text-amber-700 dark:text-amber-400" /> : <Send size={12} className="text-amber-700 dark:text-amber-400" />}
-                    <span>Send Reminder</span>
+                    {smsLoading ? <Loader2 size={12} className="animate-spin text-rose-700 dark:text-rose-400" /> : <Send size={12} className="text-rose-700 dark:text-rose-400" />}
+                    <span>Send Overdue Alert</span>
                   </button>
                 )}
 
