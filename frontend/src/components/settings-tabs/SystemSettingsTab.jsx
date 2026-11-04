@@ -688,14 +688,61 @@ export default function SystemSettingsTab() {
           </span>
         </div>
 
+        {/* Gateway Provider Quick Presets */}
+        <div className="flex items-center gap-2 flex-wrap pb-1">
+          <span className="text-[11px] font-bold text-slate-500">Quick Gateway Presets:</span>
+          <button
+            type="button"
+            onClick={() => {
+              handleChange("sms_api_url", "https://www.iprogsms.com/api/v1/sms_messages");
+              notify.info("iPROG SMS Selected", "Endpoint set to https://www.iprogsms.com/api/v1/sms_messages");
+            }}
+            className={`px-3 py-1 text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${
+              (settings.sms_api_url || "").includes("iprog") || !settings.sms_api_url
+                ? "bg-violet-600 text-white border-violet-600 shadow-2xs"
+                : "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200"
+            }`}
+          >
+            iPROG SMS (Default / Subscribed)
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              handleChange("sms_api_url", "https://api.semaphore.co/api/v4/messages");
+              notify.info("Semaphore Selected", "Endpoint set to https://api.semaphore.co/api/v4/messages");
+            }}
+            className={`px-3 py-1 text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${
+              (settings.sms_api_url || "").includes("semaphore")
+                ? "bg-violet-600 text-white border-violet-600 shadow-2xs"
+                : "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200"
+            }`}
+          >
+            Semaphore
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              handleChange("sms_api_url", "https://unismsapi.com/api/sms");
+              notify.info("UniSMS Selected", "Endpoint set to https://unismsapi.com/api/sms");
+            }}
+            className={`px-3 py-1 text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${
+              (settings.sms_api_url || "").includes("unisms")
+                ? "bg-violet-600 text-white border-violet-600 shadow-2xs"
+                : "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200"
+            }`}
+          >
+            UniSMS
+          </button>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className={labelCls}>SMS API Key</label>
+            <label className={labelCls}>SMS API Token / Key</label>
             <div className="relative">
               <Lock size={13} className="absolute left-3 top-3 text-slate-400" />
               <input
                 type={showSmsKey ? "text" : "password"}
-                placeholder="Paste your API key (e.g. sk_...)..."
+                placeholder="Paste your API token or key..."
                 value={settings.sms_api_key || ""}
                 onChange={(e) => handleChange("sms_api_key", e.target.value)}
                 className={`${inputCls(isFieldModified("sms_api_key"))} pl-8 pr-10`}
@@ -709,7 +756,7 @@ export default function SystemSettingsTab() {
               </button>
             </div>
             <span className="text-[10px] text-slate-400 mt-1 block">
-              UniSMS dashboard &rarr; <strong className="text-slate-600">Developers &rarr; API keys</strong>
+              iPROG &rarr; <strong className="text-slate-600">API Documentation &rarr; API Token</strong>
             </span>
           </div>
 
@@ -719,14 +766,14 @@ export default function SystemSettingsTab() {
               <Server size={13} className="absolute left-3 top-3 text-slate-400" />
               <input
                 type="url"
-                placeholder="https://unismsapi.com/api/sms"
+                placeholder="https://www.iprogsms.com/api/v1/sms_messages"
                 value={settings.sms_api_url || ""}
                 onChange={(e) => handleChange("sms_api_url", e.target.value)}
                 className={`${inputCls(isFieldModified("sms_api_url"))} pl-8`}
               />
             </div>
             <span className="text-[10px] text-slate-400 mt-1 block">
-              Endpoint: <code className="font-mono text-slate-600">https://unismsapi.com/api/sms</code>
+              Default: <code className="font-mono text-slate-600">https://www.iprogsms.com/api/v1/sms_messages</code>
             </span>
           </div>
 

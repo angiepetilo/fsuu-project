@@ -51,18 +51,44 @@ class SmsService
         }
 
         try {
-            $apiUrl = $settings->sms_api_url ?: (
-                str_starts_with($apiKey, 'sk_')
-                    ? 'https://unismsapi.com/api/sms'
-                    : (config('services.iprogsms.api_url') ?: env('IPROG_SMS_API_URL') ?: env('SMS_API_URL', 'https://unismsapi.com/api/sms'))
-            );
+            $rawUrl = trim((string)$settings->sms_api_url);
+            if (empty($rawUrl)) {
+                if (str_starts_with($apiKey, 'sk_')) {
+                    $apiUrl = 'https://unismsapi.com/api/sms';
+                } elseif (str_contains(strtolower($apiKey), 'semaphore')) {
+                    $apiUrl = 'https://api.semaphore.co/api/v4/messages';
+                } else {
+                    $apiUrl = config('services.iprogsms.api_url') ?: env('IPROG_SMS_API_URL') ?: env('SMS_API_URL', 'https://www.iprogsms.com/api/v1/sms_messages');
+                }
+            } else {
+                $apiUrl = $rawUrl;
+            }
+
             $senderName = $settings->sms_sender_name ?: (config('services.iprogsms.sender_name') ?: env('IPROG_SMS_SENDER_NAME') ?: env('SMS_SENDER_NAME'));
 
             $lowerUrl = strtolower($apiUrl);
-            $isUniSms = str_contains($lowerUrl, 'unisms') || str_starts_with($apiKey, 'sk_');
+            $isIprog = str_contains($lowerUrl, 'iprogsms') || str_contains($lowerUrl, 'iprogtech') || (!str_contains($lowerUrl, 'semaphore') && !str_contains($lowerUrl, 'unisms') && !str_starts_with($apiKey, 'sk_'));
+            $isUniSms = str_contains($lowerUrl, 'unisms') || (str_starts_with($apiKey, 'sk_') && !$isIprog);
             $isSemaphore = str_contains($lowerUrl, 'semaphore');
 
-            if ($isUniSms) {
+            if ($isIprog) {
+                // iPROG SMS API (https://www.iprogsms.com/api/v1/sms_messages)
+                $payload = [
+                    'api_token'    => $apiKey,
+                    'phone_number' => $cleanNumber,
+                    'message'      => $message,
+                    'sms_provider' => 0,
+                ];
+                if (!empty($senderName) && !in_array(strtolower($senderName), ['unisoft', 'default'], true)) {
+                    $payload['sender_name'] = $senderName;
+                }
+                $response = Http::timeout(12)
+                    ->withHeaders([
+                        'Accept'       => 'application/json',
+                        'Content-Type' => 'application/json',
+                    ])
+                    ->post($apiUrl, $payload);
+            } elseif ($isUniSms) {
                 // UniSMS API (https://unismsapi.com/api/sms)
                 // Note: UniSMS default test sender ID is "Unisoft" (supports Globe/DITO in testing)
                 $intlNumber = '+63' . substr($cleanNumber, 1);
@@ -90,12 +116,15 @@ class SmsService
                 $response = Http::timeout(10)->asForm()->post($apiUrl, $payload);
             } else {
                 $payload = [
+                    'api_token'    => $apiKey,
                     'api_key'      => $apiKey,
                     'phone_number' => $cleanNumber,
+                    'number'       => $cleanNumber,
                     'message'      => $message,
                 ];
                 if (!empty($senderName)) {
                     $payload['sender_name'] = $senderName;
+                    $payload['sendername']  = $senderName;
                 }
                 $response = Http::timeout(10)
                     ->withHeaders([
@@ -108,21 +137,36 @@ class SmsService
             $resJson = $response->json();
             Log::info("SMS Gateway sent to {$cleanNumber}: status={$response->status()} body=" . $response->body());
 
-            if ($response->successful() && (!isset($resJson['status']) || $resJson['status'] < 400) && !isset($resJson['errors'])) {
+            // iPROG returns HTTP 200 even on application errors (with JSON status != 200)
+            $isIprogError = $isIprog && is_array($resJson) && isset($resJson['status']) && (int)$resJson['status'] !== 200;
+
+            if ($response->successful() && !$isIprogError && (!isset($resJson['status']) || (int)$resJson['status'] < 400) && !isset($resJson['errors'])) {
                 return is_array($resJson) ? array_merge(['success' => true], $resJson) : ['success' => true, 'raw' => $response->body()];
             }
 
             Log::warning("SMS Gateway error response: " . $response->body());
             $errorMsg = null;
             if (is_array($resJson)) {
-                if (isset($resJson['errors']) && is_array($resJson['errors'])) {
-                    $flattened = [];
-                    foreach ($resJson['errors'] as $field => $errs) {
-                        $flattened[] = $field . ': ' . (is_array($errs) ? implode(', ', $errs) : $errs);
+                if (isset($resJson['message'])) {
+                    if (is_array($resJson['message'])) {
+                        $errorMsg = implode(' ', $resJson['message']);
+                    } else {
+                        $errorMsg = (string)$resJson['message'];
                     }
-                    $errorMsg = implode('; ', $flattened);
-                } else {
-                    $errorMsg = $resJson['message'] ?? $resJson['error'] ?? null;
+                } elseif (isset($resJson['error'])) {
+                    $errorMsg = is_array($resJson['error']) ? implode(' ', $resJson['error']) : (string)$resJson['error'];
+                } elseif (isset($resJson['errors'])) {
+                    if (is_array($resJson['errors'])) {
+                        $flattened = [];
+                        foreach ($resJson['errors'] as $field => $errs) {
+                            $flattened[] = is_numeric($field)
+                                ? (is_array($errs) ? implode(', ', $errs) : $errs)
+                                : ($field . ': ' . (is_array($errs) ? implode(', ', $errs) : $errs));
+                        }
+                        $errorMsg = implode('; ', $flattened);
+                    } else {
+                        $errorMsg = (string)$resJson['errors'];
+                    }
                 }
             }
             if (!$errorMsg) {
