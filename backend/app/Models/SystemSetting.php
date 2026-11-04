@@ -32,6 +32,7 @@ class SystemSetting extends Model
         'mail_from_name',
         'sms_api_key',
         'sms_api_url',
+        'sms_sender_name',
         'abstract_email_api_key',
         'facebook_url',
         'facebook_name',

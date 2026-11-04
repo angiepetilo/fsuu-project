@@ -56,7 +56,7 @@ class SmsService
                     ? 'https://unismsapi.com/api/sms'
                     : (config('services.iprogsms.api_url') ?: env('IPROG_SMS_API_URL') ?: env('SMS_API_URL', 'https://unismsapi.com/api/sms'))
             );
-            $senderName = config('services.iprogsms.sender_name') ?: env('IPROG_SMS_SENDER_NAME') ?: env('SMS_SENDER_NAME');
+            $senderName = $settings->sms_sender_name ?: (config('services.iprogsms.sender_name') ?: env('IPROG_SMS_SENDER_NAME') ?: env('SMS_SENDER_NAME'));
 
             $lowerUrl = strtolower($apiUrl);
             $isUniSms = str_contains($lowerUrl, 'unisms') || str_starts_with($apiKey, 'sk_');

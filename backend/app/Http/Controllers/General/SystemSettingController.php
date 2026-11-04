@@ -102,6 +102,7 @@ class SystemSettingController extends Controller
             'mail_from_name'                 => 'nullable|string|max:255',
             'sms_api_key'                    => 'nullable|string|max:500',
             'sms_api_url'                    => 'nullable|url|max:500',
+            'sms_sender_name'                => 'nullable|string|max:50',
             'abstract_email_api_key'         => 'nullable|string|max:500',
         ]);
 
@@ -138,6 +139,10 @@ class SystemSettingController extends Controller
         if (isset($validated['sms_api_url'])) {
             $envUpdates['IPROG_SMS_API_URL'] = $validated['sms_api_url'];
             $envUpdates['SMS_API_URL'] = $validated['sms_api_url'];
+        }
+        if (isset($validated['sms_sender_name'])) {
+            $envUpdates['IPROG_SMS_SENDER_NAME'] = $validated['sms_sender_name'];
+            $envUpdates['SMS_SENDER_NAME'] = $validated['sms_sender_name'];
         }
         if (isset($validated['abstract_email_api_key'])) {
             $envUpdates['ABSTRACT_EMAIL_API_KEY'] = $validated['abstract_email_api_key'];

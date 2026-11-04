@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Loader2, CheckCircle2, Globe, Phone, Mail, RotateCcw, AlertCircle,
   Save, Lock, Eye, EyeOff, MessageSquare, Server, Shield,
-  Send, Sun, Moon, Check, MapPin, Clock
+  Send, Sun, Moon, Check, MapPin, Clock, Tag
 } from "lucide-react";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
@@ -48,6 +48,7 @@ export default function SystemSettingsTab() {
     // SMS
     sms_api_key: "",
     sms_api_url: "",
+    sms_sender_name: "FSUU_AVR",
     // Abstract API
     abstract_email_api_key: "",
   });
@@ -687,7 +688,7 @@ export default function SystemSettingsTab() {
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className={labelCls}>SMS API Key</label>
             <div className="relative">
@@ -726,6 +727,23 @@ export default function SystemSettingsTab() {
             </div>
             <span className="text-[10px] text-slate-400 mt-1 block">
               Endpoint: <code className="font-mono text-slate-600">https://unismsapi.com/api/sms</code>
+            </span>
+          </div>
+
+          <div>
+            <label className={labelCls}>SMS Sender Name</label>
+            <div className="relative">
+              <Tag size={13} className="absolute left-3 top-3 text-slate-400" />
+              <input
+                type="text"
+                placeholder="e.g. FSUU_AVR or SEMAPHORE"
+                value={settings.sms_sender_name || ""}
+                onChange={(e) => handleChange("sms_sender_name", e.target.value)}
+                className={`${inputCls(isFieldModified("sms_sender_name"))} pl-8`}
+              />
+            </div>
+            <span className="text-[10px] text-slate-400 mt-1 block">
+              Approved Sender ID (defaults to <code className="font-mono text-slate-600">FSUU_AVR</code>)
             </span>
           </div>
         </div>
