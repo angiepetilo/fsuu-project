@@ -173,10 +173,21 @@ class OtpController extends Controller
 
             // Dispatch SMS via SmsService
             $serviceName = $isEquipment ? 'Equipment Borrowing' : 'Venue Booking';
+            $smsResult = null;
             try {
                 $smsResult = SmsService::send($cleanPhone, "[FSUU AVR] Your {$serviceName} verification code is: {$code}. Valid for 10 mins. Do not share this code with anyone.");
             } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::error("Failed to send OTP SMS: " . $e->getMessage());
+                $smsResult = ['success' => false, 'message' => $e->getMessage()];
+            }
+
+            if (is_array($smsResult) && isset($smsResult['success']) && $smsResult['success'] === false) {
+                Cache::forget($cacheKey);
+                $err = $smsResult['message'] ?? $smsResult['error'] ?? 'SMS gateway error';
+                return response()->json([
+                    'message'    => "SMS Gateway Error: {$err}. Please ensure your gateway has active load balance, or switch to Email verification.",
+                    'sms_failed' => true,
+                ], 422);
             }
 
             return response()->json([
