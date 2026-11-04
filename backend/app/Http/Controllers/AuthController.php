@@ -375,39 +375,35 @@ class AuthController extends Controller
 
         $isValid = false;
 
-        if ($isSuperAdminOnly) {
-            // Must verify against a Super Admin's password
-            if ($user && $user->isSuperAdmin()) {
-                if (\Illuminate\Support\Facades\Hash::check($request->password, $user->password)) {
-                    $isValid = true;
-                }
-            } else {
-                // If logged in as non-superadmin (e.g. staff with settings access),
-                // verify against active Super Admin accounts in the system
-                $superAdminRoleIds = \App\Models\Role::query()
-                    ->whereIn('name', ['super_admin', 'superadmin', 'super admin', 'sysad'])
-                    ->orWhere('name', 'like', '%super%admin%')
-                    ->pluck('id')
-                    ->push(1)
-                    ->unique();
-
-                $superAdmins = \App\Models\User::where(function ($q) use ($superAdminRoleIds) {
-                    $q->whereIn('role_id', $superAdminRoleIds)
-                      ->orWhere('id', 1)
-                      ->orWhere('email', 'like', '%superadmin%')
-                      ->orWhere('email_address', 'like', '%superadmin%');
-                })->get();
-
-                foreach ($superAdmins as $sa) {
-                    if (\Illuminate\Support\Facades\Hash::check($request->password, $sa->password)) {
-                        $isValid = true;
-                        break;
-                    }
-                }
-            }
-        } else {
-            if ($user && \Illuminate\Support\Facades\Hash::check($request->password, $user->password)) {
+        // 1. Primary check: If user is authenticated, check their own account password first
+        if ($user && !empty($user->password) && \Illuminate\Support\Facades\Hash::check($request->password, $user->password)) {
+            // Authorized if not superadmin-only, or if user is superadmin, or if user has explicit permission for the module
+            if (!$isSuperAdminOnly || $user->isSuperAdmin() || $user->hasPermission('settings.pin') || $user->hasPermission('settings', 'pin') || $user->hasPermission('settings.system_settings')) {
                 $isValid = true;
+            }
+        }
+
+        // 2. Executive fallback: If not valid yet, check against active Super Administrator accounts
+        if (!$isValid && $isSuperAdminOnly) {
+            $superAdminRoleIds = \App\Models\Role::query()
+                ->whereIn('name', ['super_admin', 'superadmin', 'super admin', 'sysad'])
+                ->orWhere('name', 'like', '%super%admin%')
+                ->pluck('id')
+                ->push(1)
+                ->unique();
+
+            $superAdmins = \App\Models\User::where(function ($q) use ($superAdminRoleIds) {
+                $q->whereIn('role_id', $superAdminRoleIds)
+                  ->orWhere('id', 1)
+                  ->orWhere('email', 'like', '%superadmin%')
+                  ->orWhere('email_address', 'like', '%superadmin%');
+            })->get();
+
+            foreach ($superAdmins as $sa) {
+                if (\Illuminate\Support\Facades\Hash::check($request->password, $sa->password)) {
+                    $isValid = true;
+                    break;
+                }
             }
         }
 
@@ -445,7 +441,7 @@ class AuthController extends Controller
                         'actor_name'      => $user?->name ?: 'Staff User',
                         'actor_email'     => $user?->email_address ?: $user?->email,
                         'actor_role'      => $user?->role?->name ?: ($user?->role_id === 1 ? 'Super Admin' : 'Staff'),
-                        'remarks'         => "Unlocked [{$module}] after {$attemptCount} attempt(s). Super Admin credentials verified.",
+                        'remarks'         => "Unlocked [{$module}] after {$attemptCount} attempt(s). Credentials verified.",
                         'device'          => $deviceSummary,
                     ],
                     'created_at'     => now(),
@@ -456,7 +452,7 @@ class AuthController extends Controller
 
             return response()->json([
                 'valid'   => true,
-                'message' => $isSuperAdminOnly ? 'Super Admin password verified.' : 'Password verified.',
+                'message' => 'Password verified successfully.',
             ]);
         }
 

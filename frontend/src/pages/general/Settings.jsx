@@ -302,7 +302,7 @@ export default function Settings() {
   const handleVerifyPassword = useCallback(async (e) => {
     e.preventDefault();
     if (!pwInput.trim()) {
-      setPwError("Please enter the Super Admin password.");
+      setPwError("Please enter your account password.");
       return;
     }
     setVerifying(true);
@@ -322,7 +322,7 @@ export default function Settings() {
       setPendingTab(null);
       setPwInput("");
     } catch (err) {
-      const msg = err.response?.data?.message || "Incorrect Super Admin password. Only the Super Admin password can unlock this module.";
+      const msg = err.response?.data?.message || "Incorrect password. Please enter your valid account password.";
       setPwError(msg);
     } finally {
       setVerifying(false);
@@ -540,19 +540,19 @@ export default function Settings() {
 
             <form onSubmit={handleVerifyPassword} className="mt-4 space-y-4">
               <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">
-                Please enter the Super Admin password to unlock this protected settings module.
+                Please enter your account password to unlock this protected settings module.
               </p>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                  Super Admin Password
+                  Account Password
                 </label>
                 <div className="relative">
                   <input
                     type={showPw ? "text" : "password"}
                     value={pwInput}
                     onChange={(e) => { setPwInput(e.target.value); setPwError(""); }}
-                    placeholder="Enter Super Admin password"
+                    placeholder="Enter your account password"
                     autoFocus
                     className={`w-full pl-3 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:outline-none transition-colors ${
                       pwError ? "border-red-400 focus:border-red-500" : "border-slate-200 dark:border-slate-700 focus:border-blue-500"

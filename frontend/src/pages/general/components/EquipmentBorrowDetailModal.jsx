@@ -246,7 +246,8 @@ export default function EquipmentBorrowDetailModal({
         const dbType = (dbEquipmentTypes || []).find(t => String(t.id) === String(item.equipment_type_id)) || item.equipment_type || item.equipmentType;
         const name = dbType?.eq_name || dbType?.name || item.equipment_type?.eq_name || item.equipment_type?.name || item.equipmentType?.eq_name || item.equipmentType?.name || item.equipment_name || item.name || "Equipment Item";
         const reqQty = parseInt(item.quantity_requested || item.quantity || 1, 10);
-        const rawBuilt = item.built_in_names ||
+        const isScreen = String(name).toLowerCase().includes("screen");
+        const rawBuilt = isScreen ? [] : (item.built_in_names ||
           dbType?.built_in_names ||
           item.equipment_type?.built_in_names ||
           item.equipmentType?.built_in_names ||
@@ -254,7 +255,7 @@ export default function EquipmentBorrowDetailModal({
           dbType?.built_in_units ||
           item.equipment_type?.built_in_units ||
           item.equipmentType?.built_in_units ||
-          [];
+          []);
         const builtInList = Array.isArray(rawBuilt) ? rawBuilt : (typeof rawBuilt === 'string' ? JSON.parse(rawBuilt || '[]') : []);
 
         const builtInNames = builtInList.map((bi) => {
@@ -275,8 +276,9 @@ export default function EquipmentBorrowDetailModal({
     } else if (selected.equipment_name || selected.equipment) {
       const name = selected.equipment_name || selected.equipment;
       const reqQty = parseInt(selected.quantity || selected.qty || 1, 10);
+      const isScreen = String(name).toLowerCase().includes("screen");
       const matchedDb = (dbEquipmentTypes || []).find(t => String(t.id) === String(selected.equipment_type_id) || (t.eq_name || t.name || '').toLowerCase() === String(name).toLowerCase());
-      const rawBuilt = matchedDb?.built_in_names || matchedDb?.built_in_units || selected.built_in_names || selected.built_in_units || [];
+      const rawBuilt = isScreen ? [] : (matchedDb?.built_in_names || matchedDb?.built_in_units || selected.built_in_names || selected.built_in_units || []);
       const builtInList = Array.isArray(rawBuilt) ? rawBuilt : (typeof rawBuilt === 'string' ? JSON.parse(rawBuilt || '[]') : []);
       const builtInNames = builtInList.map((bi) => {
         if (typeof bi === 'string' && isNaN(Number(bi))) return bi.trim();

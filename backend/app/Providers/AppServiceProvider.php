@@ -220,9 +220,14 @@ class AppServiceProvider extends ServiceProvider
                 }
             }
 
-            // Ensure default built-in category linkages exist for Projector if empty in Production
+            // Ensure default built-in category linkages exist for Projector if empty in Production (strictly exclude screens)
             if (\Illuminate\Support\Facades\Schema::hasTable('equipment_types') && \Illuminate\Support\Facades\Schema::hasColumn('equipment_types', 'built_in_units')) {
-                $projectorType = \App\Models\EquipmentType::whereRaw("LOWER(eq_name) LIKE '%projector%'")->first();
+                // Ensure screens do not inherit built-in accessories
+                \App\Models\EquipmentType::whereRaw("LOWER(eq_name) LIKE '%screen%'")
+                    ->whereNotNull('built_in_units')
+                    ->update(['built_in_units' => null]);
+
+                $projectorType = \App\Models\EquipmentType::whereRaw("LOWER(eq_name) LIKE '%projector%' AND LOWER(eq_name) NOT LIKE '%screen%'")->first();
                 if ($projectorType && empty($projectorType->built_in_units)) {
                     $linkedIds = \App\Models\EquipmentType::where('id', '!=', $projectorType->id)
                         ->where(function($q) {
@@ -240,8 +245,13 @@ class AppServiceProvider extends ServiceProvider
 
             // Ensure default physical unit built-in links exist for Projector units if empty in Production
             if (\Illuminate\Support\Facades\Schema::hasTable('equipment_units') && \Illuminate\Support\Facades\Schema::hasColumn('equipment_units', 'built_in_units')) {
+                // Ensure screen units do not inherit projector built-in units
+                \App\Models\EquipmentUnit::whereRaw("LOWER(model) LIKE '%screen%'")
+                    ->whereNotNull('built_in_units')
+                    ->update(['built_in_units' => null]);
+
                 $projUnits = \App\Models\EquipmentUnit::whereNull('archived_at')
-                    ->whereRaw("LOWER(model) LIKE '%projector%'")
+                    ->whereRaw("LOWER(model) LIKE '%projector%' AND LOWER(model) NOT LIKE '%screen%'")
                     ->get();
                 foreach ($projUnits as $pu) {
                     if (empty($pu->built_in_units)) {

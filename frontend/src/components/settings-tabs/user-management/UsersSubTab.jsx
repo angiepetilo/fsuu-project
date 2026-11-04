@@ -123,6 +123,8 @@ export default function UsersSubTab({ showMsg }) {
 
   const handleSave = async (e, newPassword = null) => {
     if (e && e.preventDefault) e.preventDefault();
+    if (formLoading) return;
+    setFormLoading(true);
     const email = (form.email_address || "").trim().toLowerCase();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email || !emailRegex.test(email)) {

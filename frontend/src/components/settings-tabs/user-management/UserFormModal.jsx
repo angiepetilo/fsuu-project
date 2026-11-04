@@ -115,6 +115,7 @@ export default function UserFormModal({
 
   const onSubmitForm = (e) => {
     e.preventDefault();
+    if (formLoading || emailChecking) return;
     setPwValidationError("");
 
     const targetEmail = (form.email_address || "").trim().toLowerCase();
@@ -210,8 +211,9 @@ export default function UserFormModal({
             </div>
             <button
               type="button"
-              onClick={() => setShowModal(false)}
-              className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+              disabled={formLoading}
+              onClick={() => !formLoading && setShowModal(false)}
+              className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <X size={16} />
             </button>
@@ -426,18 +428,28 @@ export default function UserFormModal({
             <div className="flex gap-2.5 p-4 px-5 bg-slate-50 border-t border-slate-100 shrink-0 rounded-b-3xl">
               <button
                 type="button"
-                onClick={() => setShowModal(false)}
-                className="flex-1 py-2.5 border border-slate-200 bg-white hover:bg-slate-100 rounded-xl text-xs font-extrabold text-slate-600 transition-colors cursor-pointer shadow-2xs"
+                disabled={formLoading}
+                onClick={() => !formLoading && setShowModal(false)}
+                className="flex-1 py-2.5 border border-slate-200 bg-white hover:bg-slate-100 rounded-xl text-xs font-extrabold text-slate-600 transition-colors cursor-pointer shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                disabled={formLoading}
-                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl text-xs font-extrabold transition-colors cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-60 shadow-xs"
+                disabled={formLoading || emailChecking || emailStatus?.valid === false}
+                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl text-xs font-extrabold transition-colors cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed shadow-xs"
               >
-                {formLoading && <Loader2 size={13} className="animate-spin" />}
-                {editUser ? "Save Changes" : "Send Invitation"}
+                {formLoading ? (
+                  <>
+                    <Loader2 size={13} className="animate-spin" />
+                    <span>{editUser ? "Saving Changes..." : "Sending Invitation..."}</span>
+                  </>
+                ) : (
+                  <>
+                    {!editUser && <Mail size={13} />}
+                    <span>{editUser ? "Save Changes" : "Send Invitation"}</span>
+                  </>
+                )}
               </button>
             </div>
           </form>

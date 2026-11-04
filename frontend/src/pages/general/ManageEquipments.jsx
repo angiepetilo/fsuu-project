@@ -249,7 +249,7 @@ export default function ManageEquipments() {
         if (typeof raw === 'string') {
           try { raw = JSON.parse(raw); } catch { raw = []; }
         }
-        if (Array.isArray(raw)) {
+        if (Array.isArray(raw) && raw.length > 0) {
           raw.forEach(id => {
             if (id) {
               if (typeof id === 'object' && id !== null && id.id) {
@@ -259,6 +259,38 @@ export default function ManageEquipments() {
               }
             }
           });
+        } else {
+          // Check if parent's category requires built-in accessories
+          const pCat = catList.find(c => String(c.id) === String(p.equipment_type_id));
+          let catBuilt = pCat?.built_in_names || pCat?.built_in_units;
+          if (typeof catBuilt === 'string') {
+            try { catBuilt = JSON.parse(catBuilt); } catch { catBuilt = []; }
+          }
+          if (Array.isArray(catBuilt) && catBuilt.length > 0) {
+            const pSeq = p.seq_no ? String(p.seq_no).trim().toLowerCase().replace(/^#/, "") : null;
+            catBuilt.forEach(cRef => {
+              if (!cRef) return;
+              const isNum = typeof cRef === 'number' || /^\d+$/.test(String(cRef));
+              const tCat = catList.find(c => isNum ? String(c.id) === String(cRef) : (c.eq_name || c.name || '').toLowerCase() === String(cRef).toLowerCase());
+              const tCatId = tCat ? String(tCat.id) : (isNum ? String(cRef) : null);
+              const mChild = unitData.find(u => {
+                if (String(u.id) === String(p.id)) return false;
+                const matchCat = (tCatId && String(u.equipment_type_id) === tCatId) ||
+                  (tCat && String(u.category || '').toLowerCase() === (tCat.eq_name || tCat.name || '').toLowerCase());
+                if (!matchCat) return false;
+                if (pSeq) {
+                  const uSeq = u.seq_no ? String(u.seq_no).trim().toLowerCase().replace(/^#/, "") : null;
+                  return uSeq === pSeq;
+                }
+                return true;
+              });
+              if (mChild) {
+                childIdSet.add(String(mChild.id).toLowerCase());
+                if (mChild.barcode) childIdSet.add(String(mChild.barcode).trim().toLowerCase());
+                if (mChild.serial_number) childIdSet.add(String(mChild.serial_number).trim().toLowerCase());
+              }
+            });
+          }
         }
       });
 
@@ -282,17 +314,20 @@ export default function ManageEquipments() {
 
         const isChild = childIdSet.has(String(u.id).toLowerCase()) ||
           (u.barcode && childIdSet.has(String(u.barcode).trim().toLowerCase())) ||
-          (u.serial_number && childIdSet.has(String(u.serial_number).trim().toLowerCase()));
+          (u.serial_number && childIdSet.has(String(u.serial_number).trim().toLowerCase())) ||
+          dbStatusRaw === 'built-in' || dbStatusRaw === 'built_in';
 
         let dbStatus = dbStatusRaw;
         // Damaged / Lost / Repair takes precedence
         if (
           ['lost', 'damaged', 'under repair', 'worn', 'minor wear'].includes(conditionLabel.toLowerCase()) ||
-          ['damaged', 'maintenance', 'under_maintenance', 'decommissioned', 'unavailable', 'lost'].includes(dbStatusRaw)
+          ['damaged', 'maintenance', 'under_maintenance', 'decommissioned', 'lost'].includes(dbStatusRaw)
         ) {
           dbStatus = 'unavailable';
         } else if (isChild || dbStatusRaw === 'built-in' || dbStatusRaw === 'built_in') {
           dbStatus = 'Built-in';
+        } else if (dbStatusRaw === 'unavailable') {
+          dbStatus = isChild ? 'Built-in' : 'unavailable';
         } else if (dbStatusRaw === 'released' || dbStatusRaw === 'in-use' || dbStatusRaw === 'released / in-use' || dbStatusRaw === 'release / in - use') {
           dbStatus = 'Released';
         } else if (dbStatusRaw === 'reserved') {
@@ -309,6 +344,8 @@ export default function ManageEquipments() {
         return {
           id: u.id || idx + 1,
           equipment_type_id: u.equipment_type_id,
+          equipment_type: eqType,
+          equipmentType: eqType,
           brand: u.brand || '',
           model: u.model || '',
           seq_no: u.seq_no || '',
@@ -893,6 +930,8 @@ export default function ManageEquipments() {
 
   const parentUnitMap = useMemo(() => {
     const map = new Map();
+
+    // Pass 1: Direct parent.built_in_units
     units.forEach((parent) => {
       let rawList = parent.built_in_units;
       if (typeof rawList === "string") {
@@ -927,8 +966,71 @@ export default function ManageEquipments() {
         });
       }
     });
+
+    // Pass 2: Fallback to Category Built-In Requirements if parent.built_in_units is empty or unpopulated
+    units.forEach((parent) => {
+      let rawList = parent.built_in_units;
+      if (typeof rawList === "string") {
+        try { rawList = JSON.parse(rawList); } catch { rawList = []; }
+      }
+      const hasDirectBuiltIns = Array.isArray(rawList) && rawList.length > 0;
+      if (!hasDirectBuiltIns) {
+        const pCat = (categories || []).find(c => 
+          (parent.equipment_type_id && String(c.id) === String(parent.equipment_type_id)) ||
+          (parent.category && String(c.eq_name || c.name || "").toLowerCase() === String(parent.category).toLowerCase())
+        );
+        let catBuiltIns = pCat?.built_in_names || pCat?.built_in_units;
+        if (typeof catBuiltIns === "string") {
+          try { catBuiltIns = JSON.parse(catBuiltIns); } catch { catBuiltIns = []; }
+        }
+        if (Array.isArray(catBuiltIns) && catBuiltIns.length > 0) {
+          const parentSeq = parent.seq_no ? String(parent.seq_no).trim().toLowerCase().replace(/^#/, "") : null;
+          catBuiltIns.forEach((item) => {
+            if (!item) return;
+            const isNum = typeof item === "number" || /^\d+$/.test(String(item));
+            const targetCat = (categories || []).find(c => {
+              if (isNum) return String(c.id) === String(item);
+              const cName = (c.eq_name || c.name || "").trim().toLowerCase();
+              return cName === String(item).trim().toLowerCase();
+            });
+            const targetCatName = targetCat ? (targetCat.eq_name || targetCat.name) : String(item);
+            const targetCatId = targetCat ? String(targetCat.id) : (isNum ? String(item) : null);
+
+            // Find matching child in units with same sequence number or unassigned
+            const matchedChild = units.find(u => {
+              if (String(u.id) === String(parent.id)) return false;
+              const uCatId = u.equipment_type_id ? String(u.equipment_type_id) : null;
+              const uCatName = String(u.category || "").trim().toLowerCase();
+              const catMatch = (targetCatId && uCatId === targetCatId) || 
+                (targetCatName && uCatName === targetCatName.toLowerCase());
+              if (!catMatch) return false;
+
+              if (parentSeq) {
+                const uSeq = u.seq_no ? String(u.seq_no).trim().toLowerCase().replace(/^#/, "") : null;
+                return uSeq === parentSeq;
+              }
+              return true;
+            });
+
+            if (matchedChild && !map.has(String(matchedChild.id))) {
+              map.set(String(matchedChild.id), parent);
+              map.set(String(matchedChild.id).toLowerCase(), parent);
+              if (matchedChild.barcode) {
+                map.set(String(matchedChild.barcode).trim(), parent);
+                map.set(String(matchedChild.barcode).trim().toLowerCase(), parent);
+              }
+              if (matchedChild.serial_number) {
+                map.set(String(matchedChild.serial_number).trim(), parent);
+                map.set(String(matchedChild.serial_number).trim().toLowerCase(), parent);
+              }
+            }
+          });
+        }
+      }
+    });
+
     return map;
-  }, [units]);
+  }, [units, categories]);
 
   const resolveBundledUnits = useCallback((item) => {
     let rawList = item.built_in_units;
@@ -1223,11 +1325,47 @@ export default function ManageEquipments() {
                       <td className="px-4 py-3.5 text-xs text-slate-600 dark:text-slate-300 max-w-[180px]">
                         {(() => {
                           const parent = parentUnitMap.get(String(item.id)) ||
-                            (item.barcode ? parentUnitMap.get(String(item.barcode)) : null) ||
-                            (item.serial_number ? parentUnitMap.get(String(item.serial_number)) : null);
-                          return parent
-                            ? <span className="font-semibold text-slate-700 dark:text-slate-200 truncate block" title={parent.name}>{parent.name}</span>
-                            : <span className="text-slate-300 dark:text-slate-600">—</span>;
+                            (item.barcode ? parentUnitMap.get(String(item.barcode).toLowerCase()) : null) ||
+                            (item.serial_number ? parentUnitMap.get(String(item.serial_number).toLowerCase()) : null);
+                          
+                          // If this unit is a child unit linked to a parent:
+                          if (parent) {
+                            const pBrand = parent.brand ? String(parent.brand).trim() : "";
+                            const pModel = parent.model ? String(parent.model).trim() : "";
+                            const pLabel = pBrand && pModel ? `${pBrand} • ${pModel}` : (parent.name || "Parent Equipment");
+                            return (
+                              <span
+                                className="font-bold text-violet-700 dark:text-violet-400 truncate block hover:underline cursor-pointer"
+                                title={`Built-in component of parent: ${pLabel}`}
+                                onClick={() => setSelectedItem(parent)}
+                              >
+                                {pLabel}
+                              </span>
+                            );
+                          }
+
+                          // If this unit is a parent unit with built-in components:
+                          const children = (units || []).filter(u => {
+                            if (String(u.id) === String(item.id)) return false;
+                            const p = parentUnitMap.get(String(u.id)) ||
+                              (u.barcode ? parentUnitMap.get(String(u.barcode).toLowerCase()) : null) ||
+                              (u.serial_number ? parentUnitMap.get(String(u.serial_number).toLowerCase()) : null);
+                            return p && String(p.id) === String(item.id);
+                          });
+
+                          if (children.length > 0) {
+                            return (
+                              <span
+                                className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-900/60 px-2 py-0.5 rounded-md cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/80 transition-colors"
+                                title={children.map(c => `${c.seq_no ? `${c.seq_no} ` : ""}${c.name || c.category}`).join(", ")}
+                                onClick={() => setSelectedItem(item)}
+                              >
+                                {children.length} {children.length === 1 ? "Linked Unit" : "Linked Units"}
+                              </span>
+                            );
+                          }
+
+                          return <span className="text-slate-300 dark:text-slate-600 font-bold">—</span>;
                         })()}
                       </td>
                       <td className="px-4 py-3.5 whitespace-nowrap">
@@ -1235,8 +1373,8 @@ export default function ManageEquipments() {
                           const st = String(item.status || 'Available').toLowerCase();
                           const cond = String(item.condition || item.raw_condition || '').toLowerCase();
                           const parent = parentUnitMap.get(String(item.id)) ||
-                            (item.barcode ? parentUnitMap.get(String(item.barcode)) : null) ||
-                            (item.serial_number ? parentUnitMap.get(String(item.serial_number)) : null);
+                            (item.barcode ? parentUnitMap.get(String(item.barcode).toLowerCase()) : null) ||
+                            (item.serial_number ? parentUnitMap.get(String(item.serial_number).toLowerCase()) : null);
                           const isBuiltIn = Boolean(item.is_child) || st === 'built-in' || st === 'built_in' || Boolean(parent);
 
                           if (['lost', 'decommissioned'].includes(cond) || st === 'lost' || st === 'decommissioned') {
@@ -1246,13 +1384,15 @@ export default function ManageEquipments() {
                             return <span className="text-[11px] font-bold text-rose-500 dark:text-rose-400">Damaged</span>;
                           }
 
-                          // If unit is a built-in child whose parent is damaged or lost:
-                          if (isBuiltIn && parent) {
-                            const pCond = String(parent.condition || parent.raw_condition || '').toLowerCase();
-                            const pSt = String(parent.status || parent.raw_status || '').toLowerCase();
-                            const isParentBroken = ['damaged', 'lost', 'decommissioned', 'under repair'].includes(pCond) || ['damaged', 'lost', 'decommissioned', 'maintenance', 'under_maintenance'].includes(pSt);
-                            if (isParentBroken || st === 'unavailable') {
-                              return <span className="text-[11px] font-bold text-amber-500 dark:text-amber-400" title="Parent kit damaged">Unavailable</span>;
+                          // If unit is a built-in child unit:
+                          if (isBuiltIn) {
+                            if (parent) {
+                              const pCond = String(parent.condition || parent.raw_condition || '').toLowerCase();
+                              const pSt = String(parent.status || parent.raw_status || '').toLowerCase();
+                              const isParentBroken = ['damaged', 'lost', 'decommissioned', 'under repair'].includes(pCond) || ['damaged', 'lost', 'decommissioned', 'maintenance', 'under_maintenance'].includes(pSt);
+                              if (isParentBroken) {
+                                return <span className="text-[11px] font-bold text-amber-500 dark:text-amber-400" title="Parent kit damaged">Unavailable</span>;
+                              }
                             }
                             return <span className="text-[11px] font-bold text-violet-500 dark:text-violet-400">Built-in</span>;
                           }
@@ -1421,6 +1561,8 @@ export default function ManageEquipments() {
         selectedItem={selectedItem}
         setSelectedItem={setSelectedItem}
         allUnits={units}
+        categories={categories.length > 0 ? categories : categoryNames}
+        parentUnitMap={parentUnitMap}
         handleOpenEditModal={(item) => {
           setSelectedItem(null);
           setEditingItem(item);

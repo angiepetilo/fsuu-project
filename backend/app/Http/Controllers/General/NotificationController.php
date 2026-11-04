@@ -536,7 +536,7 @@ class NotificationController extends Controller
                     $hasUnassignedUnits = empty($assignedUnits);
                     $eqNotesRaw = trim(explode('Equipment-Needed:', $b->equipment_notes ?? '')[0]);
                     $eqNotesRaw = trim(rtrim($eqNotesRaw, '|'));
-                    $hasEquipmentRequested = !empty($eqNotesRaw) || ($b->relationLoaded('venueBookingEquipment') && $b->venueBookingEquipment->isNotEmpty());
+                    $hasEquipmentRequested = !empty($eqNotesRaw) || (method_exists($b, 'relationLoaded') && $b->relationLoaded('venueBookingEquipment') && $b->venueBookingEquipment->isNotEmpty());
 
                     if ($hasEquipmentRequested && $hasUnassignedUnits && $hoursUntil <= 24 && $hoursUntil >= 0) {
                         $key = 'notif-vb-unassigned-' . $b->id;

@@ -439,6 +439,10 @@ export default function EquipBorrowUnitAssignment({
 
   const getBuiltInUnitsForBarcode = (barcodeVal, currentReqCat = null) => {
     if (!barcodeVal || barcodeVal === "—") return [];
+
+    const reqCatName = String(currentReqCat?.category || currentReqCat?.name || "").toLowerCase();
+    if (reqCatName.includes("screen")) return [];
+
     const cleanBarcode = String(barcodeVal).trim().toUpperCase();
     const strippedBarcode = cleanBarcode.replace(/^UNIT-/i, "").trim();
 
@@ -457,6 +461,12 @@ export default function EquipBorrowUnitAssignment({
       ].filter(Boolean).map((s) => String(s).trim().toUpperCase());
       return candidates.includes(cleanBarcode) || (strippedBarcode && candidates.includes(strippedBarcode));
     });
+
+    if (unit) {
+      const uModel = String(unit.model || unit.equipment_name || "").toLowerCase();
+      const uCat = String(unit.equipmentType?.eq_name || unit.equipment_type?.eq_name || unit.category || "").toLowerCase();
+      if (uModel.includes("screen") || uCat.includes("screen")) return [];
+    }
 
     let rawList = [];
     if (unit) {

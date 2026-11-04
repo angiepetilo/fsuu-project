@@ -389,6 +389,10 @@ export default function VenueEquipmentChecklist({
 
     if (!unit) return [];
 
+    const uModel = String(unit.model || unit.equipment_name || "").toLowerCase();
+    const uCat = String(unit.equipmentType?.eq_name || unit.equipment_type?.eq_name || unit.category || "").toLowerCase();
+    if (uModel.includes("screen") || uCat.includes("screen")) return [];
+
     let rawList = Array.isArray(unit.built_in_units)
       ? unit.built_in_units
       : (typeof unit.built_in_units === "string" ? JSON.parse(unit.built_in_units || "[]") : []);

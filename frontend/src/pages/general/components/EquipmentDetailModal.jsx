@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Laptop,
   X,
@@ -34,44 +34,202 @@ export default function EquipmentDetailModal({
   setSelectedItem,
   handleOpenEditModal,
   allUnits = [],
+  categories = [],
+  parentUnitMap = null,
 }) {
   const [copiedSerial, setCopiedSerial] = useState(false);
   const [copiedBarcode, setCopiedBarcode] = useState(false);
   const [expandedComponents, setExpandedComponents] = useState({});
+
+  // Find if this unit is packaged in a parent unit
+  const parentUnit = useMemo(() => {
+    if (!selectedItem) return null;
+    if (parentUnitMap) {
+      const p = parentUnitMap.get(String(selectedItem.id)) ||
+        (selectedItem.barcode ? parentUnitMap.get(String(selectedItem.barcode).toLowerCase()) : null) ||
+        (selectedItem.serial_number ? parentUnitMap.get(String(selectedItem.serial_number).toLowerCase()) : null);
+      if (p && String(p.id) !== String(selectedItem.id)) return p;
+    }
+    return (allUnits || []).find((parent) => {
+      if (String(parent.id) === String(selectedItem.id)) return false;
+      let rawList = parent.built_in_units;
+      if (typeof rawList === "string") {
+        try {
+          rawList = JSON.parse(rawList);
+        } catch {
+          rawList = [];
+        }
+      }
+      if (!Array.isArray(rawList)) return false;
+      return rawList.some((childId) => {
+        const cRef = typeof childId === "object" && childId !== null ? (childId.id || childId.barcode || childId.serial_number) : childId;
+        return (
+          String(cRef).trim().toLowerCase() === String(selectedItem.id).trim().toLowerCase() ||
+          (selectedItem.barcode &&
+            String(cRef).trim().toLowerCase() ===
+              String(selectedItem.barcode).trim().toLowerCase()) ||
+          (selectedItem.serial_number &&
+            String(cRef).trim().toLowerCase() ===
+              String(selectedItem.serial_number).trim().toLowerCase())
+        );
+      });
+    });
+  }, [selectedItem, allUnits, parentUnitMap]);
+
+  // Resolve built-in units for this equipment unit (if it is a parent)
+  const resolvedBuiltInUnits = useMemo(() => {
+    if (!selectedItem) return [];
+    let rawList = [];
+    if (Array.isArray(selectedItem.built_in_units)) {
+      rawList = selectedItem.built_in_units.filter(Boolean);
+    } else if (typeof selectedItem.built_in_units === "string") {
+      try {
+        rawList = JSON.parse(selectedItem.built_in_units || "[]").filter(Boolean);
+      } catch {
+        rawList = [];
+      }
+    }
+
+    // Fallback A: Check equipment type / category built-in accessories
+    if (!Array.isArray(rawList) || rawList.length === 0) {
+      const eqT = selectedItem.equipment_type || selectedItem.equipmentType ||
+        (categories || []).find((c) =>
+          (selectedItem.equipment_type_id && String(c.id) === String(selectedItem.equipment_type_id)) ||
+          (selectedItem.category && String(c.eq_name || c.name || "").toLowerCase() === String(selectedItem.category).toLowerCase())
+        );
+      let catBuilt = eqT?.built_in_names || eqT?.built_in_units;
+      if (typeof catBuilt === "string") {
+        try { catBuilt = JSON.parse(catBuilt || "[]"); } catch { catBuilt = []; }
+      }
+      if (Array.isArray(catBuilt) && catBuilt.length > 0) {
+        rawList = catBuilt;
+      }
+    }
+
+    // Fallback B: Look for child units in allUnits explicitly pointing to this unit as parent
+    if (!Array.isArray(rawList) || rawList.length === 0) {
+      const children = (allUnits || []).filter((u) => {
+        if (String(u.id) === String(selectedItem.id)) return false;
+        if (parentUnitMap) {
+          const p = parentUnitMap.get(String(u.id)) ||
+            (u.barcode ? parentUnitMap.get(String(u.barcode).toLowerCase()) : null) ||
+            (u.serial_number ? parentUnitMap.get(String(u.serial_number).toLowerCase()) : null);
+          if (p && String(p.id) === String(selectedItem.id)) return true;
+        }
+        return false;
+      });
+      if (children.length > 0) {
+        rawList = children.map((c) => c.id);
+      }
+    }
+
+    if (!Array.isArray(rawList) || rawList.length === 0) return [];
+
+    const parentSeq = selectedItem.seq_no
+      ? String(selectedItem.seq_no).trim().toLowerCase().replace(/^#/, "")
+      : null;
+
+    return rawList.map((itemRef, idx) => {
+      if (!itemRef) return null;
+      const biKey = (typeof itemRef === "object" && itemRef !== null)
+        ? String(itemRef.id || itemRef.barcode || itemRef.serial_number || itemRef.code || "").trim().toLowerCase()
+        : String(itemRef).trim().toLowerCase();
+      const biRaw = (typeof itemRef === "object" && itemRef !== null)
+        ? (itemRef.name || itemRef.eq_name || itemRef.barcode || itemRef.id)
+        : itemRef;
+
+      // 1. Direct match by ID / Barcode / Serial
+      let match = (allUnits || []).find((u) => {
+        if (String(u.id) === String(selectedItem.id)) return false;
+        const uId = String(u.id).toLowerCase();
+        const uBarcode = u.barcode ? String(u.barcode).trim().toLowerCase() : null;
+        const uSerial = u.serial_number ? String(u.serial_number).trim().toLowerCase() : null;
+        return uId === biKey || (uBarcode && uBarcode === biKey) || (uSerial && uSerial === biKey);
+      });
+
+      // 2. If itemRef is a category reference (ID or name)
+      if (!match) {
+        const isNum = typeof itemRef === "number" || /^\d+$/.test(String(itemRef));
+        const targetCat = (categories || []).find((c) => {
+          if (isNum) return String(c.id) === String(itemRef);
+          const cName = (c.eq_name || c.name || "").trim().toLowerCase();
+          return cName === String(itemRef).trim().toLowerCase() || cName === String(biRaw).trim().toLowerCase();
+        });
+        const targetCatId = targetCat ? String(targetCat.id) : (isNum ? String(itemRef) : null);
+        const targetCatName = targetCat ? (targetCat.eq_name || targetCat.name) : String(biRaw);
+
+        // Find candidate unit in that category with matching sequence number
+        match = (allUnits || []).find((u) => {
+          if (String(u.id) === String(selectedItem.id)) return false;
+          const uCatId = u.equipment_type_id ? String(u.equipment_type_id) : null;
+          const uCatName = String(u.category || "").trim().toLowerCase();
+          const catMatch = (targetCatId && uCatId === targetCatId) ||
+            (targetCatName && uCatName === targetCatName.toLowerCase());
+          if (!catMatch) return false;
+          if (parentSeq) {
+            const uSeq = u.seq_no ? String(u.seq_no).trim().toLowerCase().replace(/^#/, "") : null;
+            return uSeq === parentSeq;
+          }
+          return true;
+        });
+
+        if (!match) {
+          // Fallback: any unit in that category
+          match = (allUnits || []).find((u) => {
+            if (String(u.id) === String(selectedItem.id)) return false;
+            const uCatId = u.equipment_type_id ? String(u.equipment_type_id) : null;
+            const uCatName = String(u.category || "").trim().toLowerCase();
+            return (targetCatId && uCatId === targetCatId) ||
+              (targetCatName && uCatName === targetCatName.toLowerCase());
+          });
+        }
+      }
+
+      if (match) {
+        const catName = match.equipment_type?.eq_name || match.equipmentType?.eq_name || match.category || "Built-in Component";
+        const brand = match.brand ? String(match.brand).trim() : "";
+        const model = match.model ? String(match.model).trim() : "";
+        const rawSeq = match.seq_no ?? match.sequence_no;
+        const seqNo = rawSeq !== undefined && rawSeq !== null && String(rawSeq).trim() !== ""
+          ? (String(rawSeq).trim().startsWith("#") ? String(rawSeq).trim() : `#${String(rawSeq).trim()}`)
+          : null;
+        return {
+          id: match.id,
+          barcode: match.barcode || match.serial_number || `UNIT-${match.id}`,
+          serial_number: match.serial_number || match.barcode,
+          name: [brand, model].filter(Boolean).join(" • ") || match.name || "Built-in Unit",
+          brand: brand || (match.name ? match.name.split(" ")[0] : "Unit"),
+          model: model || (seqNo || "#001"),
+          seq_no: seqNo,
+          category: catName,
+          status: match.status || "Built-in",
+          condition: match.condition || "Good",
+          isMatched: true,
+        };
+      }
+
+      // If not physical unit found, return component placeholder from category
+      return {
+        id: `component-${idx}`,
+        barcode: String(biRaw),
+        serial_number: String(biRaw),
+        name: String(biRaw),
+        brand: "Included Accessory",
+        model: "Standard",
+        seq_no: parentSeq ? `#${parentSeq}` : null,
+        category: String(biRaw),
+        status: "Built-in",
+        condition: "Good",
+        isMatched: false,
+      };
+    }).filter(Boolean);
+  }, [selectedItem, allUnits, categories, parentUnitMap]);
 
   if (!selectedItem) return null;
 
   const serialOrBarcode =
     selectedItem.serial_number || selectedItem.barcode || "N/A";
   const barcodeValue = selectedItem.barcode || selectedItem.serial_number || "N/A";
-
-  // Parse built-in units
-  const builtInUnitsList = Array.isArray(selectedItem.built_in_units)
-    ? selectedItem.built_in_units.filter(Boolean)
-    : [];
-
-  // Find if this unit is packaged in a parent unit
-  const parentUnit = (allUnits || []).find((parent) => {
-    let rawList = parent.built_in_units;
-    if (typeof rawList === "string") {
-      try {
-        rawList = JSON.parse(rawList);
-      } catch {
-        rawList = [];
-      }
-    }
-    if (!Array.isArray(rawList)) return false;
-    return rawList.some(
-      (childId) =>
-        String(childId) === String(selectedItem.id) ||
-        (selectedItem.barcode &&
-          String(childId).trim().toLowerCase() ===
-            String(selectedItem.barcode).trim().toLowerCase()) ||
-        (selectedItem.serial_number &&
-          String(childId).trim().toLowerCase() ===
-            String(selectedItem.serial_number).trim().toLowerCase())
-    );
-  });
 
   const handleCopy = (text, type = "serial") => {
     if (!text || text === "N/A") return;
@@ -382,12 +540,12 @@ export default function EquipmentDetailModal({
                   </div>
                 </div>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shrink-0">
-                  {builtInUnitsList.length} linked
+                  {resolvedBuiltInUnits.length} linked
                 </span>
               </div>
 
               {/* Components List Container */}
-              {builtInUnitsList.length === 0 ? (
+              {resolvedBuiltInUnits.length === 0 ? (
                 <div className="p-6 bg-slate-50/50 dark:bg-slate-900/30 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl text-center space-y-1.5">
                   <Cable size={22} className="mx-auto text-slate-300 dark:text-slate-600" />
                   <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
@@ -399,27 +557,10 @@ export default function EquipmentDetailModal({
                 </div>
               ) : (
                 <div className="space-y-3 max-h-[460px] overflow-y-auto scrollbar-hover pr-1">
-                  {builtInUnitsList.map((unitId, idx) => {
-                    const found = (allUnits || []).find(
-                      (u) =>
-                        String(u.id) === String(unitId) ||
-                        (u.barcode &&
-                          String(u.barcode).trim().toLowerCase() ===
-                            String(unitId).trim().toLowerCase()) ||
-                        (u.serial_number &&
-                          String(u.serial_number).trim().toLowerCase() ===
-                            String(unitId).trim().toLowerCase())
-                    );
-
-                    const componentName =
-                      found?.name || found?.category || `Component #${idx + 1}`;
-                    const componentBrand = found?.brand || "PHILIPS";
-                    const componentModel =
-                      (selectedItem.built_in_models &&
-                        (selectedItem.built_in_models[found?.category] ||
-                          selectedItem.built_in_models[found?.name])) ||
-                      found?.model ||
-                      "#001";
+                  {resolvedBuiltInUnits.map((comp, idx) => {
+                    const componentName = comp.category || comp.name || `Component #${idx + 1}`;
+                    const componentBrand = comp.brand || "PHILIPS";
+                    const componentModel = comp.model || "#001";
                     const isPower =
                       componentName.toLowerCase().includes("power") ||
                       componentName.toLowerCase().includes("cord");
@@ -445,7 +586,7 @@ export default function EquipmentDetailModal({
                                 {componentName}
                               </h5>
                               <span className="text-[10px] text-slate-400 font-medium">
-                                {found?.available_count ?? 66} units available
+                                Status: <strong className="text-violet-600 dark:text-violet-400 font-bold">{comp.status || "Built-in"}</strong>
                               </span>
                             </div>
                           </div>
@@ -465,16 +606,17 @@ export default function EquipmentDetailModal({
                             </span>
                             <div className="p-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg flex items-center justify-between">
                               <div className="flex items-center gap-2">
-                                <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
-                                  {found?.seq_no ? `#${found.seq_no}` : "#001"}
-                                </span>
+                                {comp.seq_no && (
+                                  <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                                    {comp.seq_no}
+                                  </span>
+                                )}
                                 <span className="font-bold text-xs text-slate-900 dark:text-white">
                                   {componentBrand}
                                 </span>
                               </div>
-                              <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 flex items-center gap-1">
-                                <span>1.5 meters</span>
-                                <ChevronDown size={11} className="text-slate-400" />
+                              <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 flex items-center gap-1 font-mono">
+                                <span>{comp.barcode || comp.serial_number || "Linked"}</span>
                               </span>
                             </div>
 
