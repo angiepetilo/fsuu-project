@@ -269,6 +269,22 @@
 
     $normStatus = strtolower(str_replace(['_', '-'], ' ', (string)($status ?? '')));
 
+    // Resolve restricted equipment list
+    $rawRestricted = $booking->restricted_equipment ?? [];
+    if (is_string($rawRestricted)) {
+        try { $rawRestricted = json_decode($rawRestricted, true) ?: []; } catch (\Throwable $e) { $rawRestricted = []; }
+    }
+    if (!is_array($rawRestricted)) {
+        $rawRestricted = [];
+    }
+    $restrictedNames = array_map(function($val) {
+        if (is_array($val)) {
+            $val = $val['name'] ?? $val['category'] ?? $val['eq_name'] ?? '';
+        }
+        return strtolower(trim((string)$val));
+    }, $rawRestricted);
+    $restrictedNames = array_values(array_filter($restrictedNames, fn($v) => $v !== ''));
+
     // Build equipment list
     $equipmentList = [];
     if (!empty($booking->items) && count($booking->items) > 0) {
@@ -276,6 +292,7 @@
             $name = $item->equipmentType?->eq_name ?? $item->equipmentType?->name ?? $item->equipment_name ?? 'Equipment Item';
             $qty = $item->quantity_requested ?? $item->quantity ?? 1;
             $builtIns = [];
+            $eqType = null;
             if (!empty($item->built_in_names) && is_array($item->built_in_names)) {
                 $builtIns = $item->built_in_names;
             } elseif (!empty($item->equipmentType?->built_in_names)) {
@@ -286,11 +303,16 @@
                     $builtIns = $eqType?->built_in_names ?? [];
                 } catch (\Throwable $e) {}
             }
+            $isRestricted = in_array(strtolower(trim((string)$name)), $restrictedNames, true);
+            if (!$isRestricted && !empty($eqType?->eq_name)) {
+                $isRestricted = in_array(strtolower(trim((string)$eqType->eq_name)), $restrictedNames, true);
+            }
             $equipmentList[] = [
-                'name'      => $name,
-                'quantity'  => $qty,
-                'label'     => "{$qty}x {$name}",
-                'built_ins' => $builtIns,
+                'name'          => $name,
+                'quantity'      => $qty,
+                'label'         => "{$qty}x {$name}",
+                'built_ins'     => $builtIns,
+                'is_restricted' => $isRestricted,
             ];
         }
     } elseif (!empty($booking->venueBookingEquipment) && count($booking->venueBookingEquipment) > 0) {
@@ -298,17 +320,23 @@
             $name = $item->equipmentType?->eq_name ?? $item->equipmentType?->name ?? 'Equipment Item';
             $qty = $item->quantity_requested ?? 1;
             $builtIns = $item->equipmentType?->built_in_names ?? [];
+            $eqType = null;
             if (empty($builtIns) && !empty($item->equipment_type_id)) {
                 try {
                     $eqType = \App\Models\EquipmentType::withTrashed()->find($item->equipment_type_id);
                     $builtIns = $eqType?->built_in_names ?? [];
                 } catch (\Throwable $e) {}
             }
+            $isRestricted = in_array(strtolower(trim((string)$name)), $restrictedNames, true);
+            if (!$isRestricted && !empty($eqType?->eq_name)) {
+                $isRestricted = in_array(strtolower(trim((string)$eqType->eq_name)), $restrictedNames, true);
+            }
             $equipmentList[] = [
-                'name'      => $name,
-                'quantity'  => $qty,
-                'label'     => "{$qty}x {$name}",
-                'built_ins' => $builtIns,
+                'name'          => $name,
+                'quantity'      => $qty,
+                'label'         => "{$qty}x {$name}",
+                'built_ins'     => $builtIns,
+                'is_restricted' => $isRestricted,
             ];
         }
     } elseif (!empty($booking->equipment_items) && is_array($booking->equipment_items)) {
@@ -322,20 +350,46 @@
                     $builtIns = $eqType?->built_in_names ?? [];
                 } catch (\Throwable $e) {}
             }
+            $isRestricted = in_array(strtolower(trim((string)$name)), $restrictedNames, true);
             $equipmentList[] = [
-                'name'      => $name,
-                'quantity'  => $qty,
-                'label'     => "{$qty}x {$name}",
-                'built_ins' => $builtIns,
+                'name'          => $name,
+                'quantity'      => $qty,
+                'label'         => "{$qty}x {$name}",
+                'built_ins'     => $builtIns,
+                'is_restricted' => $isRestricted,
             ];
         }
     } elseif (!empty($booking->equipment_name)) {
+        $name = $booking->equipment_name;
+        $isRestricted = in_array(strtolower(trim((string)$name)), $restrictedNames, true);
         $equipmentList[] = [
-            'name'      => $booking->equipment_name,
-            'quantity'  => 1,
-            'label'     => $booking->equipment_name,
-            'built_ins' => [],
+            'name'          => $name,
+            'quantity'      => 1,
+            'label'         => $name,
+            'built_ins'     => [],
+            'is_restricted' => $isRestricted,
         ];
+    }
+
+    // Split equipment into approved and restricted sets
+    $approvedEquipmentList = array_values(array_filter($equipmentList, fn($i) => empty($i['is_restricted'])));
+    $restrictedEquipmentList = array_values(array_filter($equipmentList, fn($i) => !empty($i['is_restricted'])));
+
+    // Ensure all items in $rawRestricted are represented in $restrictedEquipmentList
+    $knownRestrictedNames = array_map(fn($i) => strtolower(trim((string)($i['name'] ?? ''))), $restrictedEquipmentList);
+    foreach ($rawRestricted as $rItem) {
+        $rName = is_array($rItem) ? ($rItem['name'] ?? $rItem['category'] ?? $rItem['eq_name'] ?? '') : (string)$rItem;
+        $rNameTrim = trim($rName);
+        if ($rNameTrim !== '' && !in_array(strtolower($rNameTrim), $knownRestrictedNames, true)) {
+            $restrictedEquipmentList[] = [
+                'name'          => $rNameTrim,
+                'quantity'      => 1,
+                'label'         => "1x {$rNameTrim}",
+                'built_ins'     => [],
+                'is_restricted' => true,
+            ];
+            $knownRestrictedNames[] = strtolower($rNameTrim);
+        }
     }
 
     // Resolve individual physical equipment units
@@ -546,7 +600,13 @@
             &bull; <strong>{{ $unit->equipmentType?->name ?? 'AV Equipment' }}</strong> (Serial No: {{ $unit->serial_number ?: $unit->barcode }})
           </div>
         @endforeach
-      @elseif(!empty($equipmentList))
+      @elseif(!empty($approvedEquipmentList))
+        @foreach($approvedEquipmentList as $item)
+          <div class="item-row">
+            &bull; <strong>{{ $item['label'] }}</strong>
+          </div>
+        @endforeach
+      @elseif(!empty($equipmentList) && empty($restrictedEquipmentList))
         @foreach($equipmentList as $item)
           <div class="item-row">
             &bull; <strong>{{ $item['label'] }}</strong>
@@ -558,6 +618,23 @@
         </div>
       @endif
     </div>
+
+    @if(!empty($restrictedEquipmentList))
+      <div class="section-title" style="color: #b91c1c; margin-top: 14px;">RESTRICTED / NOT APPROVED EQUIPMENT:</div>
+      <div class="items-box" style="border-left: 3px solid #ef4444; background-color: #fef2f2;">
+        @foreach($restrictedEquipmentList as $item)
+          <div class="item-row" style="color: #991b1b; padding: 3px 0;">
+            &bull; <strike style="color: #64748b;">{{ $item['label'] }}</strike>
+            <span style="display: inline-block; margin-left: 6px; padding: 1px 6px; font-size: 10px; font-weight: 800; background-color: #fee2e2; color: #b91c1c; border-radius: 3px; border: 1px solid #fca5a5;">
+              Restricted / Not Approved
+            </span>
+          </div>
+        @endforeach
+        <div style="font-size: 11px; color: #7f1d1d; margin-top: 6px; font-style: italic;">
+          * Note: Restricted equipment items will not be staged or permitted inside the venue during this event.
+        </div>
+      </div>
+    @endif
 
     <div class="notice-box notice-success">
       👮 <strong>NOTICE TO SECURITY &amp; STAFF:</strong> Grant venue ingress to bearer for the approved schedule and equipment listed above.
@@ -611,11 +688,15 @@
         <div style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 6px;">
           Assigned Venue Equipment Units:
         </div>
-        @include('emails.partials.equipment_unit_table', ['units' => $resolvedUnits, 'mode' => 'release', 'equipmentList' => $equipmentList ?? [], 'booking' => $booking ?? null])
+        @include('emails.partials.equipment_unit_table', ['units' => $resolvedUnits, 'mode' => 'release', 'equipmentList' => $approvedEquipmentList ?? $equipmentList ?? [], 'booking' => $booking ?? null])
       </div>
     @else
       <div class="items-box">
-        @if(!empty($equipmentList))
+        @if(!empty($approvedEquipmentList))
+          @foreach($approvedEquipmentList as $item)
+            <div class="item-row">&bull; <strong>{{ $item['label'] }}</strong> (Active on-site)</div>
+          @endforeach
+        @elseif(!empty($equipmentList) && empty($restrictedEquipmentList))
           @foreach($equipmentList as $item)
             <div class="item-row">&bull; <strong>{{ $item['label'] }}</strong> (Active on-site)</div>
           @endforeach
@@ -923,14 +1004,35 @@
 
     <div class="section-title">APPROVED ITEMS:</div>
     <div class="items-box">
-      @if(!empty($equipmentList))
+      @if(!empty($approvedEquipmentList))
+        @foreach($approvedEquipmentList as $item)
+          <div class="item-row">&bull; <strong>{{ $item['label'] }}</strong></div>
+        @endforeach
+      @elseif(!empty($equipmentList) && empty($restrictedEquipmentList))
         @foreach($equipmentList as $item)
           <div class="item-row">&bull; <strong>{{ $item['label'] }}</strong></div>
         @endforeach
       @else
-        <div class="item-row">&bull; Audio-Visual Equipment Items</div>
+        <div class="item-row" style="color: #64748b; font-style: italic;">No approved equipment items.</div>
       @endif
     </div>
+
+    @if(!empty($restrictedEquipmentList))
+      <div class="section-title" style="color: #b91c1c; margin-top: 16px;">RESTRICTED / NOT APPROVED ITEMS:</div>
+      <div class="items-box" style="border-left: 3px solid #ef4444; background-color: #fef2f2;">
+        @foreach($restrictedEquipmentList as $item)
+          <div class="item-row" style="color: #991b1b; padding: 4px 0; border-bottom: 1px dashed #fecaca;">
+            &bull; <strike style="color: #64748b; text-decoration: line-through;">{{ $item['label'] }}</strike>
+            <span style="display: inline-block; margin-left: 6px; padding: 2px 7px; font-size: 10px; font-weight: 800; text-transform: uppercase; background-color: #fee2e2; color: #b91c1c; border-radius: 4px; border: 1px solid #fca5a5;">
+              Restricted / Not Approved
+            </span>
+          </div>
+        @endforeach
+        <div style="font-size: 11px; color: #7f1d1d; margin-top: 8px; line-height: 1.4;">
+          ⚠️ <strong>Note:</strong> The equipment categories listed above are restricted and will not be released or prepared during your schedule due to institutional policy or custodian reservation constraints.
+        </div>
+      </div>
+    @endif
 
     @if($hasGatePass)
       <div class="gatepass-card">
@@ -940,7 +1042,7 @@
             Authorized Equipment Gate Pass &bull; AVR / PMO
           </div>
         </div>
-        @include('emails.partials.equipment_unit_table', ['units' => $resolvedUnits, 'mode' => 'release', 'equipmentList' => $equipmentList ?? [], 'booking' => $booking ?? null])
+        @include('emails.partials.equipment_unit_table', ['units' => $resolvedUnits, 'mode' => 'release', 'equipmentList' => $approvedEquipmentList ?? $equipmentList ?? [], 'booking' => $booking ?? null])
       </div>
     @endif
 
@@ -982,7 +1084,11 @@
 
     <div class="section-title">PREPARED ITEMS:</div>
     <div class="items-box">
-      @if(!empty($equipmentList))
+      @if(!empty($approvedEquipmentList))
+        @foreach($approvedEquipmentList as $item)
+          <div class="item-row">&bull; <strong>{{ $item['label'] }}</strong> (Includes power supply &amp; cables)</div>
+        @endforeach
+      @elseif(!empty($equipmentList) && empty($restrictedEquipmentList))
         @foreach($equipmentList as $item)
           <div class="item-row">&bull; <strong>{{ $item['label'] }}</strong> (Includes power supply &amp; cables)</div>
         @endforeach
@@ -990,6 +1096,18 @@
         <div class="item-row">&bull; Borrowed Equipment Units (Tested &amp; Prepared)</div>
       @endif
     </div>
+
+    @if(!empty($restrictedEquipmentList))
+      <div class="section-title" style="color: #b91c1c; margin-top: 14px;">RESTRICTED ITEMS (NOT INCLUDED):</div>
+      <div class="items-box" style="border-left: 3px solid #ef4444; background-color: #fef2f2;">
+        @foreach($restrictedEquipmentList as $item)
+          <div class="item-row" style="color: #991b1b; padding: 2px 0;">
+            &bull; <strike style="color: #64748b;">{{ $item['label'] }}</strike>
+            <span style="font-size: 10px; color: #b91c1c; font-weight: 700; margin-left: 4px;">(Restricted / Not released)</span>
+          </div>
+        @endforeach
+      </div>
+    @endif
 
     <div style="text-align: center; margin-top: 24px;">
       <a href="{{ $trackUrl }}" class="action-btn">View Pickup Instructions</a>
@@ -1030,11 +1148,15 @@
     <div class="section-title">SCANNED PHYSICAL UNITS &amp; SERIAL NUMBERS:</div>
     @if($resolvedUnits->isNotEmpty())
       <div style="margin: 8px 0 16px 0;">
-        @include('emails.partials.equipment_unit_table', ['units' => $resolvedUnits, 'mode' => 'release', 'equipmentList' => $equipmentList ?? [], 'booking' => $booking ?? null])
+        @include('emails.partials.equipment_unit_table', ['units' => $resolvedUnits, 'mode' => 'release', 'equipmentList' => $approvedEquipmentList ?? $equipmentList ?? [], 'booking' => $booking ?? null])
       </div>
     @else
       <div class="items-box">
-        @if(!empty($equipmentList))
+        @if(!empty($approvedEquipmentList))
+          @foreach($approvedEquipmentList as $item)
+            <div class="item-row">&bull; <strong>{{ $item['label'] }}</strong></div>
+          @endforeach
+        @elseif(!empty($equipmentList))
           @foreach($equipmentList as $item)
             <div class="item-row">&bull; <strong>{{ $item['label'] }}</strong></div>
           @endforeach

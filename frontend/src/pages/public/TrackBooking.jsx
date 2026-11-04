@@ -439,8 +439,32 @@ export default function TrackBooking() {
       ? `${formatTime12(booking.start_datetime)} - ${formatTime12(booking.end_datetime)}`
       : "—");
 
+  const getRestrictedCategories = () => {
+    if (!booking) return [];
+    const raw = booking.restricted_equipment;
+    if (Array.isArray(raw)) {
+      return raw.map(r => typeof r === 'object' ? (r.name || r.category || r.eq_name || '') : String(r)).filter(Boolean);
+    }
+    if (typeof raw === 'string') {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          return parsed.map(r => typeof r === 'object' ? (r.name || r.category || r.eq_name || '') : String(r)).filter(Boolean);
+        }
+      } catch {}
+    }
+    return [];
+  };
+
   const getRequestedEquipmentList = () => {
     if (!booking) return [];
+    const restrictedList = getRestrictedCategories();
+    const isNameRestricted = (name) => {
+      if (!name) return false;
+      const lower = String(name).toLowerCase().trim();
+      return restrictedList.some(r => String(r).toLowerCase().trim() === lower);
+    };
+
     if (Array.isArray(booking.items) && booking.items.length > 0) {
       return booking.items.map(it => {
         const eqType = it.equipment_type || it.equipmentType;
@@ -467,10 +491,14 @@ export default function TrackBooking() {
           return cat ? (cat.name || cat.eq_name) : (isNaN(Number(bi)) ? String(bi) : null);
         }).filter(Boolean);
 
+        const itemName = eqType?.eq_name || eqType?.name || matchedCatalog?.name || matchedCatalog?.eq_name || it.equipment_name || it.category || "Equipment Item";
+        const isRestricted = isNameRestricted(itemName) || isNameRestricted(it.equipment_name) || isNameRestricted(eqType?.eq_name);
+
         return {
-          name: eqType?.eq_name || eqType?.name || matchedCatalog?.name || matchedCatalog?.eq_name || it.equipment_name || it.category || "Equipment Item",
+          name: itemName,
           qty: parseInt(it.quantity_requested || it.quantity || 1, 10),
           builtInNames: Array.from(new Set(builtInNames)),
+          isRestricted,
         };
       });
     }
@@ -488,10 +516,13 @@ export default function TrackBooking() {
         return cat ? (cat.name || cat.eq_name) : (isNaN(Number(bi)) ? String(bi) : null);
       }).filter(Boolean);
 
+      const isRestricted = isNameRestricted(name);
+
       return [{
         name: name,
         qty: parseInt(booking.quantity || booking.qty || 1, 10),
         builtInNames: Array.from(new Set(builtInNames)),
+        isRestricted,
       }];
     }
     return [];
@@ -618,14 +649,26 @@ export default function TrackBooking() {
                     {equipmentItems.map((item, idx) => (
                       <div key={idx} className="space-y-1">
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-primary/10 text-primary border border-primary/20 text-xs font-semibold">
-                            <span>{item.name}</span>
-                            <span className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0.2 rounded-full font-bold">
-                              Qty: {item.qty}
+                          {item.isRestricted ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20 text-xs font-semibold">
+                              <span className="line-through opacity-75">{item.name}</span>
+                              <span className="bg-rose-600 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
+                                Qty: {item.qty}
+                              </span>
+                              <span className="bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 text-[9.5px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded border border-rose-300 dark:border-rose-800">
+                                Restricted / Not Approved
+                              </span>
                             </span>
-                          </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-primary/10 text-primary border border-primary/20 text-xs font-semibold">
+                              <span>{item.name}</span>
+                              <span className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0.2 rounded-full font-bold">
+                                Qty: {item.qty}
+                              </span>
+                            </span>
+                          )}
                         </div>
-                        {item.builtInNames && item.builtInNames.length > 0 && (
+                        {item.builtInNames && item.builtInNames.length > 0 && !item.isRestricted && (
                           <div className="flex items-center flex-wrap gap-1 text-[11px] text-muted-foreground pt-0.5">
                             <span className="font-bold text-foreground">Built-in:</span>
                             {item.builtInNames.map((bName, bIdx) => (
@@ -637,6 +680,11 @@ export default function TrackBooking() {
                         )}
                       </div>
                     ))}
+                    {equipmentItems.some(i => i.isRestricted) && (
+                      <p className="text-[11px] text-rose-600 dark:text-rose-400 font-medium italic pt-1 border-t border-rose-200/50 dark:border-rose-900/50">
+                        * Note: Restricted items will not be approved or released by the AVR Custodian.
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <span className="text-sm font-semibold text-primary">

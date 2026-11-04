@@ -268,6 +268,75 @@ class ReservationFlowEmailTest extends TestCase
         $this->assertStringNotContainsString('&amp;amp;', $html);
     }
 
+    public function test_equipment_borrowing_approved_with_restricted_items_separates_approved_and_restricted_lists(): void
+    {
+        $projectorType = EquipmentType::create([
+            'name'        => 'Standard LCD Projector',
+            'eq_name'     => 'Standard LCD Projector',
+            'status'      => 'available',
+            'description' => 'Epson Projector',
+        ]);
+
+        $powerCableType = EquipmentType::create([
+            'name'        => 'Power Cable',
+            'eq_name'     => 'Power Cable',
+            'status'      => 'available',
+            'description' => 'Heavy Duty Cable',
+        ]);
+
+        $tracking = TrackingNumber::forceCreate([
+            'reference_code'   => 'EQ-202611-0002',
+            'reservation_type' => 'equipment_borrow',
+            'reservation_id'   => 12,
+            'status'           => 'approved',
+        ]);
+
+        $borrow = EquipmentBorrow::create([
+            'tracking_number_id'      => $tracking->id,
+            'submission_channel'      => 'online_self',
+            'first_name'              => 'Angie',
+            'last_name'               => 'Petilo',
+            'filer_name'              => 'Angie Petilo',
+            'email_address'           => 'kelesteangie@gmail.com',
+            'contact_number'          => '09918442580',
+            'classification'          => 'student',
+            'requestor_identity_type' => 'student',
+            'program_office'          => 'CITEC',
+            'purpose'                 => 'Defense presentation',
+            'date_of_usage'           => now()->addDay()->toDateString(),
+            'time_start'              => '16:00:00',
+            'time_end'                => '16:05:00',
+            'restricted_equipment'    => ['Power Cable'],
+            'status'                  => 'approved',
+        ]);
+
+        \App\Models\EquipmentBorrowItem::create([
+            'equipment_borrow_id' => $borrow->id,
+            'equipment_type_id'   => $projectorType->id,
+            'quantity_requested'  => 1,
+        ]);
+
+        \App\Models\EquipmentBorrowItem::create([
+            'equipment_borrow_id' => $borrow->id,
+            'equipment_type_id'   => $powerCableType->id,
+            'quantity_requested'  => 1,
+        ]);
+
+        $borrow->load(['items.equipmentType', 'trackingNumber']);
+
+        $mail = new BookingStatusUpdateMail('equipment', $borrow, 'approved');
+        $html = $mail->render();
+
+        // 1. Approved items should include Standard LCD Projector
+        $this->assertStringContainsString('APPROVED ITEMS:', $html);
+        $this->assertStringContainsString('1x Standard LCD Projector', $html);
+
+        // 2. Restricted section should exist and contain Power Cable
+        $this->assertStringContainsString('RESTRICTED / NOT APPROVED ITEMS:', $html);
+        $this->assertStringContainsString('Power Cable', $html);
+        $this->assertStringContainsString('Restricted / Not Approved', $html);
+    }
+
     public function test_venue_reminder_service_dispatches_when_window_approaches(): void
     {
         Mail::fake();
