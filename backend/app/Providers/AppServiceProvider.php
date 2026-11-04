@@ -220,6 +220,13 @@ class AppServiceProvider extends ServiceProvider
                 }
             }
 
+            // Ensure sms_sender_name column exists in system_settings if not yet migrated
+            if (\Illuminate\Support\Facades\Schema::hasTable('system_settings') && !\Illuminate\Support\Facades\Schema::hasColumn('system_settings', 'sms_sender_name')) {
+                \Illuminate\Support\Facades\Schema::table('system_settings', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->string('sms_sender_name')->nullable()->default('FSUU_AVR');
+                });
+            }
+
             // Ensure default built-in category linkages exist for Projector if empty in Production (strictly exclude screens)
             if (\Illuminate\Support\Facades\Schema::hasTable('equipment_types') && \Illuminate\Support\Facades\Schema::hasColumn('equipment_types', 'built_in_units')) {
                 // Ensure screens do not inherit built-in accessories
