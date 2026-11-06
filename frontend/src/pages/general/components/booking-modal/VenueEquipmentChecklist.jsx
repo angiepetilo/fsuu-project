@@ -393,13 +393,20 @@ export default function VenueEquipmentChecklist({
     const uCat = String(unit.equipmentType?.eq_name || unit.equipment_type?.eq_name || unit.category || "").toLowerCase();
     if (uModel.includes("screen") || uCat.includes("screen")) return [];
 
-    let rawList = Array.isArray(unit.built_in_units)
-      ? unit.built_in_units
-      : (typeof unit.built_in_units === "string" ? JSON.parse(unit.built_in_units || "[]") : []);
+    // Extract parent sequence number (e.g. "#008" -> "008") to match bundle siblings by sequence number
+    const parentSeq = unit.seq_no
+      ? String(unit.seq_no).trim().toLowerCase().replace(/^#/, "")
+      : null;
+
+    let rawList = Array.isArray(unit.built_in_units) && unit.built_in_units.length > 0
+      ? unit.built_in_units.filter(Boolean)
+      : (typeof unit.built_in_units === "string" && unit.built_in_units.trim() !== "" ? JSON.parse(unit.built_in_units || "[]").filter(Boolean) : []);
 
     if (!rawList.length) {
       const eqType = unit.equipmentType || unit.equipment_type;
-      if (eqType?.built_in_units) {
+      if (Array.isArray(eqType?.built_in_names) && eqType.built_in_names.length > 0) {
+        rawList = eqType.built_in_names;
+      } else if (eqType?.built_in_units) {
         rawList = Array.isArray(eqType.built_in_units)
           ? eqType.built_in_units
           : (typeof eqType.built_in_units === "string" ? JSON.parse(eqType.built_in_units || "[]") : []);
@@ -409,12 +416,64 @@ export default function VenueEquipmentChecklist({
     if (!Array.isArray(rawList) || rawList.length === 0) return [];
 
     return rawList.map((biId) => {
-      const match = (allUnits || []).find((u) =>
-        String(u.id) === String(biId) ||
-        String(u.barcode || "").trim().toUpperCase() === String(biId).trim().toUpperCase()
-      );
+      if (!biId) return null;
+      const biKey = (typeof biId === "object" && biId !== null)
+        ? String(biId.id || biId.barcode || biId.serial_number || biId.code || "").trim().toLowerCase()
+        : String(biId).trim().toLowerCase();
+      const biRaw = (typeof biId === "object" && biId !== null)
+        ? (biId.name || biId.eq_name || biId.barcode || biId.id)
+        : biId;
+
+      // Check if biId corresponds to a known category
+      const isNum = typeof biId === "number" || /^\d+$/.test(String(biId));
+      const targetCat = (categories || []).find((c) => {
+        if (isNum) return String(c.id || c.equipment_type_id) === String(biId);
+        const cName = (c.category || c.name || c.eq_name || "").trim().toLowerCase();
+        return cName === biKey || cName === String(biRaw).trim().toLowerCase();
+      });
+
+      let match = null;
+
+      // 1. If it's a category reference, prioritize unit with matching sequence number
+      if (targetCat) {
+        const targetCatId = String(targetCat.id || targetCat.equipment_type_id || "");
+        const targetCatName = (targetCat.category || targetCat.name || targetCat.eq_name || "").trim().toLowerCase();
+
+        if (parentSeq) {
+          match = (allUnits || []).find((u) => {
+            if (String(u.id) === String(unit.id)) return false;
+            const uCatId = u.equipment_type_id ? String(u.equipment_type_id) : null;
+            const uCatName = String(u.category || u.equipment_type?.eq_name || u.equipmentType?.eq_name || "").trim().toLowerCase();
+            const catMatch = (targetCatId && uCatId === targetCatId) || (targetCatName && uCatName === targetCatName);
+            if (!catMatch) return false;
+            const uSeq = u.seq_no ? String(u.seq_no).trim().toLowerCase().replace(/^#/, "") : null;
+            return uSeq === parentSeq;
+          });
+        }
+
+        if (!match) {
+          match = (allUnits || []).find((u) => {
+            if (String(u.id) === String(unit.id)) return false;
+            const uCatId = u.equipment_type_id ? String(u.equipment_type_id) : null;
+            const uCatName = String(u.category || u.equipment_type?.eq_name || u.equipmentType?.eq_name || "").trim().toLowerCase();
+            return (targetCatId && uCatId === targetCatId) || (targetCatName && uCatName === targetCatName);
+          });
+        }
+      }
+
+      // 2. Direct match by ID / Barcode / Serial Number
+      if (!match) {
+        match = (allUnits || []).find((u) => {
+          if (String(u.id) === String(unit.id)) return false;
+          const uId = String(u.id).toLowerCase();
+          const uBarcode = u.barcode ? String(u.barcode).trim().toLowerCase() : null;
+          const uSerial = u.serial_number ? String(u.serial_number).trim().toLowerCase() : null;
+          return uId === biKey || (uBarcode && uBarcode === biKey) || (uSerial && uSerial === biKey);
+        });
+      }
+
       if (match) {
-        const catName = match.equipmentType?.eq_name || match.equipment_type?.eq_name || match.category || "";
+        const catName = match.equipmentType?.eq_name || match.equipment_type?.eq_name || match.category || (targetCat ? (targetCat.category || targetCat.name || targetCat.eq_name) : "");
         const uName = [match.brand, match.model].filter(Boolean).join(" ") || match.name || "Unit";
         const rawSeq = match.seq_no ?? match.sequence_no;
         const seqNo = rawSeq !== undefined && rawSeq !== null && String(rawSeq).trim() !== ""
@@ -712,7 +771,7 @@ export default function VenueEquipmentChecklist({
                     )}
                     {isRestricted && (
                       <span className="px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900 text-[10px] font-black uppercase tracking-wider">
-                        Restricted / Not Approved
+                        Denied / Not Approved
                       </span>
                     )}
                   </div>
@@ -761,7 +820,7 @@ export default function VenueEquipmentChecklist({
                 {isRestricted ? (
                   <div className="p-2.5 bg-slate-200/60 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-xl text-[11px] font-bold text-slate-600 dark:text-slate-400 flex items-center gap-2">
                     <Ban size={14} className="text-rose-500 shrink-0" />
-                    <span>This equipment category was restricted during review and is not approved for this venue booking.</span>
+                    <span>This equipment category was denied during review and is not approved for this venue booking.</span>
                   </div>
                 ) : !isAssignmentMode ? (
                   /* RETURNED UNIT CONDITION CHECKLIST (Post-event / side-by-side mode) */

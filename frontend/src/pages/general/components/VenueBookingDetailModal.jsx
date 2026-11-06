@@ -91,12 +91,13 @@ export default function VenueBookingDetailModal({
     "Activity Permit / Campus Clearance",
     "Faculty Adviser Endorsement",
     "Valid Institutional ID Copy",
-    "Other Requirements",
   ];
   const [missingReqCategories, setMissingReqCategories] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem("fsuu_missing_req_categories"));
-      if (Array.isArray(saved) && saved.length > 0) return saved;
+      if (Array.isArray(saved) && saved.length > 0) {
+        return saved.filter(c => c !== "Other Requirements");
+      }
     } catch {}
     return DEFAULT_MISSING_REQ_CATEGORIES;
   });
@@ -2173,20 +2174,30 @@ export default function VenueBookingDetailModal({
                   <label className="block text-[11px] font-extrabold text-amber-950 dark:text-amber-200 uppercase tracking-wide">
                     Missing Requirements Checklist
                   </label>
-                  {!isHistoryView && (
+                  {showEditMissingCategories && !isHistoryView && (
                     <button
                       type="button"
-                      onClick={() => setShowEditMissingCategories(!showEditMissingCategories)}
-                      className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer transition-colors"
+                      onClick={() => setShowEditMissingCategories(false)}
+                      className="text-[11px] font-bold text-amber-800 dark:text-amber-300 hover:text-amber-950 flex items-center gap-1 cursor-pointer transition-colors"
                     >
-                      {showEditMissingCategories ? <X size={12} /> : <Edit size={12} />}
-                      <span>{showEditMissingCategories ? "Done" : "Edit Category"}</span>
+                      <Check size={12} />
+                      <span>Done</span>
                     </button>
                   )}
                 </div>
 
                 {showEditMissingCategories && !isHistoryView ? (
                   <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-amber-300 dark:border-amber-700 shadow-2xs space-y-3 mb-2 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="flex items-center justify-between border-b border-amber-100 dark:border-slate-800 pb-2">
+                      <span className="text-xs font-extrabold text-amber-900 dark:text-amber-200">Manage Requirement Categories</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowEditMissingCategories(false)}
+                        className="text-xs font-bold text-amber-700 hover:text-amber-900 flex items-center gap-1 cursor-pointer"
+                      >
+                        <Check size={12} /> Done
+                      </button>
+                    </div>
                     <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
                       {missingReqCategories.length === 0 && (
                         <p className="text-xs text-slate-400 font-medium p-2 text-center">No missing requirement categories added yet.</p>
@@ -2254,6 +2265,19 @@ export default function VenueBookingDetailModal({
                         </label>
                       );
                     })}
+
+                    {/* Replaced 'Other Requirements' with 'Edit Category' directly in the grid */}
+                    {!isHistoryView && (
+                      <button
+                        type="button"
+                        onClick={() => setShowEditMissingCategories(true)}
+                        className="flex items-center justify-center gap-1.5 p-2 rounded-xl border border-dashed border-amber-300/90 dark:border-amber-700 bg-amber-50/50 hover:bg-amber-100/70 dark:bg-slate-900/60 dark:hover:bg-slate-800 text-amber-800 dark:text-amber-300 text-xs font-bold transition-all cursor-pointer shadow-2xs min-h-[38px]"
+                        title="Add or remove missing requirement categories"
+                      >
+                        <Edit size={13} className="text-amber-600 dark:text-amber-400" />
+                        <span>Edit Category</span>
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -2310,8 +2334,8 @@ export default function VenueBookingDetailModal({
                     <p className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-0.5">Applicant has 2 days to upload missing files</p>
                   </button>
                 </div>
-                <p className="text-[10.5px] text-amber-800 dark:text-amber-300/90">
-                  ⚠️ If the applicant does not submit requirements within this period, competing bookings with complete requirements for this schedule may take the slot.
+                <p className="text-[10.5px] text-amber-800 dark:text-amber-300/90 leading-relaxed">
+                  ℹ️ <strong>No Auto-Cancellation:</strong> Reservations are not automatically cancelled when the grace period expires. Staff retain full discretion to review, grant an extension, approve, or manually reject.
                 </p>
               </div>
 

@@ -95,6 +95,7 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
   const [department, setDepartment] = useState("");
   const [purpose, setPurpose] = useState("");
   const [placeOfUse, setPlaceOfUse] = useState("");
+  const [isOutsideCampus, setIsOutsideCampus] = useState(false);
   const [handlerName, setHandlerName] = useState("");
   const [endorsementFile, setEndorsementFile] = useState(null);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
@@ -256,6 +257,29 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
   }, []);
 
   const [itemQuantities, setItemQuantities] = useState({});
+
+  const successUnitsSummary = useMemo(() => {
+    let primaryCount = 0;
+    let builtInCount = 0;
+    let hasKits = false;
+    (selectedItems || []).forEach(id => {
+      const item = catalogMap.get(id);
+      const qty = itemQuantities[id] || 1;
+      primaryCount += qty;
+      const rawBuilt = (Array.isArray(item?.built_in_names) && item.built_in_names.length > 0)
+        ? item.built_in_names
+        : (Array.isArray(item?.built_in_units) ? item.built_in_units : (typeof item?.built_in_units === 'string' ? JSON.parse(item.built_in_units || '[]') : []));
+      if (Array.isArray(rawBuilt) && rawBuilt.length > 0) {
+        hasKits = true;
+        builtInCount += (rawBuilt.length * qty);
+      }
+    });
+    const totalPhysical = primaryCount + builtInCount;
+    if (hasKits) {
+      return `${primaryCount} ${primaryCount === 1 ? 'package' : 'packages'} (${totalPhysical} total physical units)`;
+    }
+    return `${primaryCount} equipment unit${primaryCount > 1 ? 's' : ''}`;
+  }, [selectedItems, itemQuantities, catalogMap]);
 
   const formatTime12 = useCallback((tStr) => {
     if (!tStr) return "";
@@ -514,11 +538,11 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
         requestor_program_office: department,
         requestor_identity_type: identity || 'student',
         purpose: purpose,
-        place_of_use: placeOfUse || "Campus Facility",
+        place_of_use: placeOfUse || (isOutsideCampus ? "Outside Campus" : "Campus Facility"),
         handler_name: handlerName || fullName,
         start_datetime: startDT,
         end_datetime: endDT,
-        used_inside_campus: 1,
+        used_inside_campus: isOutsideCampus ? 0 : 1,
         contact_preference: notificationChannel || "email",
         equipment_items: JSON.stringify(itemsList),
         is_pin_verified: isPinVerified ? 1 : 0,
@@ -573,7 +597,7 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
     } finally {
       setIsSubmitting(false);
     }
-  }, [startTime, endTime, campusBranch, selectedItems, itemQuantities, firstName, middleName, lastName, suffix, fullName, email, contactNumber, department, identity, purpose, placeOfUse, handlerName, notificationChannel, isPinVerified, endorsementFile, showAlert]);
+  }, [startTime, endTime, campusBranch, selectedItems, itemQuantities, firstName, middleName, lastName, suffix, fullName, email, contactNumber, department, identity, purpose, placeOfUse, isOutsideCampus, handlerName, notificationChannel, isPinVerified, endorsementFile, showAlert]);
 
   const [copiedTrack, setCopiedTrack] = useState(false);
 
@@ -681,6 +705,7 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
             onBack={() => setActiveStep(1)}
             catalogLoading={catalogLoading}
             isPortal={isPortal}
+            catalog={catalog}
           />
         )}
 
@@ -707,6 +732,7 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
             department={department} setDepartment={setDepartment}
             endTime={endTime} setEndTime={setEndTime}
             placeOfUse={placeOfUse} setPlaceOfUse={setPlaceOfUse}
+            isOutsideCampus={isOutsideCampus} setIsOutsideCampus={setIsOutsideCampus}
             handlerName={handlerName} setHandlerName={setHandlerName}
             purpose={purpose} setPurpose={setPurpose}
             notificationChannel={notificationChannel} setNotificationChannel={setNotificationChannel}
@@ -731,6 +757,7 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
             startTime={startTime}
             endTime={endTime}
             placeOfUse={placeOfUse}
+            isOutsideCampus={isOutsideCampus}
             purpose={purpose}
             handlerName={handlerName}
             notificationChannel={notificationChannel}
@@ -779,7 +806,7 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
             <div>
               <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Equipment Request Submitted!</h2>
               <p className="text-xs text-slate-500 dark:text-slate-300 font-semibold mt-1">
-                Your requisition for <strong>{selectedItems.length} equipment unit{selectedItems.length > 1 ? 's' : ''}</strong> has been logged in the system.
+                Your requisition for <strong>{successUnitsSummary}</strong> has been logged in the system.
               </p>
             </div>
 

@@ -748,7 +748,7 @@ export default function Step4Verification({
                     <button
                       type="button"
                       onClick={() => startCameraStream(selectedCameraId)}
-                      className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-colors cursor-pointer"
+                      className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer shadow-2xs"
                     >
                       Retry
                     </button>

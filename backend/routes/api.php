@@ -420,6 +420,7 @@ Route::prefix('public')->group(function () {
 
     // Listings for public forms & availability calendar
     Route::get('/venues',          [ListingController::class, 'venues']);
+    Route::get('/places-of-use',   [ListingController::class, 'placesOfUse']);
     Route::get('/equipment-types', [ListingController::class, 'equipmentTypes']);
     Route::get('/departments',     [ListingController::class, 'departments']);
     Route::get('/venue-bookings',  [ListingController::class, 'venueBookings']);

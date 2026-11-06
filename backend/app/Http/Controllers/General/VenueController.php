@@ -34,6 +34,11 @@ class VenueController extends Controller
                         $table->longText('equipment_max_qtys')->nullable();
                     });
                 }
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('venues', 'visible_in_venue_booking')) {
+                    \Illuminate\Support\Facades\Schema::table('venues', function ($table) {
+                        $table->boolean('visible_in_venue_booking')->default(true);
+                    });
+                }
             }
         } catch (\Throwable $e) {}
     }
@@ -62,10 +67,11 @@ class VenueController extends Controller
             'capacity'            => 'nullable|integer|min:1',
             'min_capacity'        => 'nullable|integer|min:1',
             'max_capacity'        => 'nullable|integer|min:1',
-            'status'              => 'nullable|string',
-            'allowed_equipment'   => 'nullable|array',
-            'allowed_equipment.*' => 'nullable',
-            'equipment_max_qtys'  => 'nullable',
+            'status'                   => 'nullable|string',
+            'allowed_equipment'        => 'nullable|array',
+            'allowed_equipment.*'      => 'nullable',
+            'equipment_max_qtys'       => 'nullable',
+            'visible_in_venue_booking' => 'nullable|boolean',
         ]);
 
         $existingVenue = Venue::whereRaw('LOWER(TRIM(name)) = ?', [strtolower(trim($data['name']))])->first();
@@ -142,10 +148,11 @@ class VenueController extends Controller
             'capacity'            => 'sometimes|integer|min:1',
             'min_capacity'        => 'nullable|integer|min:1',
             'max_capacity'        => 'nullable|integer|min:1',
-            'status'              => 'sometimes|string',
-            'allowed_equipment'   => 'nullable|array',
-            'allowed_equipment.*' => 'nullable',
-            'equipment_max_qtys'  => 'nullable',
+            'status'                   => 'sometimes|string',
+            'allowed_equipment'        => 'nullable|array',
+            'allowed_equipment.*'      => 'nullable',
+            'equipment_max_qtys'       => 'nullable',
+            'visible_in_venue_booking' => 'nullable|boolean',
         ]);
 
         if (!empty($data['name'])) {

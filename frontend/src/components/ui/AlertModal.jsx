@@ -56,7 +56,7 @@ export default function AlertModal({
         <button
           type="button"
           onClick={onClose}
-          className={buttonClassName || "mt-5 w-full py-2.5 min-h-[42px] bg-slate-900 hover:bg-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"}
+          className={buttonClassName || "mt-5 w-full py-2.5 min-h-[42px] bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer shadow-sm"}
         >
           {buttonLabel}
         </button>

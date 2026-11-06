@@ -1360,7 +1360,14 @@ export default function EquipmentBorrowDetailModal({
                 </div>
                 <div className="grid grid-cols-3 py-1 border-t border-slate-200/60 dark:border-slate-800">
                   <span className="text-slate-500 dark:text-slate-400 font-bold">Place of Use</span>
-                  <span className="col-span-2 font-bold text-slate-800 dark:text-slate-200">{selected.place_of_use || "Main Campus"}</span>
+                  <div className="col-span-2 flex items-center gap-2">
+                    <span className="font-bold text-slate-800 dark:text-slate-200">{selected.place_of_use || "Main Campus"}</span>
+                    {(selected.used_inside_campus === false || selected.used_inside_campus === 0 || String(selected.place_of_use || '').toLowerCase().includes('outside')) && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                        Outside Campus
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="grid grid-cols-3 py-1 border-t border-slate-200/60 dark:border-slate-800">
                   <span className="text-slate-500 dark:text-slate-400 font-bold">Purpose</span>
@@ -1421,7 +1428,7 @@ export default function EquipmentBorrowDetailModal({
                             </span>
                             {isRestricted && (
                               <span className="px-1.5 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900 text-[9.5px] font-black uppercase tracking-wider">
-                                Restricted / Not Approved
+                                Denied / Not Approved
                               </span>
                             )}
                           </div>

@@ -25,20 +25,20 @@ export default function AboutDevelopersModal({ isOpen, onClose }) {
       color: "from-indigo-600 to-violet-700",
     },
     {
-      id: "phoebe",
-      name: "Ma. Phoebe Burdeos",
-      role: "QA & Documentation Specialist",
-      photo: "/team/phoebe.jpg",
-      initials: "MB",
-      color: "from-emerald-600 to-teal-700",
-    },
-    {
       id: "raven",
       name: "Raven Greg J. Espiritu",
       role: "Systems Analyst & Documentation",
       photo: "/team/raven.jpg",
       initials: "RE",
       color: "from-amber-600 to-orange-700",
+    },
+    {
+      id: "phoebe",
+      name: "Ma. Phoebe Burdeos",
+      role: "QA & Documentation Specialist",
+      photo: "/team/phoebe.jpg",
+      initials: "MB",
+      color: "from-emerald-600 to-teal-700",
     },
   ];
 
@@ -193,7 +193,7 @@ export default function AboutDevelopersModal({ isOpen, onClose }) {
           <Button
             type="button"
             onClick={onClose}
-            className="bg-slate-800 hover:bg-slate-900 dark:bg-blue-600 dark:hover:bg-blue-500 text-white text-xs font-black rounded-xl px-5 py-2 cursor-pointer shadow-xs"
+            className="border border-slate-200 dark:border-slate-700 bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl px-5 py-2 cursor-pointer shadow-2xs"
           >
             Close
           </Button>

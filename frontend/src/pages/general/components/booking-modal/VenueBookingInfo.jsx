@@ -538,7 +538,7 @@ export default function VenueBookingInfo({
                       {isRestricted && (
                         <span className="px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900 text-[9.5px] font-black uppercase tracking-wider flex items-center gap-1">
                           <Ban size={10} />
-                          <span>Restricted / Not Approved</span>
+                          <span>Denied / Not Approved</span>
                         </span>
                       )}
                     </div>
@@ -552,17 +552,17 @@ export default function VenueBookingInfo({
                             ? "bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-600"
                             : "bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border-rose-200 hover:border-rose-600 dark:bg-rose-950/50 dark:hover:bg-rose-600 dark:text-rose-300 dark:hover:text-white dark:border-rose-900/60"
                         }`}
-                        title={isRestricted ? "Click to unrestrict this category" : "Click to restrict this equipment category"}
+                        title={isRestricted ? "Click to undo denial of this category" : "Click to deny this equipment category"}
                       >
                         {isRestricted ? (
                           <>
                             <RotateCcw size={11} className="text-slate-600 dark:text-slate-300" />
-                            <span>Unrestrict</span>
+                            <span>Undo</span>
                           </>
                         ) : (
                           <>
                             <Ban size={11} />
-                            <span>Restrict</span>
+                            <span>Deny</span>
                           </>
                         )}
                       </button>

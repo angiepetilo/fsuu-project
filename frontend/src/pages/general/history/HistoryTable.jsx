@@ -506,7 +506,7 @@ export default function HistoryTable({
                     <button
                       type="button"
                       onClick={() => setSelectedVenueModal(b)}
-                      className="flex-1 min-h-[40px] px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                      className="flex-1 min-h-[40px] px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-xs cursor-pointer transition-colors"
                     >
                       <Eye size={14} /> View Details
                     </button>
@@ -829,7 +829,7 @@ export default function HistoryTable({
                     <button
                       type="button"
                       onClick={() => setSelectedEquipModal(b)}
-                      className="flex-1 min-h-[40px] px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                      className="flex-1 min-h-[40px] px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-xs cursor-pointer transition-colors"
                     >
                       <Eye size={14} /> View Details
                     </button>

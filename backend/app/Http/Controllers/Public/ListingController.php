@@ -34,19 +34,28 @@ class ListingController extends Controller
                         $table->longText('equipment_max_qtys')->nullable();
                     });
                 }
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('venues', 'visible_in_venue_booking')) {
+                    \Illuminate\Support\Facades\Schema::table('venues', function ($table) {
+                        $table->boolean('visible_in_venue_booking')->default(true);
+                    });
+                }
             }
         } catch (\Throwable $e) {}
     }
 
     /**
      * GET /public/venues
-     * Lists all active venues for the public booking form.
+     * Lists all active venues for the public booking form (only those visible for venue reservation).
      */
     public function venues(): JsonResponse
     {
         $this->ensureSchema();
         return response()->json(
             Venue::where('status', '!=', 'maintenance')
+                ->where(function ($q) {
+                    $q->whereNull('visible_in_venue_booking')
+                      ->orWhere('visible_in_venue_booking', true);
+                })
                 ->get()
                 ->map(function ($v) {
                     $imgUrl = str_starts_with($v->avatar ?? '', '/storage/') ? url($v->avatar) : $v->avatar;
@@ -65,19 +74,44 @@ class ListingController extends Controller
                         $maxQtys = [];
                     }
                     return [
-                        'id'                 => $v->id,
-                        'name'               => $v->name,
-                        'avatar'             => $imgUrl,
-                        'photo'              => $imgUrl,
-                        'image'              => $imgUrl,
-                        'location'           => $v->location ?? 'FSUU Campus',
-                        'capacity'           => $v->capacity ?? 100,
-                        'min_capacity'       => $v->min_capacity ?? 1,
-                        'max_capacity'       => $v->max_capacity ?? $v->capacity ?? 100,
-                        'type'               => 'avr',
-                        'status'             => $v->status ?? 'Available',
-                        'allowed_equipment'  => array_values(array_filter($allowed)),
-                        'equipment_max_qtys' => $maxQtys,
+                        'id'                       => $v->id,
+                        'name'                     => $v->name,
+                        'avatar'                   => $imgUrl,
+                        'photo'                    => $imgUrl,
+                        'image'                    => $imgUrl,
+                        'location'                 => $v->location ?? 'FSUU Campus',
+                        'capacity'                 => $v->capacity ?? 100,
+                        'min_capacity'             => $v->min_capacity ?? 1,
+                        'max_capacity'             => $v->max_capacity ?? $v->capacity ?? 100,
+                        'type'                     => 'avr',
+                        'status'                   => $v->status ?? 'Available',
+                        'visible_in_venue_booking' => (bool)($v->visible_in_venue_booking ?? true),
+                        'allowed_equipment'        => array_values(array_filter($allowed)),
+                        'equipment_max_qtys'       => $maxQtys,
+                    ];
+                })
+        );
+    }
+
+    /**
+     * GET /public/places-of-use
+     * Lists all active venues and rooms dynamically entered for the Equipment Borrowing "Place of Use" dropdown.
+     */
+    public function placesOfUse(): JsonResponse
+    {
+        $this->ensureSchema();
+        return response()->json(
+            Venue::where('status', '!=', 'maintenance')
+                ->where('status', '!=', 'disabled')
+                ->orderBy('name')
+                ->get()
+                ->map(function ($v) {
+                    return [
+                        'id'                       => $v->id,
+                        'name'                     => $v->name,
+                        'location'                 => $v->location ?? '',
+                        'status'                   => $v->status ?? 'Available',
+                        'visible_in_venue_booking' => (bool)($v->visible_in_venue_booking ?? true),
                     ];
                 })
         );

@@ -656,7 +656,7 @@ export default function TrackBooking() {
                                 Qty: {item.qty}
                               </span>
                               <span className="bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 text-[9.5px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded border border-rose-300 dark:border-rose-800">
-                                Restricted / Not Approved
+                                Denied / Not Approved
                               </span>
                             </span>
                           ) : (
@@ -682,7 +682,7 @@ export default function TrackBooking() {
                     ))}
                     {equipmentItems.some(i => i.isRestricted) && (
                       <p className="text-[11px] text-rose-600 dark:text-rose-400 font-medium italic pt-1 border-t border-rose-200/50 dark:border-rose-900/50">
-                        * Note: Restricted items will not be approved or released by the AVR Custodian.
+                        * Note: Denied items will not be approved or released by the AVR Custodian.
                       </p>
                     )}
                   </div>

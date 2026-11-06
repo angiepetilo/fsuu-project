@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ShieldCheck, PackageOpen, User, Calendar, MapPin, Mail, Phone, CheckCircle2, Loader2, Shield, Lock } from "lucide-react";
+import { ShieldCheck, Package, PackageOpen, User, Calendar, MapPin, Mail, Phone, CheckCircle2, Loader2, Shield, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DataPrivacyTermsModal from "@/components/ui/DataPrivacyTermsModal";
 
@@ -14,6 +14,7 @@ export default function Step4Verification({
   startTime,
   endTime,
   placeOfUse,
+  isOutsideCampus = false,
   purpose,
   handlerName,
   isSubmitting,
@@ -95,12 +96,19 @@ export default function Step4Verification({
                   </div>
                   <div>
                     <h5 className="font-extrabold text-slate-900 dark:text-white text-xs truncate max-w-[200px]">{item.name}</h5>
-                    <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">{item.quantity} physical unit{item.quantity === 1 ? '' : 's'}</span>
+                    <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                      {item.builtInNames && item.builtInNames.length > 0
+                        ? `${item.quantity} kit package (${(item.builtInNames.length + 1) * item.quantity} physical units total)`
+                        : `${item.quantity} physical unit${item.quantity === 1 ? '' : 's'}`}
+                    </span>
                     {item.builtInNames && item.builtInNames.length > 0 && (
-                      <div className="flex items-center flex-wrap gap-1 mt-1">
-                        <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Built-in:</span>
+                      <div className="flex items-center flex-wrap gap-1 mt-1.5">
+                        <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                          <Package size={11} className="text-blue-600 dark:text-blue-400 shrink-0" />
+                          Built-in:
+                        </span>
                         {item.builtInNames.map((bName, bIdx) => (
-                          <span key={bIdx} className="text-[9.5px] px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/80 dark:border-blue-800/60 font-bold">
+                          <span key={bIdx} className="text-[9.5px] px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/80 dark:border-blue-800/60 font-bold shadow-2xs">
                             {bName}
                           </span>
                         ))}
@@ -145,8 +153,15 @@ export default function Step4Verification({
               <span className="font-bold text-slate-900 dark:text-white">{department || "General"}</span>
             </div>
             <div className="flex justify-between border-b border-slate-100 dark:border-slate-800/80 pb-2">
-              <span className="text-slate-400 font-bold">Location of Equipment Use</span>
-              <span className="font-bold text-blue-700 dark:text-blue-400">{placeOfUse || "Inside Campus"}</span>
+              <span className="text-slate-400 font-bold">Place of Use</span>
+              <div className="text-right">
+                <span className="font-bold text-blue-700 dark:text-blue-400">{placeOfUse || (isOutsideCampus ? "Outside Campus" : "Inside Campus")}</span>
+                {isOutsideCampus && (
+                  <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                    Outside Campus
+                  </span>
+                )}
+              </div>
             </div>
             <div className="flex justify-between border-b border-slate-100 dark:border-slate-800/80 pb-2">
               <span className="text-slate-400 font-bold">Date &amp; Schedule</span>

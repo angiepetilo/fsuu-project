@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Loader2, Play, Mail, CheckCircle2, PackageCheck, AlertCircle, Smartphone, ChevronDown, X, Check, Clock, Ban, ArrowUpDown } from "lucide-react";
+import { Loader2, Play, Mail, CheckCircle2, PackageCheck, AlertCircle, Smartphone, ChevronDown, X, Check, Clock, Ban, ArrowUpDown, RotateCcw } from "lucide-react";
 import api from "@/lib/axios";
 import { getTodayISO } from "@/lib/dateTimeUtils";
 
@@ -462,26 +462,31 @@ export default function EquipBorrowUnitAssignment({
       return candidates.includes(cleanBarcode) || (strippedBarcode && candidates.includes(strippedBarcode));
     });
 
-    if (unit) {
-      const uModel = String(unit.model || unit.equipment_name || "").toLowerCase();
-      const uCat = String(unit.equipmentType?.eq_name || unit.equipment_type?.eq_name || unit.category || "").toLowerCase();
-      if (uModel.includes("screen") || uCat.includes("screen")) return [];
-    }
+    if (!unit) return [];
+
+    const uModel = String(unit.model || unit.equipment_name || "").toLowerCase();
+    const uCat = String(unit.equipmentType?.eq_name || unit.equipment_type?.eq_name || unit.category || "").toLowerCase();
+    if (uModel.includes("screen") || uCat.includes("screen")) return [];
+
+    // Extract parent sequence number (e.g. "#008" -> "008") to match bundle siblings by sequence number
+    const parentSeq = unit.seq_no
+      ? String(unit.seq_no).trim().toLowerCase().replace(/^#/, "")
+      : null;
 
     let rawList = [];
-    if (unit) {
-      if (Array.isArray(unit.built_in_units)) {
-        rawList = unit.built_in_units;
-      } else if (typeof unit.built_in_units === "string") {
-        try { rawList = JSON.parse(unit.built_in_units || "[]"); } catch { rawList = []; }
-      }
-      if (!Array.isArray(rawList) || rawList.length === 0) {
-        const eqT = unit.equipmentType || unit.equipment_type;
-        if (Array.isArray(eqT?.built_in_units) && eqT.built_in_units.length > 0) {
-          rawList = eqT.built_in_units;
-        } else if (Array.isArray(eqT?.built_in_names) && eqT.built_in_names.length > 0) {
-          rawList = eqT.built_in_names;
-        }
+    if (Array.isArray(unit.built_in_units) && unit.built_in_units.length > 0) {
+      rawList = unit.built_in_units.filter(Boolean);
+    } else if (typeof unit.built_in_units === "string" && unit.built_in_units.trim() !== "") {
+      try { rawList = JSON.parse(unit.built_in_units || "[]").filter(Boolean); } catch { rawList = []; }
+    }
+
+    // Fallback A: Check equipment type / category built-in accessories (prefer names over numeric IDs to avoid collision with unit IDs)
+    if (!Array.isArray(rawList) || rawList.length === 0) {
+      const eqT = unit.equipmentType || unit.equipment_type || (dbEquipmentTypes || []).find(t => String(t.id) === String(unit.equipment_type_id));
+      if (Array.isArray(eqT?.built_in_names) && eqT.built_in_names.length > 0) {
+        rawList = eqT.built_in_names;
+      } else if (Array.isArray(eqT?.built_in_units) && eqT.built_in_units.length > 0) {
+        rawList = eqT.built_in_units;
       }
     }
 
@@ -515,30 +520,73 @@ export default function EquipBorrowUnitAssignment({
 
     if (!Array.isArray(rawList) || rawList.length === 0) return [];
 
+    const effectiveCategories = dbEquipmentTypes || [];
+
     return rawList.map((itemRef, itemIdx) => {
       if (!itemRef) return null;
       const biKey = (typeof itemRef === "object" && itemRef !== null)
-        ? String(itemRef.id || itemRef.barcode || itemRef.serial_number || itemRef.code || "").trim().toUpperCase()
-        : String(itemRef).trim().toUpperCase();
+        ? String(itemRef.id || itemRef.barcode || itemRef.serial_number || itemRef.code || "").trim().toLowerCase()
+        : String(itemRef).trim().toLowerCase();
       const biRaw = (typeof itemRef === "object" && itemRef !== null)
         ? (itemRef.name || itemRef.eq_name || itemRef.barcode || itemRef.id)
         : itemRef;
 
-      const match = (allUnits || []).find((u) => {
-        const uId = String(u.id).trim().toUpperCase();
-        const uCandidates = [
-          uId,
-          `UNIT-${uId}`,
-          u.barcode,
-          u.serial_number,
-          u.serial_no,
-          u.code,
-        ].filter(Boolean).map((s) => String(s).trim().toUpperCase());
-        return uCandidates.includes(biKey) || (biKey && uCandidates.includes(biKey.replace(/^UNIT-/i, "")));
+      // Check if itemRef corresponds to a known category (by ID or category name)
+      const isNum = typeof itemRef === "number" || /^\d+$/.test(String(itemRef));
+      const targetCat = effectiveCategories.find((c) => {
+        if (isNum) return String(c.id) === String(itemRef);
+        const cName = (c.eq_name || c.name || "").trim().toLowerCase();
+        return cName === biKey || cName === String(biRaw).trim().toLowerCase();
+      }) || (categoriesToRender || []).find((c) => {
+        if (isNum) return String(c.id || c.equipment_type_id) === String(itemRef);
+        const cName = (c.category || c.name || "").trim().toLowerCase();
+        return cName === biKey || cName === String(biRaw).trim().toLowerCase();
       });
 
+      let match = null;
+
+      // 1. If it's a category reference, prioritize finding the unit in that category with MATCHING sequence number
+      if (targetCat) {
+        const targetCatId = String(targetCat.id || targetCat.equipment_type_id || "");
+        const targetCatName = (targetCat.eq_name || targetCat.category || targetCat.name || "").trim().toLowerCase();
+
+        // 1a. Priority 1: Match unit in that category having the EXACT SAME sequence number as parent (e.g. #008 -> #008)
+        if (parentSeq) {
+          match = (allUnits || []).find((u) => {
+            if (String(u.id) === String(unit.id)) return false;
+            const uCatId = u.equipment_type_id ? String(u.equipment_type_id) : null;
+            const uCatName = String(u.category || u.equipment_type?.eq_name || u.equipmentType?.eq_name || "").trim().toLowerCase();
+            const catMatch = (targetCatId && uCatId === targetCatId) || (targetCatName && uCatName === targetCatName);
+            if (!catMatch) return false;
+            const uSeq = u.seq_no ? String(u.seq_no).trim().toLowerCase().replace(/^#/, "") : null;
+            return uSeq === parentSeq;
+          });
+        }
+
+        // 1b. Priority 2: Fallback to any active unit in that category
+        if (!match) {
+          match = (allUnits || []).find((u) => {
+            if (String(u.id) === String(unit.id)) return false;
+            const uCatId = u.equipment_type_id ? String(u.equipment_type_id) : null;
+            const uCatName = String(u.category || u.equipment_type?.eq_name || u.equipmentType?.eq_name || "").trim().toLowerCase();
+            return (targetCatId && uCatId === targetCatId) || (targetCatName && uCatName === targetCatName);
+          });
+        }
+      }
+
+      // 2. If not matched via category reference, check direct match by Unit ID / Barcode / Serial Number
+      if (!match) {
+        match = (allUnits || []).find((u) => {
+          if (String(u.id) === String(unit.id)) return false;
+          const uId = String(u.id).toLowerCase();
+          const uBarcode = u.barcode ? String(u.barcode).trim().toLowerCase() : null;
+          const uSerial = u.serial_number ? String(u.serial_number).trim().toLowerCase() : null;
+          return uId === biKey || (uBarcode && uBarcode === biKey) || (uSerial && uSerial === biKey);
+        });
+      }
+
       if (match) {
-        const catName = match.equipmentType?.eq_name || match.equipment_type?.eq_name || match.category || "";
+        const catName = match.equipmentType?.eq_name || match.equipment_type?.eq_name || match.category || (targetCat ? (targetCat.eq_name || targetCat.category || targetCat.name) : "");
         const rawSeq = match.seq_no ?? match.sequence_no;
         const seqNo = rawSeq !== undefined && rawSeq !== null && String(rawSeq).trim() !== ""
           ? (String(rawSeq).trim().startsWith("#") ? String(rawSeq).trim() : `#${String(rawSeq).trim()}`)
@@ -557,52 +605,13 @@ export default function EquipBorrowUnitAssignment({
         };
       }
 
-      // If not a physical unit, resolve category/accessory name (e.g. ID 8 -> HDMI)
-      let resolvedTypeName = null;
-      if (Array.isArray(dbEquipmentTypes)) {
-        const typeMatch = dbEquipmentTypes.find(t =>
-          String(t.id) === String(biKey) ||
-          String(t.id) === String(biRaw) ||
-          String(t.eq_name || t.name || "").toLowerCase() === String(biRaw).toLowerCase()
-        );
-        if (typeMatch) {
-          resolvedTypeName = typeMatch.eq_name || typeMatch.name;
-        }
-      }
-
-      if (!resolvedTypeName) {
-        const eqT = unit?.equipmentType || unit?.equipment_type;
-        if (Array.isArray(eqT?.built_in_names) && eqT.built_in_names[itemIdx]) {
-          resolvedTypeName = eqT.built_in_names[itemIdx];
-        }
-      }
-      if (!resolvedTypeName && currentReqCat) {
-        const catBuilt = currentReqCat.builtInNames || currentReqCat.built_in_names;
-        if (Array.isArray(catBuilt) && catBuilt[itemIdx]) {
-          resolvedTypeName = catBuilt[itemIdx];
-        }
-      }
-      if (!resolvedTypeName && Array.isArray(categoriesToRender)) {
-        const catMatch = categoriesToRender.find(
-          (c) => String(c.id || c.equipment_type_id) === String(biKey) || String(c.category || c.name).toLowerCase() === String(biRaw).toLowerCase()
-        );
-        if (catMatch) resolvedTypeName = catMatch.category || catMatch.name;
-      }
-
-      if (resolvedTypeName) {
-        return {
-          id: biKey || biRaw,
-          barcode: resolvedTypeName,
-          name: resolvedTypeName,
-          category: "Built-in Accessory",
-        };
-      }
-
+      // Fallback display if physical unit not found
+      const resolvedTypeName = targetCat ? (targetCat.eq_name || targetCat.category || targetCat.name) : String(biRaw);
       return {
         id: biKey || biRaw,
-        barcode: String(biRaw),
-        name: isNaN(Number(biRaw)) ? String(biRaw) : `Physical Unit #${biRaw}`,
-        category: "Built-in Component",
+        barcode: resolvedTypeName,
+        name: resolvedTypeName,
+        category: "Built-in Accessory",
       };
     }).filter(Boolean).sort((a, b) => compareUnitsBySeqNo(a, b, "asc"));
   };
@@ -704,7 +713,7 @@ export default function EquipBorrowUnitAssignment({
                   </span>
                   {isRestricted && (
                     <span className="px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900 text-[10px] font-black uppercase tracking-wider">
-                      Restricted / Not Approved
+                      Denied / Not Approved
                     </span>
                   )}
                 </div>
@@ -722,20 +731,29 @@ export default function EquipBorrowUnitAssignment({
                           ? "bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 border-slate-300 dark:border-slate-600"
                           : "bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border-rose-200 hover:border-rose-600 dark:bg-rose-950/50 dark:hover:bg-rose-600 dark:text-rose-300 dark:hover:text-white dark:border-rose-900/60"
                       }`}
-                      title={isRestricted ? "Click to unrestrict this category" : "Click to restrict this equipment category"}
+                      title={isRestricted ? "Click to undo denial of this category" : "Click to deny this equipment category"}
                     >
-                      <Ban size={11} className={isRestricted ? "text-slate-600 dark:text-slate-300" : ""} />
-                      <span>{isRestricted ? "Unrestrict" : "Restrict"}</span>
+                      {isRestricted ? (
+                        <>
+                          <RotateCcw size={11} className="text-slate-600 dark:text-slate-300" />
+                          <span>Undo</span>
+                        </>
+                      ) : (
+                        <>
+                          <Ban size={11} />
+                          <span>Deny</span>
+                        </>
+                      )}
                     </button>
                   )}
                 </div>
               </div>
 
-              {/* State 1: Restricted notice */}
+              {/* State 1: Restricted / Denied notice */}
               {isRestricted ? (
                 <div className="p-2.5 bg-slate-200/60 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-xl text-[11px] font-bold text-slate-600 dark:text-slate-400 flex items-center gap-2">
                   <Ban size={14} className="text-rose-500 shrink-0" />
-                  <span>This equipment category is restricted and will not be approved or released.</span>
+                  <span>This equipment category was denied by the custodian and will not be released.</span>
                 </div>
               ) : isPending ? (
                 /* State 2: Pending (No unit dropdown yet) */

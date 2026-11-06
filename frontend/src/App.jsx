@@ -6,6 +6,7 @@ import { cleanupLocalStorage } from "@/lib/cleanupLocalStorage";
 import { PageLoader } from "@/components/ui/page-loader";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import { ThemeProvider, useTheme } from "@/context/ThemeContext";
+import { useKioskGuard } from "@/hooks/useKioskGuard";
 
 // Public — landing page loads eagerly (it's the first paint)
 import LandingPage from "./pages/public/LandingPage/LandingPage";
@@ -63,6 +64,9 @@ function AppContent() {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === "dark";
   const userRole = user?.role?.name || user?.role || "staff";
+
+  // Lock down public kiosk / walk-in booking pages from inspect & dev shortcuts
+  useKioskGuard();
 
   const [showHomeLogoutConfirm, setShowHomeLogoutConfirm] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);

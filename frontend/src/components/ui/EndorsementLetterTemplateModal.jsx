@@ -957,7 +957,7 @@ export default function EndorsementLetterTemplateModal({
                 type="button"
                 onClick={() => setEditTab("routing")}
                 className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
-                  editTab === "routing" ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                  editTab === "routing" ? "bg-blue-600 text-white shadow-xs" : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
                 }`}
               >
                 1. Routing &amp; Memo
@@ -966,7 +966,7 @@ export default function EndorsementLetterTemplateModal({
                 type="button"
                 onClick={() => setEditTab("body")}
                 className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
-                  editTab === "body" ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                  editTab === "body" ? "bg-blue-600 text-white shadow-xs" : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
                 }`}
               >
                 2. Letter Body
@@ -975,7 +975,7 @@ export default function EndorsementLetterTemplateModal({
                 type="button"
                 onClick={() => setEditTab("signatories")}
                 className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
-                  editTab === "signatories" ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                  editTab === "signatories" ? "bg-blue-600 text-white shadow-xs" : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
                 }`}
               >
                 3. Signatories
@@ -1949,7 +1949,7 @@ export default function EndorsementLetterTemplateModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs cursor-pointer transition-all"
+            className="px-4 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs cursor-pointer transition-all shadow-2xs"
           >
             Close
           </button>

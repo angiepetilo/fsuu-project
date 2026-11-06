@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Sparkles, PackageOpen, CheckCircle2, AlertCircle, Loader2, KeyRound, Check, Edit3, Phone, Mail } from "lucide-react";
+import { Sparkles, Package, PackageOpen, CheckCircle2, AlertCircle, Loader2, KeyRound, Check, Edit3, Phone, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import api from "@/lib/axios";
 import { validatePhilippineMobile } from "@/lib/phoneValidation";
@@ -38,7 +38,12 @@ export default function Step3Details({
   setIsEmailVerified,
   pinRules,
   onBack,
+  isOutsideCampus = false,
+  setIsOutsideCampus: setIsOutsideCampusProp,
 }) {
+  const [localIsOutsideCampus, setLocalIsOutsideCampus] = useState(false);
+  const isOutside = setIsOutsideCampusProp ? isOutsideCampus : localIsOutsideCampus;
+  const setIsOutside = setIsOutsideCampusProp || setLocalIsOutsideCampus;
   const [localEmailCheckStatus, setLocalEmailCheckStatus] = useState("idle");
   const emailCheckStatus = propEmailCheckStatus !== undefined ? propEmailCheckStatus : localEmailCheckStatus;
   const setEmailCheckStatus = propSetEmailCheckStatus || setLocalEmailCheckStatus;
@@ -61,6 +66,35 @@ export default function Step3Details({
   const showChannelChoices = requireEmailVerify && requirePhoneVerify;
 
   const [departmentsList, setDepartmentsList] = useState([]);
+  const [placesList, setPlacesList] = useState([]);
+
+  useEffect(() => {
+    const fetchPlaces = async () => {
+      try {
+        const res = await api.get("/public/places-of-use");
+        let data = Array.isArray(res.data) ? res.data : [];
+        if (data.length > 0) {
+          setPlacesList(data);
+          try {
+            localStorage.setItem("fsuu_places_of_use", JSON.stringify(data));
+          } catch {}
+        }
+      } catch {
+        try {
+          const cached = JSON.parse(localStorage.getItem("fsuu_places_of_use") || localStorage.getItem("fsuu_venues_catalog") || "[]");
+          setPlacesList(cached);
+        } catch {
+          setPlacesList([]);
+        }
+      }
+    };
+
+    fetchPlaces();
+    window.addEventListener("venues_updated", fetchPlaces);
+    return () => {
+      window.removeEventListener("venues_updated", fetchPlaces);
+    };
+  }, []);
 
   const [isOtpRequested, setIsOtpRequested] = useState(false);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
@@ -443,17 +477,46 @@ export default function Step3Details({
               <span className="text-blue-300 dark:text-blue-600">|</span>
               <span>Schedule: <span className="font-extrabold text-blue-700 dark:text-blue-400">{formatScheduleDisplay(startTime, endTime)}</span></span>
             </p>
-            {builtInNamesList.length > 0 && (
-              <div className="flex items-center flex-wrap gap-1.5 pt-1 border-t border-blue-200/60 dark:border-slate-800">
-                <span className="text-slate-700 dark:text-slate-300 font-extrabold text-xs">Built-in:</span>
-                {builtInNamesList.map((bName, idx) => (
-                  <span
-                    key={idx}
-                    className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-blue-100/90 dark:bg-blue-950/70 text-blue-900 dark:text-blue-300 text-[11px] font-bold border border-blue-300/80 dark:border-blue-800 shadow-2xs"
-                  >
-                    {bName}
-                  </span>
-                ))}
+            {selectedCategoryItems.some(c => c.rawBuiltIns.length > 0) && (
+              <div className="pt-2 border-t border-blue-200/60 dark:border-slate-800 space-y-1">
+                <div className="flex items-center gap-1.5 text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                  <Package size={13} className="text-blue-600 dark:text-blue-400 shrink-0" />
+                  <span>Included Built-in Packages:</span>
+                </div>
+                <div className="flex flex-col gap-1.5 pl-0.5">
+                  {selectedCategoryItems.filter(c => c.rawBuiltIns.length > 0).map((c, cIdx) => {
+                    const cBuiltIns = [];
+                    c.rawBuiltIns.forEach(raw => {
+                      if (typeof raw === 'string' && isNaN(Number(raw))) {
+                        cBuiltIns.push(raw.trim());
+                        return;
+                      }
+                      const match = (catalog || []).find(
+                        cat => String(cat.id) === String(raw) ||
+                          (cat.name || cat.eq_name || '').toLowerCase() === String(raw).toLowerCase()
+                      );
+                      if (match) {
+                        cBuiltIns.push(match.name || match.eq_name);
+                      } else if (raw && isNaN(Number(raw))) {
+                        cBuiltIns.push(String(raw));
+                      }
+                    });
+                    const uniqueCBuiltIns = Array.from(new Set(cBuiltIns.filter(Boolean)));
+                    return (
+                      <div key={cIdx} className="flex items-center flex-wrap gap-1.5 text-xs">
+                        <span className="font-extrabold text-blue-950 dark:text-white underline decoration-blue-300 dark:decoration-blue-700">{c.name}:</span>
+                        {uniqueCBuiltIns.map((bName, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-100/90 dark:bg-blue-950/70 text-blue-900 dark:text-blue-300 text-[11px] font-bold border border-blue-300/80 dark:border-blue-800 shadow-2xs"
+                          >
+                            {bName}
+                          </span>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
@@ -1097,15 +1160,119 @@ export default function Step3Details({
         </div>
 
         <div className="flex flex-col gap-1.5 sm:col-span-1">
-          <label className="text-xs font-bold text-slate-900">Location of Equipment Use <span className="text-red-500">*</span></label>
-          <input
-            type="text"
-            required
-            value={placeOfUse}
-            onChange={e => setPlaceOfUse(e.target.value)}
-            placeholder="e.g. Main Gymnasium / AVR 1"
-            className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all"
-          />
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-slate-900 dark:text-white">
+              Place of Use <span className="text-red-500">*</span>
+            </label>
+            <div className="inline-flex p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-[11px] font-bold">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOutside(false);
+                  if (placeOfUse && placeOfUse.startsWith("Outside: ")) {
+                    setPlaceOfUse("");
+                  }
+                }}
+                className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer ${
+                  !isOutside
+                    ? "bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-2xs font-extrabold"
+                    : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+                }`}
+              >
+                Inside Campus
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOutside(true);
+                  if (!placeOfUse || !placeOfUse.startsWith("Outside: ")) {
+                    setPlaceOfUse("");
+                  }
+                }}
+                className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer ${
+                  isOutside
+                    ? "bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-2xs font-extrabold"
+                    : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+                }`}
+              >
+                Outside Campus
+              </button>
+            </div>
+          </div>
+
+          {!isOutside ? (
+            <div className="space-y-1.5">
+              <select
+                required
+                value={
+                  placeOfUse === "__other_campus__" || (typeof placeOfUse === "string" && placeOfUse.startsWith("Campus: "))
+                    ? "__other_campus__"
+                    : (placeOfUse && !placeOfUse.startsWith("Outside: ") ? placeOfUse : "")
+                }
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "__other_campus__") {
+                    setPlaceOfUse("__other_campus__");
+                  } else {
+                    setPlaceOfUse(val);
+                  }
+                }}
+                className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-900 dark:text-white focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all cursor-pointer"
+              >
+                <option value="">Select Place of Use (Campus Venue / Room)...</option>
+                {placesList && placesList.length > 0 ? (
+                  placesList.map((p) => {
+                    const placeName = p.name || p.venue_name || "Facility";
+                    const locDetail = p.location && p.location !== placeName ? ` — ${p.location}` : "";
+                    return (
+                      <option key={`place-${p.id || placeName}`} value={placeName}>
+                        {placeName}{locDetail}
+                      </option>
+                    );
+                  })
+                ) : (
+                  <>
+                    <option value="Main Gymnasium">Main Gymnasium</option>
+                    <option value="CB Lobby">CB Lobby</option>
+                    <option value="CBE Function Hall">CBE Function Hall</option>
+                    <option value="Haggemburg Hall">Haggemburg Hall</option>
+                    <option value="Audio-Visual Room #1">Audio-Visual Room #1</option>
+                    <option value="Audio-Visual Room #2">Audio-Visual Room #2</option>
+                    <option value="Viewing Room">Viewing Room</option>
+                  </>
+                )}
+                <option value="__other_campus__">Other Room / Area on Campus...</option>
+              </select>
+
+              {(placeOfUse === "__other_campus__" || (typeof placeOfUse === "string" && placeOfUse.startsWith("Campus: "))) && (
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  placeholder="Specify campus room, office, or lab (e.g. Science Lab 301)..."
+                  value={typeof placeOfUse === "string" && placeOfUse.startsWith("Campus: ") ? placeOfUse.replace(/^Campus:\s*/, "") : ""}
+                  onChange={(e) => {
+                    setPlaceOfUse(e.target.value ? `Campus: ${e.target.value}` : "__other_campus__");
+                  }}
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-blue-600 animate-in fade-in duration-150"
+                />
+              )}
+            </div>
+          ) : (
+            <div className="space-y-1">
+              <input
+                type="text"
+                required
+                value={typeof placeOfUse === "string" && placeOfUse.startsWith("Outside: ") ? placeOfUse.replace(/^Outside:\s*/, "") : (placeOfUse || "")}
+                onChange={(e) => setPlaceOfUse(e.target.value ? `Outside: ${e.target.value}` : "")}
+                placeholder="e.g. St. Joseph Cathedral, Butuan City / External Event Venue"
+                className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all"
+              />
+              <p className="text-[10.5px] text-slate-400 dark:text-slate-500 font-medium">
+                * Specify outside destination or institution. Off-campus use is subject to gate clearance &amp; approval.
+              </p>
+            </div>
+          )}
         </div>
 
         {primaryDept === "sco" && (

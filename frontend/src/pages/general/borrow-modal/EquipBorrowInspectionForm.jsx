@@ -96,39 +96,95 @@ export default function EquipBorrowInspectionForm({
     if (!unit) return [];
     const parentUnit = unit;
 
+    // Extract parent sequence number (e.g. "#008" -> "008") to match bundle siblings by sequence number
+    const parentSeq = unit.seq_no
+      ? String(unit.seq_no).trim().toLowerCase().replace(/^#/, "")
+      : null;
+
     // built_in_units is stored on the physical unit (equipment_units.built_in_units).
     // Fallback to the equipment type relation if the physical unit doesn't have it set.
     let rawList = [];
-    if (Array.isArray(unit.built_in_units)) {
-      rawList = unit.built_in_units;
-    } else if (typeof unit.built_in_units === "string") {
+    if (Array.isArray(unit.built_in_units) && unit.built_in_units.length > 0) {
+      rawList = unit.built_in_units.filter(Boolean);
+    } else if (typeof unit.built_in_units === "string" && unit.built_in_units.trim() !== "") {
       try {
-        rawList = JSON.parse(unit.built_in_units || "[]");
+        rawList = JSON.parse(unit.built_in_units || "[]").filter(Boolean);
       } catch {
         rawList = [];
       }
     }
 
-    // Fallback: check the equipment type relation (in case built-in info is on the category)
+    // Fallback: check the equipment type relation (prefer names over numeric IDs to avoid collision with unit IDs)
     if (!rawList.length) {
       const eqType = unit.equipmentType || unit.equipment_type;
-      const typeBuiltIn = eqType?.built_in_units;
-      if (Array.isArray(typeBuiltIn)) {
-        rawList = typeBuiltIn;
-      } else if (typeof typeBuiltIn === "string") {
-        try { rawList = JSON.parse(typeBuiltIn || "[]"); } catch { rawList = []; }
+      if (Array.isArray(eqType?.built_in_names) && eqType.built_in_names.length > 0) {
+        rawList = eqType.built_in_names;
+      } else if (Array.isArray(eqType?.built_in_units) && eqType.built_in_units.length > 0) {
+        rawList = eqType.built_in_units;
       }
     }
 
     if (!Array.isArray(rawList) || rawList.length === 0) return [];
 
     return rawList.map((biId) => {
-      const match = (physicalUnits || []).find((u) =>
-        String(u.id) === String(biId) ||
-        String(u.barcode).trim().toUpperCase() === String(biId).trim().toUpperCase()
-      );
+      if (!biId) return null;
+      const biKey = (typeof biId === "object" && biId !== null)
+        ? String(biId.id || biId.barcode || biId.serial_number || biId.code || "").trim().toLowerCase()
+        : String(biId).trim().toLowerCase();
+      const biRaw = (typeof biId === "object" && biId !== null)
+        ? (biId.name || biId.eq_name || biId.barcode || biId.id)
+        : biId;
+
+      // Check if biId corresponds to a known category
+      const isNum = typeof biId === "number" || /^\d+$/.test(String(biId));
+      const targetCat = (categoriesToRender || []).find((c) => {
+        if (isNum) return String(c.id || c.equipment_type_id) === String(biId);
+        const cName = (c.category || c.name || "").trim().toLowerCase();
+        return cName === biKey || cName === String(biRaw).trim().toLowerCase();
+      });
+
+      let match = null;
+
+      // 1. If it's a category reference, prioritize unit with matching sequence number
+      if (targetCat) {
+        const targetCatId = String(targetCat.id || targetCat.equipment_type_id || "");
+        const targetCatName = (targetCat.category || targetCat.name || "").trim().toLowerCase();
+
+        if (parentSeq) {
+          match = (physicalUnits || []).find((u) => {
+            if (String(u.id) === String(unit.id)) return false;
+            const uCatId = u.equipment_type_id ? String(u.equipment_type_id) : null;
+            const uCatName = String(u.category || u.equipment_type?.eq_name || u.equipmentType?.eq_name || "").trim().toLowerCase();
+            const catMatch = (targetCatId && uCatId === targetCatId) || (targetCatName && uCatName === targetCatName);
+            if (!catMatch) return false;
+            const uSeq = u.seq_no ? String(u.seq_no).trim().toLowerCase().replace(/^#/, "") : null;
+            return uSeq === parentSeq;
+          });
+        }
+
+        if (!match) {
+          match = (physicalUnits || []).find((u) => {
+            if (String(u.id) === String(unit.id)) return false;
+            const uCatId = u.equipment_type_id ? String(u.equipment_type_id) : null;
+            const uCatName = String(u.category || u.equipment_type?.eq_name || u.equipmentType?.eq_name || "").trim().toLowerCase();
+            return (targetCatId && uCatId === targetCatId) || (targetCatName && uCatName === targetCatName);
+          });
+        }
+      }
+
+      // 2. Direct match by ID / Barcode / Serial Number
+      if (!match) {
+        match = (physicalUnits || []).find((u) => {
+          if (String(u.id) === String(unit.id)) return false;
+          const uId = String(u.id).toLowerCase();
+          const uBarcode = u.barcode ? String(u.barcode).trim().toLowerCase() : null;
+          const uSerial = u.serial_number ? String(u.serial_number).trim().toLowerCase() : null;
+          return uId === biKey || (uBarcode && uBarcode === biKey) || (uSerial && uSerial === biKey);
+        });
+      }
+
       if (match) {
-        const catName = match.equipmentType?.eq_name || match.equipment_type?.eq_name || match.category || "";
+        const catName = match.equipmentType?.eq_name || match.equipment_type?.eq_name || match.category || (targetCat ? (targetCat.category || targetCat.name) : "");
         const brand = match.brand ? String(match.brand).trim() : "";
         const model = match.model ? String(match.model).trim() : "";
         const uName = [brand, model].filter(Boolean).join(" ") || match.name || "Unit";

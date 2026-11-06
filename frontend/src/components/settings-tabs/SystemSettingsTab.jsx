@@ -938,7 +938,7 @@ export default function SystemSettingsTab() {
               type="button"
               onClick={handleCancelEdit}
               disabled={saving}
-              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+              className="px-3.5 py-2 border border-slate-700 hover:bg-slate-800 text-slate-300 text-xs font-bold rounded-xl transition-colors cursor-pointer"
             >
               Discard Changes
             </button>

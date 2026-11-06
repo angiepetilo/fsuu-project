@@ -23,14 +23,16 @@ class Venue extends Model
         'status',
         'allowed_equipment',
         'equipment_max_qtys',
+        'visible_in_venue_booking',
     ];
 
     protected $casts = [
-        'capacity'           => 'integer',
-        'min_capacity'       => 'integer',
-        'max_capacity'       => 'integer',
-        'allowed_equipment'  => 'array',
-        'equipment_max_qtys' => 'array',
+        'capacity'                 => 'integer',
+        'min_capacity'             => 'integer',
+        'max_capacity'             => 'integer',
+        'allowed_equipment'        => 'array',
+        'equipment_max_qtys'       => 'array',
+        'visible_in_venue_booking' => 'boolean',
     ];
 
     public function getMaxCapacityAttribute($val)

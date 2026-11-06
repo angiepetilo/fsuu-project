@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check, PackageOpen, ChevronLeft, ChevronRight, XCircle, Clock, CalendarDays, AlertTriangle, AlertCircle, Search, Loader2, Home, Wrench, ShieldAlert, Ban } from "lucide-react";
+import { Check, Package, PackageOpen, Info, Lock, Maximize2, X, ChevronLeft, ChevronRight, XCircle, Clock, CalendarDays, AlertTriangle, AlertCircle, Search, Loader2, Home, Wrench, ShieldAlert, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CustomTimePicker from "@/components/ui/custom-time-picker";
 import CustomCalendarPicker from "@/components/ui/custom-calendar-picker";
@@ -48,6 +48,39 @@ function CategoryItemImage({ item }) {
   );
 }
 
+function resolveBuiltInNames(item, fullCatalog = []) {
+  if (!item) return [];
+  const rawBuilt = (Array.isArray(item.built_in_names) && item.built_in_names.length > 0)
+    ? item.built_in_names
+    : (Array.isArray(item.built_in_units)
+      ? item.built_in_units
+      : (typeof item.built_in_units === "string"
+        ? (() => { try { return JSON.parse(item.built_in_units || "[]"); } catch { return []; } })()
+        : []));
+
+  if (!Array.isArray(rawBuilt) || rawBuilt.length === 0) return [];
+
+  const names = [];
+  rawBuilt.forEach(raw => {
+    if (!raw) return;
+    if (typeof raw === "string" && isNaN(Number(raw))) {
+      names.push(raw.trim());
+      return;
+    }
+    const match = (fullCatalog || []).find(c =>
+      String(c.id) === String(raw) ||
+      (c.name || c.eq_name || "").toLowerCase() === String(raw).toLowerCase()
+    );
+    if (match) {
+      names.push(match.name || match.eq_name || String(raw));
+    } else if (raw && isNaN(Number(raw))) {
+      names.push(String(raw));
+    }
+  });
+
+  return Array.from(new Set(names.filter(Boolean)));
+}
+
 export default function Step2Equipment({
   identity,
   equipmentCategory, setEquipmentCategory,
@@ -68,6 +101,7 @@ export default function Step2Equipment({
   onBack,
   catalogLoading = false,
   isPortal = false,
+  catalog = [],
 }) {
   const navigate = useNavigate();
 
@@ -86,6 +120,13 @@ export default function Step2Equipment({
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = isMobile ? 1 : 4;
 
+  const masterCatalog = useMemo(() => {
+    return (catalog && catalog.length > 0) ? catalog : (filteredCatalog || []);
+  }, [catalog, filteredCatalog]);
+
+  const [redundancyAlert, setRedundancyAlert] = useState(null);
+  const [zoomedItem, setZoomedItem] = useState(null);
+
   const rawCatalogList = filteredCatalog || [];
   const catalogList = rawCatalogList.filter(item => {
     if (!equipSearch.trim()) return true;
@@ -94,14 +135,108 @@ export default function Step2Equipment({
     const cat = (item.category || item.eq_type || "").toLowerCase();
     const brand = (item.brand || "").toLowerCase();
     const model = (item.model || "").toLowerCase();
-    return name.includes(q) || cat.includes(q) || brand.includes(q) || model.includes(q);
+    const bNames = resolveBuiltInNames(item, masterCatalog).join(" ").toLowerCase();
+    return name.includes(q) || cat.includes(q) || brand.includes(q) || model.includes(q) || bNames.includes(q);
   });
 
   const totalPages = Math.ceil(catalogList.length / itemsPerPage) || 1;
   const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
   const startIndex = (safeCurrentPage - 1) * itemsPerPage;
   const currentGridItems = catalogList.slice(startIndex, startIndex + itemsPerPage);
-  const totalSelectedCount = (selectedItems || []).reduce((sum, id) => sum + (itemQuantities[id] || 1), 0);
+  
+  // Detailed physical units and kit breakdown
+  const selectionSummary = useMemo(() => {
+    let primaryCount = 0;
+    let builtInCount = 0;
+    let kitCount = 0;
+
+    (selectedItems || []).forEach(id => {
+      const item = (masterCatalog || []).find(c => String(c.id) === String(id));
+      const qty = itemQuantities[id] || 1;
+      primaryCount += qty;
+      const bNames = item ? resolveBuiltInNames(item, masterCatalog) : [];
+      if (bNames.length > 0) {
+        kitCount += qty;
+        builtInCount += (bNames.length * qty);
+      }
+    });
+
+    const totalPhysicalCount = primaryCount + builtInCount;
+    return {
+      primaryCount,
+      builtInCount,
+      kitCount,
+      totalPhysicalCount,
+      hasKits: kitCount > 0,
+    };
+  }, [selectedItems, itemQuantities, masterCatalog]);
+
+  const totalSelectedCount = selectionSummary.primaryCount;
+
+  const handleItemSelectWithRedundancy = useCallback((item, isAvailable, isActiveBlocked) => {
+    if (!isAvailable || isActiveBlocked) return;
+
+    const masterList = masterCatalog;
+    const itemName = (item.name || item.eq_name || "").toLowerCase().trim();
+
+    // Check 1: Is this item bundled inside an ALREADY selected parent kit?
+    const parentWithThisItem = (selectedItems || [])
+      .map(sId => masterList.find(c => String(c.id) === String(sId)))
+      .find(parent => {
+        if (!parent || String(parent.id) === String(item.id)) return false;
+        const parentBuiltIns = resolveBuiltInNames(parent, masterList);
+        return parentBuiltIns.some(b => {
+          const bLower = b.toLowerCase().trim();
+          return bLower === itemName || itemName.includes(bLower) || bLower.includes(itemName);
+        });
+      });
+
+    if (parentWithThisItem) {
+      // User clicked an accessory card that is already bundled & locked inside an active kit
+      setRedundancyAlert({
+        type: "inform_already_bundled",
+        targetItem: item,
+        parentItem: parentWithThisItem,
+        matchedName: item.name || item.eq_name,
+      });
+      return;
+    }
+
+    const isChecked = selectedItems.includes(item.id);
+    if (isChecked) {
+      // Unchecking: always toggle directly
+      handleEquipmentToggle(item.id);
+      return;
+    }
+
+    // Check 2: Bundle being selected that includes an already selected standalone item
+    const itemBuiltIns = resolveBuiltInNames(item, masterList);
+    if (itemBuiltIns.length > 0) {
+      const existingStandalone = (selectedItems || [])
+        .map(sId => masterList.find(c => String(c.id) === String(sId)))
+        .find(standalone => {
+          if (!standalone || String(standalone.id) === String(item.id)) return false;
+          const sName = (standalone.name || standalone.eq_name || "").toLowerCase().trim();
+          return itemBuiltIns.some(b => {
+            const bLower = b.toLowerCase().trim();
+            return bLower === sName || sName.includes(bLower) || bLower.includes(sName);
+          });
+        });
+
+      if (existingStandalone) {
+        setRedundancyAlert({
+          type: "bundle_includes_selected_standalone",
+          targetItem: item,
+          duplicateItem: existingStandalone,
+          matchedName: existingStandalone.name || existingStandalone.eq_name,
+        });
+        return;
+      }
+    }
+
+    // No conflict detected: toggle normally
+    handleEquipmentToggle(item.id);
+  }, [selectedItems, masterCatalog, handleEquipmentToggle]);
 
   const [opHours, setOpHours] = useState(propOpHours || null);
   const [pinRules, setPinRules] = useState(propPinRules || null);
@@ -539,12 +674,25 @@ export default function Step2Equipment({
                 const remainingAvailable = isChecked ? Math.max(0, availableTotal - selectedQty) : availableTotal;
 
                 const isAvailable = !isMaintenance && !isDamagedOrLost && item.is_available !== false && availableTotal > 0;
+                const builtInNames = resolveBuiltInNames(item, masterCatalog);
+
+                const parentSelectedKit = (selectedItems || [])
+                  .map(sId => masterCatalog.find(c => String(c.id) === String(sId)))
+                  .find(parent => {
+                    if (!parent || String(parent.id) === String(item.id)) return false;
+                    const pBuiltIns = resolveBuiltInNames(parent, masterCatalog);
+                    const itemName = (item.name || item.eq_name || "").toLowerCase().trim();
+                    return pBuiltIns.some(b => {
+                      const bLower = b.toLowerCase().trim();
+                      return bLower === itemName || itemName.includes(bLower) || bLower.includes(itemName);
+                    });
+                  });
 
                 return (
                   <div
                     key={item.id}
                     onClick={() => {
-                      if (isAvailable && !isActiveBlocked) handleEquipmentToggle(item.id);
+                      if (isAvailable && !isActiveBlocked) handleItemSelectWithRedundancy(item, isAvailable, isActiveBlocked);
                     }}
                     className={`group relative border rounded-2xl p-4 transition-all duration-200 flex flex-col justify-between overflow-hidden ${isActiveBlocked
                       ? "border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-card/50 opacity-60 cursor-not-allowed shadow-none"
@@ -554,21 +702,47 @@ export default function Step2Equipment({
                           ? "border-slate-200 dark:border-slate-800 bg-white dark:bg-card opacity-90 cursor-pointer"
                           : isChecked
                             ? "border-blue-600 bg-white dark:bg-card shadow-md ring-2 ring-blue-500/20 cursor-pointer"
-                            : "border-slate-200 dark:border-slate-800 bg-white dark:bg-card hover:border-blue-500 hover:ring-2 hover:ring-blue-500/20 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-0.5 cursor-pointer"
+                            : parentSelectedKit
+                              ? "border-blue-400/80 dark:border-blue-800 bg-blue-50/20 dark:bg-blue-950/20 shadow-xs cursor-pointer ring-1 ring-blue-400/30"
+                              : "border-slate-200 dark:border-slate-800 bg-white dark:bg-card hover:border-blue-500 hover:ring-2 hover:ring-blue-500/20 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-0.5 cursor-pointer"
                       }`}
                   >
                     <div>
-                      {/* Top Image Box: Syncs with Public View Card Preview in Category Settings */}
-                      <div className={`w-full aspect-video bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700/60 overflow-hidden flex flex-col items-center justify-center text-center relative group shadow-2xs ${
-                        item?.photo_fit === "cover" ? "p-0" : "p-2"
-                      }`}>
+                      {/* Top Image Box: Tap to Zoom Lightbox on Kiosk */}
+                      <div
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setZoomedItem(item);
+                        }}
+                        className={`w-full aspect-video bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700/60 overflow-hidden flex flex-col items-center justify-center text-center relative group shadow-2xs cursor-zoom-in ${
+                          item?.photo_fit === "cover" ? "p-0" : "p-2"
+                        }`}
+                        title="Tap to zoom / inspect photo"
+                      >
                         <CategoryItemImage item={item} />
+                        
+                        {/* Zoom button on top-left */}
+                        <div
+                          className="absolute top-2 left-2 z-10 w-7 h-7 rounded-full bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700 shadow-2xs flex items-center justify-center opacity-85 group-hover:opacity-100 group-hover:scale-105 transition-all backdrop-blur-xs"
+                          title="Expand photo"
+                        >
+                          <Maximize2 size={12} className="shrink-0" />
+                        </div>
+
+                        {builtInNames.length > 0 && (
+                          <div className="absolute top-2 right-2 z-10 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-extrabold bg-blue-600/90 text-white shadow-2xs backdrop-blur-xs">
+                            <Package size={11} className="shrink-0" />
+                            <span>Kit Package</span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Equipment Metadata */}
-                      <div className="mt-3.5 space-y-1">
-                        <h4 className="font-bold text-slate-900 dark:text-[#F8FAFC] text-sm leading-tight truncate" title={item.name}>{item.name}</h4>
-                        <div className="pt-1">
+                      <div className="mt-3.5 space-y-1.5">
+                        <h4 className="font-extrabold text-slate-900 dark:text-[#F8FAFC] text-sm leading-snug line-clamp-2" title={item.name}>
+                          {item.name}
+                        </h4>
+                        <div className="pt-0.5 flex items-center flex-wrap gap-1.5">
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold ${remainingAvailable === 0
                             ? "bg-amber-500/15 border border-amber-400/30 text-amber-700 dark:text-[#FCD34D]"
                             : "bg-emerald-500/15 border border-emerald-400/30 text-emerald-700 dark:text-[#6EE7B7]"
@@ -576,13 +750,38 @@ export default function Step2Equipment({
                             <span className={`w-1.5 h-1.5 rounded-full ${remainingAvailable === 0 ? "bg-amber-400" : "bg-emerald-400 animate-pulse"}`} />
                             {remainingAvailable} Available Now
                           </span>
+                          {builtInNames.length > 0 && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border border-blue-200/80 dark:border-blue-800/80 shadow-2xs">
+                              <Package size={11} className="shrink-0 text-blue-600 dark:text-blue-400" />
+                              {builtInNames.length} Built-in
+                            </span>
+                          )}
+                          {parentSelectedKit && !isChecked && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100/90 dark:bg-blue-950 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shadow-2xs">
+                              <Check size={11} className="shrink-0 text-blue-600 dark:text-blue-400" />
+                              Bundled (1/1)
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
 
                     {/* Bottom Action Pill Button */}
                     <div className="mt-5">
-                      {isMaintenance ? (
+                      {parentSelectedKit && !isChecked ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleItemSelectWithRedundancy(item, isAvailable, isActiveBlocked);
+                          }}
+                          className="w-full py-2.5 px-3 rounded-full border border-[#93C5FD] dark:border-blue-800/80 bg-[#DCEBFB] hover:bg-[#D2E4F8] dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-[#1E40AF] dark:text-blue-300 text-[12px] font-medium flex items-center justify-center gap-2 shadow-2xs transition-colors cursor-pointer min-w-0"
+                          title={`Included in ${parentSelectedKit.name || parentSelectedKit.eq_name}`}
+                        >
+                          <Lock size={13} className="shrink-0 text-[#1E40AF] dark:text-blue-300 stroke-[2.2]" />
+                          <span className="truncate whitespace-nowrap">Included in {parentSelectedKit.name || parentSelectedKit.eq_name}</span>
+                        </button>
+                      ) : isMaintenance ? (
                         <button
                           disabled
                           className="w-full py-3 rounded-full border border-amber-300 dark:border-amber-700/50 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 text-xs font-extrabold flex items-center justify-center gap-1.5 opacity-90 cursor-not-allowed"
@@ -602,17 +801,21 @@ export default function Step2Equipment({
                         !isPortal ? (
                           <button
                             type="button"
-                            onClick={(e) => { e.stopPropagation(); handleEquipmentToggle(item.id); }}
+                            onClick={(e) => { e.stopPropagation(); handleItemSelectWithRedundancy(item, isAvailable, isActiveBlocked); }}
                             className="w-full py-3 rounded-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-colors cursor-pointer"
                           >
                             <Check size={14} />
-                            <span>Selected (1 Unit)</span>
+                            <span>
+                              {builtInNames.length > 0
+                                ? `Selected (Kit + ${builtInNames.length} Included)`
+                                : "Selected (1 Unit)"}
+                            </span>
                           </button>
                         ) : (
                           <div className="flex items-center gap-2">
                             <button
                               type="button"
-                              onClick={(e) => { e.stopPropagation(); handleEquipmentToggle(item.id); }}
+                              onClick={(e) => { e.stopPropagation(); handleItemSelectWithRedundancy(item, isAvailable, isActiveBlocked); }}
                               className="flex-1 py-3 rounded-full bg-blue-600 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-colors cursor-pointer"
                             >
                               <Check size={14} />
@@ -641,7 +844,7 @@ export default function Step2Equipment({
                       ) : (
                         <button
                           type="button"
-                          onClick={(e) => { e.stopPropagation(); handleEquipmentToggle(item.id); }}
+                          onClick={(e) => { e.stopPropagation(); handleItemSelectWithRedundancy(item, isAvailable, isActiveBlocked); }}
                           className="w-full py-3 rounded-full border text-xs font-black transition-all cursor-pointer shadow-2xs border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900/80 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 group-hover:shadow-md dark:group-hover:bg-blue-600 dark:group-hover:text-white dark:group-hover:border-blue-600 hover:bg-blue-700 hover:text-white hover:border-blue-700 text-slate-800 dark:text-white"
                         >
                           Select Item
@@ -690,12 +893,29 @@ export default function Step2Equipment({
             {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <span className={`order-2 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border transition-all ${totalSelectedCount > 0 ? "bg-blue-50 dark:bg-blue-950/60 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300" : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400"}`}>
-                Qty Selected: {totalSelectedCount}
+                {selectionSummary.hasKits
+                  ? (selectionSummary.primaryCount === 1 && selectionSummary.kitCount === 1
+                      ? `1 Kit (${selectionSummary.totalPhysicalCount} Total Units)`
+                      : `${selectionSummary.primaryCount} Selected (${selectionSummary.totalPhysicalCount} Total Units)`)
+                  : `Qty Selected: ${totalSelectedCount}`}
               </span>
               <h4 className="font-extrabold text-slate-900 dark:text-[#F8FAFC] text-xs uppercase tracking-wider">
                 Borrow Schedule
               </h4>
             </div>
+
+            {/* Informative Sub-banner when Kits are Selected */}
+            {selectionSummary.hasKits && (
+              <div className="px-3.5 py-2.5 bg-blue-50/80 dark:bg-blue-950/40 rounded-2xl border border-blue-200/80 dark:border-blue-900/60 flex items-center justify-between text-[11px] text-blue-900 dark:text-blue-200 font-semibold shadow-2xs">
+                <span className="flex items-center gap-1.5">
+                  <Package size={13} className="text-blue-600 dark:text-blue-400 shrink-0" />
+                  <span>Includes {selectionSummary.builtInCount} bundled built-in {selectionSummary.builtInCount === 1 ? 'accessory' : 'accessories'}</span>
+                </span>
+                <span className="font-extrabold text-blue-700 dark:text-blue-300">
+                  {selectionSummary.totalPhysicalCount} Total Units
+                </span>
+              </div>
+            )}
 
             {/* Date Selection Mode (Today vs Tomorrow) */}
             <div className="space-y-1.5">
@@ -971,8 +1191,16 @@ export default function Step2Equipment({
                 onClick={handleEquipmentSubmit}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-5 sm:px-7 py-3 rounded-full font-extrabold text-xs flex items-center justify-center gap-2 shadow-md shadow-blue-600/20 disabled:opacity-50 cursor-pointer"
               >
-                <span className="sm:hidden">Next Step ({totalSelectedCount})</span>
-                <span className="hidden sm:inline">Next: Fill Details ({totalSelectedCount} items selected)</span>
+                <span className="sm:hidden">
+                  Next Step ({selectionSummary.hasKits ? `${selectionSummary.totalPhysicalCount} units` : totalSelectedCount})
+                </span>
+                <span className="hidden sm:inline">
+                  Next: Fill Details ({
+                    selectionSummary.hasKits
+                      ? `${selectionSummary.primaryCount} ${selectionSummary.primaryCount === 1 ? 'kit' : 'packages'} • ${selectionSummary.totalPhysicalCount} total units`
+                      : `${totalSelectedCount} ${totalSelectedCount === 1 ? 'item' : 'items'} selected`
+                  })
+                </span>
                 <ChevronRight size={16} />
               </Button>
               {isPortal && isBlocked && !isPinVerified ? (
@@ -984,6 +1212,226 @@ export default function Step2Equipment({
           );
         })()}
       </div>
+
+      {/* Redundancy & Bundled Item Alert Modal */}
+      {redundancyAlert && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity"
+            onClick={() => setRedundancyAlert(null)}
+          />
+
+          {/* Modal Container */}
+          <div className="relative bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-3xl shadow-2xl border border-blue-200 dark:border-blue-900/60 w-full max-w-md p-6 sm:p-7 z-10 animate-in fade-in zoom-in-95 duration-200">
+            {/* Close */}
+            <button
+              type="button"
+              onClick={() => setRedundancyAlert(null)}
+              className="absolute top-4 right-4 p-1.5 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              aria-label="Close"
+            >
+              <XCircle size={18} />
+            </button>
+
+            {/* Icon */}
+            <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto mb-3.5 border border-blue-200 dark:border-blue-800/80 shadow-2xs">
+              {redundancyAlert.type === "inform_already_bundled" ? <Lock size={22} /> : <Package size={22} />}
+            </div>
+
+            {/* Title & Message */}
+            <div className="text-center space-y-2">
+              <h3 className="text-base font-black text-slate-900 dark:text-white">
+                {redundancyAlert.type === "inform_already_bundled"
+                  ? "Item Bundled in Active Package"
+                  : "Package Includes Selected Accessory"}
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                {redundancyAlert.type === "inform_already_bundled" ? (
+                  <>
+                    <strong className="text-slate-900 dark:text-white">{redundancyAlert.targetItem?.name || redundancyAlert.targetItem?.eq_name}</strong> is already bundled with your selected <span className="font-extrabold text-blue-600 dark:text-blue-400">{redundancyAlert.parentItem?.name || redundancyAlert.parentItem?.eq_name}</span> kit.
+                  </>
+                ) : (
+                  <>
+                    <strong className="text-slate-900 dark:text-white">{redundancyAlert.targetItem?.name || redundancyAlert.targetItem?.eq_name}</strong> already comes with a built-in <span className="font-extrabold text-blue-600 dark:text-blue-400">{redundancyAlert.matchedName}</span>, which is currently selected as a separate item.
+                  </>
+                )}
+              </p>
+            </div>
+
+            {/* Explanatory callout */}
+            <div className="mt-4 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300 space-y-1">
+              <div className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200">
+                <Package size={14} className="text-blue-600 dark:text-blue-400 shrink-0" />
+                <span>Single Unit Borrowing Policy:</span>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-normal">
+                {redundancyAlert.type === "inform_already_bundled"
+                  ? "Under institutional policy (strictly 1 unit per category), this accessory is already allocated to your reservation and will be handed over with the kit."
+                  : "Selecting this package will automatically bundle the accessory into your kit, freeing up the separate standalone item."}
+              </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="mt-5 space-y-2">
+              {redundancyAlert.type === "inform_already_bundled" ? (
+                <button
+                  type="button"
+                  onClick={() => setRedundancyAlert(null)}
+                  className="w-full py-3 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Check size={15} />
+                  <span>Understood</span>
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Absorb duplicate standalone into package
+                      handleEquipmentToggle(redundancyAlert.duplicateItem.id);
+                      handleEquipmentToggle(redundancyAlert.targetItem.id);
+                      setRedundancyAlert(null);
+                    }}
+                    className="w-full py-3 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <Check size={15} />
+                    <span>Select Package & Absorb Accessory into Kit</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRedundancyAlert(null)}
+                    className="w-full py-2.5 rounded-full border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 font-bold text-xs transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Kiosk Full-View Photo Lightbox Modal */}
+      {zoomedItem && (
+        <div 
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setZoomedItem(null)}
+        >
+          <div 
+            className="relative bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3 shrink-0">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-black text-base sm:text-lg text-slate-900 dark:text-white truncate">
+                    {zoomedItem.name || zoomedItem.eq_name}
+                  </h3>
+                  {resolveBuiltInNames(zoomedItem, masterCatalog).length > 0 && (
+                    <span className="shrink-0 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                      <Package size={11} className="shrink-0" />
+                      Kit Package
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  <span>{zoomedItem.category || zoomedItem.eq_type || "Equipment"}</span>
+                  {zoomedItem.brand && (
+                    <>
+                      <span>•</span>
+                      <span>Brand: <strong className="text-slate-700 dark:text-slate-300">{zoomedItem.brand}</strong></span>
+                    </>
+                  )}
+                  {zoomedItem.model && (
+                    <>
+                      <span>•</span>
+                      <span>Model: <strong className="text-slate-700 dark:text-slate-300">{zoomedItem.model}</strong></span>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Large Touch-friendly Close Button for Kiosk */}
+              <button
+                type="button"
+                onClick={() => setZoomedItem(null)}
+                className="w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center transition-colors cursor-pointer shrink-0 shadow-2xs"
+                aria-label="Close Preview"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body: Large High-Resolution Image */}
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1 flex flex-col items-center justify-center bg-slate-50/70 dark:bg-slate-950/40 min-h-[280px]">
+              <div className="relative w-full max-h-[50vh] flex items-center justify-center rounded-2xl overflow-hidden bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-3 shadow-inner">
+                {(() => {
+                  const rawImg = zoomedItem?.avatar || zoomedItem?.photo || zoomedItem?.image || zoomedItem?.photo_url;
+                  if (!rawImg) {
+                    return (
+                      <div className="py-16 flex flex-col items-center justify-center text-slate-400">
+                        <PackageOpen size={48} className="mb-2 opacity-50" />
+                        <span className="text-xs font-bold">No High-Res Photo Available</span>
+                      </div>
+                    );
+                  }
+                  const resolved = resolveStorageUrl(rawImg) || rawImg;
+                  const srcUrl = resolved.startsWith("data:")
+                    ? resolved
+                    : `${resolved}${resolved.includes("?") ? "&" : "?"}v=${zoomedItem?.updated_at ? new Date(zoomedItem.updated_at).getTime() : "1"}`;
+                  return (
+                    <img 
+                      src={srcUrl} 
+                      alt={zoomedItem?.name || "Equipment"} 
+                      className="max-h-[46vh] w-auto max-w-full object-contain rounded-xl transition-all"
+                    />
+                  );
+                })()}
+              </div>
+
+              {/* Bundled Accessories list if kit */}
+              {(() => {
+                const builtIns = resolveBuiltInNames(zoomedItem, masterCatalog);
+                if (builtIns.length === 0) return null;
+                return (
+                  <div className="mt-4 w-full p-3 rounded-2xl bg-blue-50/90 dark:bg-blue-950/50 border border-blue-200/80 dark:border-blue-900/60 text-xs">
+                    <div className="flex items-center gap-1.5 font-bold text-blue-900 dark:text-blue-200 mb-1.5">
+                      <Package size={13} className="text-blue-600 dark:text-blue-400" />
+                      <span>Kit Bundled Components ({builtIns.length}):</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {builtIns.map((bName, idx) => (
+                        <span 
+                          key={idx}
+                          className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-semibold border border-blue-200 dark:border-blue-900/50 shadow-2xs text-[11px]"
+                        >
+                          {bName}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3 shrink-0 bg-white dark:bg-slate-900">
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                Touch anywhere outside to dismiss
+              </span>
+              <button
+                type="button"
+                onClick={() => setZoomedItem(null)}
+                className="px-6 py-2.5 rounded-full border border-slate-200 dark:border-slate-700 bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer shadow-2xs"
+              >
+                Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

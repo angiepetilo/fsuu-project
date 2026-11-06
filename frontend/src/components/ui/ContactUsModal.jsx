@@ -201,7 +201,7 @@ export default function ContactUsModal({ isOpen, onClose, contactSettings = {} }
           <Button
             type="button"
             onClick={onClose}
-            className="ml-auto bg-slate-800 hover:bg-slate-900 dark:bg-blue-600 dark:hover:bg-blue-500 text-white text-xs font-black rounded-xl px-5 py-2 cursor-pointer shadow-xs"
+            className="ml-auto border border-slate-200 dark:border-slate-700 bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl px-5 py-2 cursor-pointer shadow-2xs"
           >
             Close
           </Button>

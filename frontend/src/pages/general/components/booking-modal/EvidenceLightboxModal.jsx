@@ -59,7 +59,7 @@ export default function EvidenceLightboxModal({
               <button
                 type="button"
                 onClick={handleOpenExternal}
-                className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer shadow-sm"
               >
                 Open External <ExternalLink size={12} />
               </button>
@@ -67,7 +67,7 @@ export default function EvidenceLightboxModal({
             <button
               type="button"
               onClick={() => setFullImageModal && setFullImageModal(null)}
-              className="p-1.5 rounded-full bg-slate-800 text-slate-300 hover:bg-rose-600 hover:text-white cursor-pointer transition-colors"
+              className="p-1.5 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white cursor-pointer transition-colors"
             >
               <X size={18} />
             </button>

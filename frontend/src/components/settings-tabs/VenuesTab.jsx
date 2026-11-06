@@ -87,6 +87,7 @@ export default function VenuesTab({ showMsg }) {
     max_capacity: 100,
     allowed_equipment: [],
     equipment_max_qtys: {}, // { [equipId]: maxQty }
+    visible_in_venue_booking: true,
   });
 
   const fetchData = async () => {
@@ -228,6 +229,7 @@ export default function VenuesTab({ showMsg }) {
       allowed_equipment: form.allowed_equipment || [],
       allowed_equipment_types_id: JSON.stringify(form.allowed_equipment || []),
       equipment_max_qtys: form.equipment_max_qtys || {},
+      visible_in_venue_booking: form.visible_in_venue_booking !== false,
     };
 
     if (editItem) {
@@ -310,6 +312,7 @@ export default function VenuesTab({ showMsg }) {
       max_capacity: maxCap,
       allowed_equipment: parsedAllowed,
       equipment_max_qtys: v.equipment_max_qtys || {},
+      visible_in_venue_booking: v.visible_in_venue_booking !== false && v.visible_in_venue_booking !== 0,
     });
     setFormError("");
     setIsFormDirty(false);
@@ -472,6 +475,7 @@ export default function VenuesTab({ showMsg }) {
                   max_capacity: 100,
                   allowed_equipment: [],
                   equipment_max_qtys: {},
+                  visible_in_venue_booking: true,
                 });
                 setFormError("");
                 setIsFormDirty(false);
@@ -534,7 +538,14 @@ export default function VenuesTab({ showMsg }) {
                     </td>
 
                     <td className="px-4 py-3">
-                      <div className="font-extrabold text-slate-900">{v.name}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-extrabold text-slate-900">{v.name}</span>
+                        {v.visible_in_venue_booking === false && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800" title="Hidden from venue reservations, available in equipment borrowing only">
+                            Place of Use Only
+                          </span>
+                        )}
+                      </div>
                       <div className="text-[11px] text-slate-400 font-medium">{v.location || "FSUU Main Campus"} • Cap: {v.min_capacity && Number(v.min_capacity) > 1 ? `${v.min_capacity} - ${v.max_capacity || v.capacity || 100}` : (v.max_capacity || v.capacity || 100)}</div>
                     </td>
 
@@ -790,6 +801,40 @@ export default function VenuesTab({ showMsg }) {
                       </div>
                     </div>
                   </div>
+
+                  {/* Toggle: Visible in Venue Booking vs Equipment Place of Use Only */}
+                  <div className="pt-1.5 border-t border-slate-100 dark:border-slate-800">
+                    <label className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-100/70 transition-all select-none">
+                      <div className="flex flex-col pr-3">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-800 dark:text-slate-200 text-xs">Available for Venue Booking</span>
+                          {form.visible_in_venue_booking !== false ? (
+                            <span className="text-[9.5px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                              Venue &amp; Equipment
+                            </span>
+                          ) : (
+                            <span className="text-[9.5px] font-extrabold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                              Place of Use Only
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
+                          {form.visible_in_venue_booking !== false
+                            ? "Enabled — Appears in public venue booking catalog & equipment borrowing."
+                            : "Disabled — Hidden from venue reservations; only used as an equipment Place of Use."}
+                        </span>
+                      </div>
+                      <div className="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={form.visible_in_venue_booking !== false}
+                          onChange={(e) => updateForm({ visible_in_venue_booking: e.target.checked })}
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                      </div>
+                    </label>
+                  </div>
                 </div>
 
                 {/* Right: Venue Photo Upload (Level with form inputs on the left) */}
@@ -948,6 +993,11 @@ export default function VenuesTab({ showMsg }) {
                           <Users size={11} className="shrink-0 text-slate-400" />
                           <span>Min {form.min_capacity || 1} • Max {form.max_capacity || form.capacity || 100} guests</span>
                         </p>
+                        {form.visible_in_venue_booking === false && (
+                          <div className="mt-2 p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-[10.5px] font-bold text-amber-800 dark:text-amber-300">
+                            ⚠️ Place of Use Only (Hidden from venue catalog)
+                          </div>
+                        )}
                       </div>
                     </div>
 
