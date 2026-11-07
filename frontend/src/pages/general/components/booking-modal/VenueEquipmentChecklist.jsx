@@ -451,15 +451,6 @@ export default function VenueEquipmentChecklist({
             return uSeq === parentSeq;
           });
         }
-
-        if (!match) {
-          match = (allUnits || []).find((u) => {
-            if (String(u.id) === String(unit.id)) return false;
-            const uCatId = u.equipment_type_id ? String(u.equipment_type_id) : null;
-            const uCatName = String(u.category || u.equipment_type?.eq_name || u.equipmentType?.eq_name || "").trim().toLowerCase();
-            return (targetCatId && uCatId === targetCatId) || (targetCatName && uCatName === targetCatName);
-          });
-        }
       }
 
       // 2. Direct match by ID / Barcode / Serial Number
@@ -489,40 +480,8 @@ export default function VenueEquipmentChecklist({
         };
       }
 
-      // If not a physical unit, resolve category/accessory name (e.g. ID 8 -> HDMI)
-      const eqType = unit.equipmentType || unit.equipment_type;
-      let resolvedTypeName = null;
-      if (Array.isArray(eqType?.built_in_names) && eqType.built_in_names.length > 0) {
-        const rawIdx = rawList.indexOf(biId);
-        if (rawIdx !== -1 && eqType.built_in_names[rawIdx]) {
-          resolvedTypeName = eqType.built_in_names[rawIdx];
-        } else {
-          const matchByName = eqType.built_in_names.find(
-            (n) => String(n).toLowerCase() === String(biId).toLowerCase()
-          );
-          if (matchByName) resolvedTypeName = matchByName;
-        }
-      }
-      if (!resolvedTypeName && Array.isArray(dbEquipmentTypes)) {
-        const typeMatch = dbEquipmentTypes.find((t) => String(t.id) === String(biId));
-        if (typeMatch) resolvedTypeName = typeMatch.eq_name || typeMatch.name;
-      }
-
-      if (resolvedTypeName) {
-        return {
-          id: biId,
-          barcode: resolvedTypeName,
-          name: resolvedTypeName,
-          category: "Built-in Accessory",
-        };
-      }
-
-      return {
-        id: biId,
-        barcode: String(biId),
-        name: isNaN(Number(biId)) ? String(biId) : `Physical Unit #${biId}`,
-        category: "",
-      };
+      // If no physical unit matched by sequence or ID, do not hijack unrelated units
+      return null;
     }).filter(Boolean).sort((a, b) => compareUnitsBySeqNo(a, b, "asc"));
   };
 

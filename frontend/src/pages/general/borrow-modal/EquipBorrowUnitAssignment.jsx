@@ -563,16 +563,6 @@ export default function EquipBorrowUnitAssignment({
             return uSeq === parentSeq;
           });
         }
-
-        // 1b. Priority 2: Fallback to any active unit in that category
-        if (!match) {
-          match = (allUnits || []).find((u) => {
-            if (String(u.id) === String(unit.id)) return false;
-            const uCatId = u.equipment_type_id ? String(u.equipment_type_id) : null;
-            const uCatName = String(u.category || u.equipment_type?.eq_name || u.equipmentType?.eq_name || "").trim().toLowerCase();
-            return (targetCatId && uCatId === targetCatId) || (targetCatName && uCatName === targetCatName);
-          });
-        }
       }
 
       // 2. If not matched via category reference, check direct match by Unit ID / Barcode / Serial Number
@@ -606,14 +596,8 @@ export default function EquipBorrowUnitAssignment({
         };
       }
 
-      // Fallback display if physical unit not found
-      const resolvedTypeName = targetCat ? (targetCat.eq_name || targetCat.category || targetCat.name) : String(biRaw);
-      return {
-        id: biKey || biRaw,
-        barcode: resolvedTypeName,
-        name: resolvedTypeName,
-        category: "Built-in Accessory",
-      };
+      // If no physical unit matched by sequence or ID, do not hijack unrelated units
+      return null;
     }).filter(Boolean).sort((a, b) => compareUnitsBySeqNo(a, b, "asc"));
   };
 
