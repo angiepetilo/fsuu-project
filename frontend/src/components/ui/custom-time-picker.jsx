@@ -58,6 +58,8 @@ export default function CustomTimePicker({
   triggerClassName = "",
   id,
   dropUp = false,
+  label,
+  bgClassName = "bg-white dark:bg-slate-900",
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [openUpward, setOpenUpward] = useState(dropUp);
@@ -90,7 +92,7 @@ export default function CustomTimePicker({
       }
     };
     const handleKeyDown = (e) => {
-      if (e.key === "Escape") setIsOpen(false);
+      if (e.key === "Escape") { e.preventDefault(); setIsOpen(false); }
     };
 
     if (isOpen) {
@@ -130,8 +132,8 @@ export default function CustomTimePicker({
   const displayTime = `${hour12}:${minute} ${period}`;
 
   return (
-    <div ref={containerRef} className={`relative ${className}`}>
-      {/* Trigger Button - Plain Text, Flat Design, No Icon */}
+    <div ref={containerRef} className={`relative flex flex-col w-full ${className}`}>
+      {/* Trigger Button */}
       <button
         type="button"
         id={id}
@@ -139,12 +141,31 @@ export default function CustomTimePicker({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         className={
           triggerClassName ||
-          `w-full px-3 py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/60 border border-slate-300 dark:border-slate-600 rounded-md cursor-pointer transition-colors text-left font-semibold text-xs text-slate-900 dark:text-slate-100 ${isOpen ? "border-blue-600 ring-1 ring-blue-600" : ""
-          } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`
+          `w-full px-3.5 py-3 h-12 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/60 border ${
+            isOpen
+              ? "border-blue-600 dark:border-blue-500 ring-2 ring-blue-600/15"
+              : "border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600"
+          } rounded-xl cursor-pointer transition-all text-left font-semibold text-sm text-slate-900 dark:text-slate-100 flex items-center justify-between ${
+            disabled ? "opacity-50 cursor-not-allowed" : ""
+          }`
         }
       >
         <span>{displayTime}</span>
       </button>
+
+      {/* Floating Notch Label */}
+      {label && (
+        <label
+          htmlFor={id}
+          className={`absolute pointer-events-none select-none transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] origin-left z-10 top-0 -translate-y-1/2 text-[11px] font-bold leading-none px-1.5 left-3 ${bgClassName} ${
+            isOpen
+              ? "text-blue-600 dark:text-blue-400"
+              : "text-slate-600 dark:text-slate-400"
+          }`}
+        >
+          {label}
+        </label>
+      )}
 
       {/* 3-Column Floating Picker Popover - Flat Design */}
       {isOpen && (
@@ -159,7 +180,7 @@ export default function CustomTimePicker({
           <div className="grid grid-cols-3 gap-1.5 text-center text-xs">
             {/* Column 1: Hour */}
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400 pb-1 border-b border-slate-200 dark:border-slate-700 mb-1">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400 pb-1 border-b border-slate-200 dark:border-slate-700 mb-1">
                 Hour
               </div>
               <div className="max-h-36 overflow-y-auto space-y-0.5 pr-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
@@ -184,7 +205,7 @@ export default function CustomTimePicker({
 
             {/* Column 2: Minute */}
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400 pb-1 border-b border-slate-200 dark:border-slate-700 mb-1">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400 pb-1 border-b border-slate-200 dark:border-slate-700 mb-1">
                 Minute
               </div>
               <div className="max-h-36 overflow-y-auto space-y-0.5 pr-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
@@ -209,7 +230,7 @@ export default function CustomTimePicker({
 
             {/* Column 3: Period */}
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400 pb-1 border-b border-slate-200 dark:border-slate-700 mb-1">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400 pb-1 border-b border-slate-200 dark:border-slate-700 mb-1">
                 Period
               </div>
               <div className="space-y-1 pt-1">

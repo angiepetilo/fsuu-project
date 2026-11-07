@@ -1,24 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
 import {
-  Users,
-  Plus,
-  Edit2,
-  RotateCw,
-  Search,
-  Mail,
-  Ban,
-  GraduationCap,
-  MoreVertical,
-  AlertCircle,
-  CheckCircle2,
-  Trash2,
-  ChevronLeft,
-  ChevronRight,
-  Filter,
+  Users, Plus, RotateCw, Search, Mail, Ban, GraduationCap, MoreVertical, CheckCircle2, Trash2, ChevronLeft, ChevronRight, Filter, Pencil, AlertTriangle,
 } from "lucide-react";
 import api from "@/lib/axios";
 import { notify } from "@/lib/notify";
-import ActionPopover from "./ActionPopover";
+import ActionPopover from "@/components/ui/action-popover";
 import UserFormModal from "./UserFormModal";
 import IosToggle from "@/components/ui/ios-toggle";
 import ConfirmModal from "@/components/ui/ConfirmModal";
@@ -347,25 +333,25 @@ export default function UsersSubTab({ showMsg }) {
           <table className="w-full text-left text-xs min-w-[760px]">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                   User
                 </th>
-                <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                   Email
                 </th>
-                <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                   Role
                 </th>
-                <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                   Email Verified
                 </th>
-                <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                   Date Added
                 </th>
-                <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-right">
+                <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-right">
                   Actions
                 </th>
               </tr>
@@ -429,7 +415,7 @@ export default function UsersSubTab({ showMsg }) {
                               {displayName}
                             </span>
                             {isPending && (
-                              <span className="text-[10px] text-amber-600 font-normal">Pending Invite</span>
+                              <span className="text-[11px] text-amber-700 font-normal">Pending Invite</span>
                             )}
                           </div>
                         </div>
@@ -442,7 +428,7 @@ export default function UsersSubTab({ showMsg }) {
 
                       {/* Role */}
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold border ${isSA
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold border ${isSA
                             ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                             : "bg-blue-50 text-blue-700 border-blue-200"
                           }`}>
@@ -459,10 +445,10 @@ export default function UsersSubTab({ showMsg }) {
                           </span>
                         ) : (
                           <span
-                            className="inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-600"
+                            className="inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-700"
                             title="This email has not been verified. The user may be using an undeliverable or invalid address."
                           >
-                            <AlertCircle size={13} /> Unverified
+                            <AlertTriangle size={13} /> Unverified
                           </span>
                         )}
                       </td>
@@ -477,15 +463,15 @@ export default function UsersSubTab({ showMsg }) {
                             title={isDisabled ? "Account is disabled. Click to enable." : "Account is active. Click to disable."}
                           />
                           {isDisabled ? (
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-rose-50 text-rose-600 border border-rose-200">
+                            <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-rose-50 text-rose-600 border border-rose-200">
                               Disabled
                             </span>
                           ) : isPending ? (
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-50 text-amber-600 border border-amber-200">
+                            <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
                               Pending
                             </span>
                           ) : (
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-600 border border-emerald-200">
+                            <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-600 border border-emerald-200">
                               Active
                             </span>
                           )}
@@ -545,7 +531,7 @@ export default function UsersSubTab({ showMsg }) {
                                 }}
                                 className="w-full px-3.5 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors cursor-pointer"
                               >
-                                <Edit2 size={12} /> Edit Account
+                                <Pencil size={12} /> Edit Account
                               </button>
                               <button
                                 type="button"

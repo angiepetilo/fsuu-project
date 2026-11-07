@@ -143,7 +143,7 @@ export default function PermissionsSubTab({ initialRoleId }) {
       <div className="flex flex-col md:flex-row gap-4">
         {/* Roles Column */}
         <div className="w-full md:w-48 shrink-0 space-y-1">
-          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+          <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
             Roles
           </p>
           {loadingRoles ? (
@@ -167,7 +167,7 @@ export default function PermissionsSubTab({ initialRoleId }) {
                     <span>{displayName}</span>
                     {r.is_protected && (
                       <span
-                        className={`text-[9px] px-1 py-0.5 rounded font-bold uppercase ${
+                        className={`text-[10px] px-1 py-0.5 rounded font-bold uppercase ${
                           isSelected
                             ? "bg-blue-500/30 text-white"
                             : "bg-slate-100 dark:bg-slate-800 text-slate-500"
@@ -265,7 +265,7 @@ export default function PermissionsSubTab({ initialRoleId }) {
                             >
                               {mod.label}
                             </span>
-                            <span className="text-[10px] text-slate-400 font-medium">
+                            <span className="text-[11px] text-slate-400 font-medium">
                               {enabledActions.length}/{moduleActionKeys.length}
                             </span>
                           </div>
@@ -284,7 +284,7 @@ export default function PermissionsSubTab({ initialRoleId }) {
                                 e.stopPropagation();
                                 toggleAction(actionKey);
                               }}
-                              className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider border transition-colors cursor-pointer ${
+                              className={`px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider border transition-colors cursor-pointer ${
                                 isActionOn
                                   ? "bg-blue-600 border-blue-600 text-white"
                                   : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-400"

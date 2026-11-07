@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { X, CheckCircle, Clock, Play, FileCheck, Check, Loader2, ShieldAlert, Edit, Trash2, Plus, AlertTriangle, FileQuestion, FileText } from "lucide-react";
+import { X, Play, Check, Loader2, ShieldAlert, Edit, Trash2, Plus, AlertTriangle, Pencil } from "lucide-react";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useAuth } from "@/context/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -1594,7 +1594,7 @@ export default function VenueBookingDetailModal({
 
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
+    <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
       <div className="bg-white dark:bg-slate-900/80 rounded-2xl max-w-5xl w-full border border-slate-200 dark:border-blue-900/50 shadow-sm flex flex-col max-h-[92vh] overflow-hidden my-auto animate-in zoom-in-95 duration-150 font-sans">
         {/* Modal Header */}
         <VenueModalHeader
@@ -1637,7 +1637,7 @@ export default function VenueBookingDetailModal({
                       {currentStatus.includes("reject") ? "Reservation Rejected" : "Reservation Cancelled"}
                     </span>
                     {(selected.rejection_reason || selected.remarks || selected.comments) && (
-                      <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200">
+                      <span className="text-[11px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200">
                         {selected.is_auto_rejected
                           ? 'Rejected (Automatic)'
                           : String(selected.rejection_reason || selected.remarks || '').toLowerCase().includes('conflict') 
@@ -1667,7 +1667,7 @@ export default function VenueBookingDetailModal({
                   {hasConflict && vacantVenuesList.length > 0 && (
                     <div className="mt-2 p-2.5 bg-blue-50/90 border border-blue-200 rounded-xl text-xs space-y-1">
                       <span className="font-bold text-blue-900 flex items-center gap-1.5">
-                        💡 Vacant Venues at this Slot:
+                        Vacant Venues at this Slot:
                       </span>
                       <p className="text-[11px] text-blue-700 font-medium">
                         {vacantVenuesList.map(v => `${v.name} (Cap: ${v.capacity_min ? `${v.capacity_min}-${v.capacity_max}` : (v.capacity || '—')})`).join(', ')}
@@ -1735,11 +1735,11 @@ export default function VenueBookingDetailModal({
                           >
                             <div className="flex items-center justify-between">
                               <span className="font-bold text-slate-900 text-xs">{v.name}</span>
-                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 font-bold text-slate-700">
+                              <span className="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 font-bold text-slate-700">
                                 Cap: {v.capacity_min ? `${v.capacity_min}-${v.capacity_max}` : (v.capacity || "—")}
                               </span>
                             </div>
-                            <span className="text-[10px] text-slate-500 mt-1 line-clamp-1">{v.location || v.description || "Campus Facility"}</span>
+                            <span className="text-[11px] text-slate-500 mt-1 line-clamp-1">{v.location || v.description || "Campus Facility"}</span>
                           </div>
                         ))}
                       </div>
@@ -1771,10 +1771,10 @@ export default function VenueBookingDetailModal({
                 </div>
               )}
               {currentStatus === "incomplete" ? (
-                <div className="py-3 px-4 bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-700/60 rounded-xl text-xs space-y-1.5 shadow-2xs">
+                <div className="py-3 px-4 bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-200 dark:border-amber-700/60 rounded-xl text-xs space-y-1.5 shadow-2xs">
                   <div className="flex items-center justify-between">
                     <span className="font-extrabold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
-                      <AlertTriangle size={15} className="text-amber-600 dark:text-amber-400" />
+                      <AlertTriangle size={15} className="text-amber-700 dark:text-amber-400" />
                       Status: INCOMPLETE (Awaiting Applicant Requirements)
                     </span>
                     {selected.incomplete_deadline_at && (
@@ -1796,7 +1796,7 @@ export default function VenueBookingDetailModal({
                           ? JSON.parse(selected.missing_requirements_list)
                           : [selected.missing_requirements_list]
                       ).map((item, idx) => (
-                        <span key={idx} className="px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/50 border border-amber-300 dark:border-amber-700 text-[10.5px] font-bold text-amber-800 dark:text-amber-200">
+                        <span key={idx} className="px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-900/50 border border-amber-200 dark:border-amber-700 text-[11px] font-bold text-amber-800 dark:text-amber-200">
                           {item}
                         </span>
                       ))}
@@ -1804,7 +1804,7 @@ export default function VenueBookingDetailModal({
                   )}
                   {selected.resubmitted_at && (
                     <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 pt-1">
-                      ✓ Supplementary requirements re-uploaded on {new Date(selected.resubmitted_at).toLocaleString()}
+                      Supplementary requirements re-uploaded on {new Date(selected.resubmitted_at).toLocaleString()}
                     </p>
                   )}
                 </div>
@@ -2002,7 +2002,7 @@ export default function VenueBookingDetailModal({
                     onClick={() => setShowAddRejection(!showAddRejection)}
                     className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1 cursor-pointer transition-colors"
                   >
-                    {showAddRejection ? <X size={12} /> : <Edit size={12} />}
+                    {showAddRejection ? <X size={12} /> : <Pencil size={12} />}
                     <span>{showAddRejection ? "Save Editing" : "Edit Category"}</span>
                   </button>
                 )}
@@ -2082,7 +2082,7 @@ export default function VenueBookingDetailModal({
 
               {/* Quick Template Reasons */}
               <div className="space-y-1.5 pt-1">
-                <span className="text-[10.5px] font-extrabold uppercase text-slate-500 dark:text-slate-400 tracking-wider block">
+                <span className="text-[11px] font-extrabold uppercase text-slate-500 dark:text-slate-400 tracking-wider block">
                   Quick Conflict
                 </span>
                 <div className="flex flex-wrap gap-1.5">
@@ -2109,7 +2109,7 @@ export default function VenueBookingDetailModal({
                     }}
                     className="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-700 dark:hover:text-rose-300 text-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer text-left"
                   >
-                    ⚡ Conflict : Timeslot already occupied
+                    Conflict: Timeslot already occupied
                   </button>
                 </div>
               </div>
@@ -2153,7 +2153,7 @@ export default function VenueBookingDetailModal({
 
           {/* Mark Incomplete Drawer / Form */}
           {showIncompleteForm && (
-            <div className="p-4 bg-amber-50/90 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-700/60 rounded-2xl space-y-3.5 shadow-md animate-in fade-in slide-in-from-top-2">
+            <div className="p-4 bg-amber-50/90 dark:bg-amber-950/40 border-2 border-amber-200 dark:border-amber-700/60 rounded-2xl space-y-3.5 shadow-md animate-in fade-in slide-in-from-top-2">
               <div className="flex items-center justify-between border-b border-amber-200 dark:border-amber-800/60 pb-2">
                 <div>
                   <h4 className="text-xs font-black text-amber-950 dark:text-amber-200">Mark Reservation Incomplete</h4>
@@ -2164,7 +2164,7 @@ export default function VenueBookingDetailModal({
                   onClick={() => setShowIncompleteForm(false)}
                   className="text-amber-800 dark:text-amber-300 hover:text-amber-950 dark:hover:white font-bold text-xs p-1"
                 >
-                  ✕
+                  <X size={14} />
                 </button>
               </div>
 
@@ -2187,7 +2187,7 @@ export default function VenueBookingDetailModal({
                 </div>
 
                 {showEditMissingCategories && !isHistoryView ? (
-                  <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-amber-300 dark:border-amber-700 shadow-2xs space-y-3 mb-2 animate-in fade-in zoom-in-95 duration-200">
+                  <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-amber-200 dark:border-amber-700 shadow-2xs space-y-3 mb-2 animate-in fade-in zoom-in-95 duration-200">
                     <div className="flex items-center justify-between border-b border-amber-100 dark:border-slate-800 pb-2">
                       <span className="text-xs font-extrabold text-amber-900 dark:text-amber-200">Manage Requirement Categories</span>
                       <button
@@ -2245,7 +2245,7 @@ export default function VenueBookingDetailModal({
                           key={idx}
                           className={`flex items-center gap-2 p-2 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
                             isChecked
-                              ? "bg-amber-100 dark:bg-amber-900/50 border-amber-400 dark:border-amber-600 text-amber-950 dark:text-amber-100 shadow-2xs"
+                              ? "bg-amber-50 dark:bg-amber-900/50 border-amber-300 dark:border-amber-600 text-amber-950 dark:text-amber-100 shadow-2xs"
                               : "bg-white dark:bg-slate-900 border-amber-200 dark:border-amber-900/50 text-slate-700 dark:text-slate-300 hover:bg-amber-50 dark:hover:bg-slate-800"
                           }`}
                         >
@@ -2259,7 +2259,7 @@ export default function VenueBookingDetailModal({
                                 setSelectedMissingItems(prev => [...prev, item]);
                               }
                             }}
-                            className="w-4 h-4 text-amber-600 rounded border-amber-300 focus:ring-amber-500 cursor-pointer"
+                            className="w-4 h-4 text-amber-700 rounded border-amber-200 focus:ring-amber-500 cursor-pointer"
                           />
                           <span>{item}</span>
                         </label>
@@ -2274,7 +2274,7 @@ export default function VenueBookingDetailModal({
                         className="flex items-center justify-center gap-1.5 p-2 rounded-xl border border-dashed border-amber-300/90 dark:border-amber-700 bg-amber-50/50 hover:bg-amber-100/70 dark:bg-slate-900/60 dark:hover:bg-slate-800 text-amber-800 dark:text-amber-300 text-xs font-bold transition-all cursor-pointer shadow-2xs min-h-[38px]"
                         title="Add or remove missing requirement categories"
                       >
-                        <Edit size={13} className="text-amber-600 dark:text-amber-400" />
+                        <Pencil size={13} className="text-amber-700 dark:text-amber-400" />
                         <span>Edit Category</span>
                       </button>
                     )}
@@ -2292,7 +2292,7 @@ export default function VenueBookingDetailModal({
                   value={incompleteRemarks}
                   onChange={(e) => setIncompleteRemarks(e.target.value)}
                   placeholder="e.g. Please upload your signed Endorsement Letter from the Dean's Office..."
-                  className="w-full p-2.5 bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                  className="w-full p-2.5 bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                 />
               </div>
 
@@ -2315,7 +2315,7 @@ export default function VenueBookingDetailModal({
                       <span className="text-xs font-bold text-slate-900 dark:text-white">24 Hours</span>
                       {graceHoursChoice === 24 && <span className="w-2 h-2 rounded-full bg-amber-600 dark:bg-amber-400" />}
                     </div>
-                    <p className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-0.5">Applicant has 1 day to upload missing files</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Applicant has 1 day to upload missing files</p>
                   </button>
 
                   <button
@@ -2331,10 +2331,10 @@ export default function VenueBookingDetailModal({
                       <span className="text-xs font-bold text-slate-900 dark:text-white">48 Hours</span>
                       {graceHoursChoice === 48 && <span className="w-2 h-2 rounded-full bg-amber-600 dark:bg-amber-400" />}
                     </div>
-                    <p className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-0.5">Applicant has 2 days to upload missing files</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Applicant has 2 days to upload missing files</p>
                   </button>
                 </div>
-                <p className="text-[10.5px] text-amber-800 dark:text-amber-300/90 leading-relaxed">
+                <p className="text-[11px] text-amber-800 dark:text-amber-300/90 leading-relaxed">
                   ℹ️ <strong>No Auto-Cancellation:</strong> Reservations are not automatically cancelled when the grace period expires. Staff retain full discretion to review, grant an extension, approve, or manually reject.
                 </p>
               </div>
@@ -2344,7 +2344,7 @@ export default function VenueBookingDetailModal({
                 <button
                   type="button"
                   onClick={() => setShowIncompleteForm(false)}
-                  className="px-3.5 py-1.5 bg-white border border-amber-300 text-slate-700 hover:bg-amber-50 rounded-lg text-xs font-bold cursor-pointer"
+                  className="px-3.5 py-1.5 bg-white border border-amber-200 text-slate-700 hover:bg-amber-50 rounded-lg text-xs font-bold cursor-pointer"
                 >
                   Cancel
                 </button>

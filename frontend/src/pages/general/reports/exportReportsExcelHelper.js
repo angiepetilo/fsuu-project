@@ -253,7 +253,7 @@ function insertSectionHeader(worksheet, rowNum, title, recordCount, maxCol = 9) 
 function insertNotesCallout(worksheet, startRow, notesTitle, notesText, maxCol = 9) {
   worksheet.mergeCells(startRow, 1, startRow, maxCol);
   const titleCell = worksheet.getCell(startRow, 1);
-  titleCell.value = `📝 ${notesTitle}:`;
+  titleCell.value = `${notesTitle}:`;
   titleCell.font = { name: "Calibri", size: 9.5, bold: true, color: { argb: "FF92400E" } };
   titleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: COLORS.NOTES_BOX_BG } };
   titleCell.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
@@ -811,7 +811,7 @@ export async function exportReportsToExcel({
 function worksheetAddHeaderLabel(worksheet, rowNum, title, maxCol = 7) {
   worksheet.mergeCells(rowNum, 1, rowNum, maxCol);
   const cell = worksheet.getCell(rowNum, 1);
-  cell.value = `📊 ${title}`;
+  cell.value = `${title}`;
   cell.font = { name: "Calibri", size: 10, bold: true, color: { argb: COLORS.TEXT_WHITE } };
   cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF334155" } };
   cell.alignment = { vertical: "middle", horizontal: "left", indent: 1 };

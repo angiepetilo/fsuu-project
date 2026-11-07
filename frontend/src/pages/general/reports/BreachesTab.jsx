@@ -297,7 +297,7 @@ export default function BreachesTab({
           department: cleanDeptName(vb.department),
           target: vb.venue_name || "AVR Venue",
           type: "Lost",
-          textColor: "text-amber-600",
+          textColor: "text-amber-700",
           details: `${lost || 1} physical unit(s) lost during venue booking`,
           notes: vb.inspection_notes,
           date: vb.date,
@@ -333,7 +333,7 @@ export default function BreachesTab({
           department: cleanDeptName(eb.department),
           target: eb.equipment_name || "Equipment Item",
           type: "Lost",
-          textColor: "text-amber-600",
+          textColor: "text-amber-700",
           details: `${lost || 1} equipment unit(s) reported lost`,
           notes: eb.inspection_notes,
           date: eb.date,
@@ -349,7 +349,7 @@ export default function BreachesTab({
           department: cleanDeptName(eb.department),
           target: eb.equipment_name || "Equipment Item",
           type: "Late",
-          textColor: "text-amber-600",
+          textColor: "text-amber-700",
           details: eb.minutes_late ? `Overdue by ${eb.minutes_late} minutes` : "Returned past scheduled time",
           notes: eb.inspection_notes,
           date: eb.date,
@@ -410,7 +410,7 @@ export default function BreachesTab({
                       <td className={`px-4 py-3 text-center font-bold ${policyCount > 0 ? "text-purple-600 dark:text-purple-400" : "text-slate-400 dark:text-slate-500"}`}>
                         {policyCount}
                       </td>
-                      <td className={`px-4 py-3 text-center font-bold ${lateCount > 0 ? "text-amber-600 dark:text-amber-400" : "text-slate-400 dark:text-slate-500"}`}>
+                      <td className={`px-4 py-3 text-center font-bold ${lateCount > 0 ? "text-amber-700 dark:text-amber-400" : "text-slate-400 dark:text-slate-500"}`}>
                         {lateCount}
                       </td>
                       <td className={`px-4 py-3 text-center font-bold ${damagedCount > 0 ? "text-rose-600 dark:text-rose-400" : "text-slate-400 dark:text-slate-500"}`}>
@@ -490,7 +490,7 @@ export default function BreachesTab({
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="flex flex-col">
                             <span className="font-bold text-slate-900 dark:text-white">{inc.filer}</span>
-                            <span className="text-[10.5px] text-slate-500 dark:text-slate-400 font-semibold">{inc.department}</span>
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">{inc.department}</span>
                           </div>
                         </td>
 

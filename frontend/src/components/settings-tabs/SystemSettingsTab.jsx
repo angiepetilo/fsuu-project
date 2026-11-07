@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
+import { confirmDialog } from "@/lib/confirmDialog";
 import { useTheme } from "@/context/ThemeContext";
 
 const inputCls = (isModified = false) =>
@@ -238,9 +239,13 @@ export default function SystemSettingsTab() {
   };
 
   const handleReset = async () => {
-    if (!window.confirm("Are you sure you want to restore all system settings to default? This will overwrite your current configuration.")) {
-      return;
-    }
+    const ok = await confirmDialog({
+      title: "Restore default settings?",
+      message: "All system settings will go back to their defaults. Your current configuration will be overwritten.",
+      confirmLabel: "Restore Defaults",
+      variant: "warning",
+    });
+    if (!ok) return;
     const defaultSettings = {
       system_name: "FSUU Facilities & Equipment Booking System",
       organization_name: "Father Saturnino Urios University",
@@ -755,7 +760,7 @@ export default function SystemSettingsTab() {
                 {showSmsKey ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
             </div>
-            <span className="text-[10px] text-slate-400 mt-1 block">
+            <span className="text-[11px] text-slate-400 mt-1 block">
               iPROG &rarr; <strong className="text-slate-600">API Documentation &rarr; API Token</strong>
             </span>
           </div>
@@ -772,7 +777,7 @@ export default function SystemSettingsTab() {
                 className={`${inputCls(isFieldModified("sms_api_url"))} pl-8`}
               />
             </div>
-            <span className="text-[10px] text-slate-400 mt-1 block">
+            <span className="text-[11px] text-slate-400 mt-1 block">
               Default: <code className="font-mono text-slate-600">https://www.iprogsms.com/api/v1/sms_messages</code>
             </span>
           </div>
@@ -789,7 +794,7 @@ export default function SystemSettingsTab() {
                 className={`${inputCls(isFieldModified("sms_sender_name"))} pl-8`}
               />
             </div>
-            <span className="text-[10px] text-slate-400 mt-1 block">
+            <span className="text-[11px] text-slate-400 mt-1 block">
               Approved Sender ID (defaults to <code className="font-mono text-slate-600">FSUU_AVR</code>)
             </span>
           </div>
@@ -918,7 +923,7 @@ export default function SystemSettingsTab() {
 
         <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-[11px] text-slate-600 space-y-1">
           <p className="font-bold text-slate-800 flex items-center gap-1">
-            <span>🛡️ 24/7 Failsafe Disposable Shield:</span>
+            <span>Blocks temporary email addresses:</span>
           </p>
           <p>
             Even if your Abstract API key runs out of free requests or encounters network downtime, the system's internal <strong>99,600+ Disposable Domain Blacklist</strong> and <strong>Mail Server (MX) Inspector</strong> actively intercept and reject temporary emails (such as <code>temp-mail.org</code>, <code>herclan.com</code>, <code>mailinator</code>, <code>guerrillamail</code>) immediately.

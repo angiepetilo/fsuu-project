@@ -94,7 +94,7 @@ export default function InspectionPhotoUploader({
               </label>
             )}
             {normalizedPhotos.length > 0 && (
-              <span className="text-[10px] font-mono font-extrabold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+              <span className="text-[11px] font-mono font-extrabold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                 {normalizedPhotos.length} {normalizedPhotos.length === 1 ? "Photo" : "Photos"}
               </span>
             )}
@@ -103,7 +103,7 @@ export default function InspectionPhotoUploader({
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline flex items-center gap-1 cursor-pointer"
+              className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline flex items-center gap-1 cursor-pointer"
             >
               <Plus size={11} /> Add More
             </button>
@@ -113,7 +113,7 @@ export default function InspectionPhotoUploader({
 
       {/* Subtitle / Instructions */}
       {!isReadOnly && normalizedPhotos.length === 0 && (
-        <p className="text-[10.5px] text-slate-500 dark:text-slate-400">{subtitle}</p>
+        <p className="text-[11px] text-slate-500 dark:text-slate-400">{subtitle}</p>
       )}
 
       {/* Hidden File Input */}
@@ -168,7 +168,7 @@ export default function InspectionPhotoUploader({
                 </div>
 
                 {/* Index badge */}
-                <span className="absolute bottom-1 left-1 text-[9px] font-mono font-bold bg-black/60 text-white px-1 rounded">
+                <span className="absolute bottom-1 left-1 text-[10px] font-mono font-bold bg-black/60 text-white px-1 rounded">
                   #{index + 1}
                 </span>
               </div>
@@ -209,7 +209,7 @@ export default function InspectionPhotoUploader({
             <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
               Click or drag photos here to upload
             </p>
-            <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
               PNG, JPG, WEBP • Select as many photos as needed
             </p>
           </div>

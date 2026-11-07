@@ -228,7 +228,7 @@ export default function ExportModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-200">
+    <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-200">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-slate-950/50 dark:bg-slate-950/80 backdrop-blur-xs transition-opacity"
@@ -236,7 +236,7 @@ export default function ExportModal({
       />
 
       {/* Modal Dialog Card */}
-      <div className="relative bg-white dark:bg-[#0c1322] text-slate-800 dark:text-slate-100 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800/90 w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden z-10 animate-in fade-in zoom-in-95 duration-150">
+      <div className="relative bg-white dark:bg-[#0c1322] text-slate-800 dark:text-slate-100 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800/90 w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden z-10 animate-in fade-in zoom-in-95 duration-150">
 
         {/* Header */}
         <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between bg-slate-50/80 dark:bg-[#0e1726]/70">
@@ -245,7 +245,7 @@ export default function ExportModal({
               <Download size={19} />
             </div>
             <div>
-              <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-tight">
+              <h3 className="modal-title text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-tight">
                 {title}
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -275,7 +275,7 @@ export default function ExportModal({
 
               {/* Section 1 Header */}
               <div className="flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60 flex items-center justify-center text-[10px] font-bold">
+                <span className="w-5 h-5 rounded-full bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60 flex items-center justify-center text-[11px] font-bold">
                   1
                 </span>
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
@@ -411,7 +411,7 @@ export default function ExportModal({
 
               {/* Section 2 Header */}
               <div className="flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-center text-[10px] font-bold">
+                <span className="w-5 h-5 rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-center text-[11px] font-bold">
                   2
                 </span>
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
@@ -446,7 +446,7 @@ export default function ExportModal({
                           <span className="text-xs font-bold text-slate-900 dark:text-white">
                             Excel Workbook
                           </span>
-                          <span className="text-[10px] font-mono font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100/80 dark:bg-emerald-950/80 border border-emerald-200 dark:border-emerald-800/40 px-1.5 py-0.2 rounded">
+                          <span className="text-[11px] font-mono font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100/80 dark:bg-emerald-950/80 border border-emerald-200 dark:border-emerald-800/40 px-1.5 py-0.2 rounded">
                             .xlsx
                           </span>
                         </div>
@@ -491,7 +491,7 @@ export default function ExportModal({
                           <span className="text-xs font-bold text-slate-900 dark:text-white">
                             CSV File
                           </span>
-                          <span className="text-[10px] font-mono font-bold text-blue-700 dark:text-blue-400 bg-blue-100/80 dark:bg-blue-950/80 border border-blue-200 dark:border-blue-800/40 px-1.5 py-0.2 rounded">
+                          <span className="text-[11px] font-mono font-bold text-blue-700 dark:text-blue-400 bg-blue-100/80 dark:bg-blue-950/80 border border-blue-200 dark:border-blue-800/40 px-1.5 py-0.2 rounded">
                             .csv
                           </span>
                         </div>
@@ -536,7 +536,7 @@ export default function ExportModal({
                           <span className="text-xs font-bold text-slate-900 dark:text-white">
                             PDF Document
                           </span>
-                          <span className="text-[10px] font-mono font-bold text-rose-700 dark:text-rose-400 bg-rose-100/80 dark:bg-rose-950/80 border border-rose-200 dark:border-rose-800/40 px-1.5 py-0.2 rounded">
+                          <span className="text-[11px] font-mono font-bold text-rose-700 dark:text-rose-400 bg-rose-100/80 dark:bg-rose-950/80 border border-rose-200 dark:border-rose-800/40 px-1.5 py-0.2 rounded">
                             .pdf
                           </span>
                         </div>
@@ -587,7 +587,7 @@ export default function ExportModal({
 
               {/* ── EXPORT SUMMARY CARD (Matches Image 1) ── */}
               <div className="bg-slate-50/90 dark:bg-[#0e1726]/80 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-3.5">
-                <span className="text-[10.5px] font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400 block">
+                <span className="text-[11px] font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400 block">
                   Export Summary
                 </span>
 

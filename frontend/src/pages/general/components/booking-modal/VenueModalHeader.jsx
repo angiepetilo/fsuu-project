@@ -65,14 +65,14 @@ export default function VenueModalHeader({
     <div className="px-6 py-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-blue-900/50 shrink-0">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">Booking Form</h3>
+          <h3 className="modal-title text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">Booking Form</h3>
           <div className="text-xs text-slate-500 dark:text-slate-400 font-semibold space-y-0.5 mt-1">
             <p>
               Track No. :{" "}
               <span className="font-mono text-slate-800 dark:text-slate-200 font-bold">
                 {selected.reference_code || selected.tracking_number?.reference_code || `TRK-AVR${selected.id}`}
               </span>{" "}
-              | <span className="text-slate-800 dark:text-slate-200 font-bold">{selected.venue_name || selected.venue?.name || "AVR Facility"}</span>
+              | <span className="text-slate-800 dark:text-slate-200 font-bold">{selected.venue_name || selected.venue?.name || "—"}</span>
             </p>
             <p>
               Time and Date Filed :{" "}
@@ -96,7 +96,7 @@ export default function VenueModalHeader({
                       ? "text-slate-800 dark:text-slate-200"
                       : displayStatus === "Policy Violation" || displayStatus === "Policy Breach" || displayStatus === "damaged" || displayStatus === "rejected"
                       ? "text-rose-600 dark:text-rose-400"
-                      : "text-amber-600 dark:text-amber-400"
+                      : "text-amber-700 dark:text-amber-400"
                   }`}
                 >
                   {displayStatus}
@@ -107,8 +107,8 @@ export default function VenueModalHeader({
 
             {/* Late Return Time Badge below Status */}
             {isLateReturn ? (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800/80 text-amber-800 dark:text-amber-200 text-xs font-bold animate-in fade-in">
-                <Clock size={12} className="text-amber-600 dark:text-amber-400 shrink-0" />
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/80 text-amber-800 dark:text-amber-200 text-xs font-bold animate-in fade-in">
+                <Clock size={12} className="text-amber-700 dark:text-amber-400 shrink-0" />
                 <span>
                   Late Return{returnTimeStr ? `: ${returnTimeStr}` : ""}
                   {minutesLateNum > 0 && formatTimeLate(minutesLateNum) !== "—" ? ` (${formatTimeLate(minutesLateNum)} late)` : ""}
@@ -127,12 +127,12 @@ export default function VenueModalHeader({
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/60 border border-amber-200/80 dark:border-amber-800/70 text-amber-800 dark:text-amber-200 text-[11px] font-semibold"
                 title={inspectionEligibility.reason}
               >
-                <Clock size={12} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                <Clock size={12} className="text-amber-700 dark:text-amber-400 shrink-0" />
                 <span>
                   Inspection opens {inspectionEligibility.unlockFormattedLabel || (inspectionEligibility.unlockTimeStr ? `${inspectionEligibility.isToday ? 'at ' : ''}${inspectionEligibility.unlockTimeStr}` : "30 mins before end time")}
                 </span>
                 {inspectionEligibility.minutesUntilUnlock > 0 && (
-                  <span className="font-bold text-amber-600 dark:text-amber-400">
+                  <span className="font-bold text-amber-700 dark:text-amber-400">
                     ({inspectionEligibility.countdownDurationStr || (typeof formatCountdownDuration === 'function' ? formatCountdownDuration(inspectionEligibility.minutesUntilUnlock) : `${inspectionEligibility.minutesUntilUnlock}m`)})
                   </span>
                 )}

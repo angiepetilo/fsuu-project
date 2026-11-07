@@ -43,8 +43,8 @@ export default function EvidenceLightboxModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in">
-      <div className="relative max-w-4xl max-h-[90vh] bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-slate-700 flex flex-col w-full h-[85vh]">
+    <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 z-[9999] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in">
+      <div className="relative max-w-4xl max-h-[90vh] bg-slate-900 rounded-2xl overflow-hidden shadow-xl border border-slate-700 flex flex-col w-full h-[85vh]">
         <div className="p-4 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between shrink-0">
           <span className="text-xs font-extrabold text-white flex items-center gap-2">
             {isEndorsement ? (

@@ -207,7 +207,7 @@ export default function ActiveSessionsTab() {
         <div className="p-3.5 bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/60 rounded-xl flex items-start gap-2.5 text-xs text-blue-900 dark:text-blue-200 shadow-xs">
           <ShieldAlert size={16} className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
           <p className="leading-relaxed">
-            <span className="font-bold text-blue-950 dark:text-blue-100">Real-time Terminal Security:</span> You can monitor and remotely terminate unauthorized or unattended cashier and admin terminals in real time. Terminating an active terminal immediately invalidates its authentication token and locks the workstation out.
+            <span className="font-bold text-blue-950 dark:text-blue-100">Signed-in devices:</span> You can monitor and remotely terminate unauthorized or unattended cashier and admin terminals in real time. Terminating an active terminal immediately invalidates its authentication token and locks the workstation out.
           </p>
         </div>
       </div>
@@ -261,13 +261,13 @@ export default function ActiveSessionsTab() {
                             <div className="flex items-center gap-1.5">
                               <span className="font-bold text-slate-900 dark:text-white">{sess.user.name}</span>
                               {isCurrent && (
-                                <span className="px-1.5 py-0.5 text-[9px] font-extrabold uppercase bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 rounded-md">
+                                <span className="px-1.5 py-0.5 text-[10px] font-extrabold uppercase bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 rounded-md">
                                   This Device
                                 </span>
                               )}
                             </div>
-                            <p className="text-[10.5px] text-slate-400 dark:text-slate-500">{sess.user.email}</p>
-                            <div className="flex items-center gap-1.5 text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
+                            <p className="text-[11px] text-slate-400 dark:text-slate-500">{sess.user.email}</p>
+                            <div className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
                               <span>IP: {sess.ip_address}</span>
                               <span>•</span>
                               <span>{sess.device_name}</span>
@@ -297,7 +297,7 @@ export default function ActiveSessionsTab() {
                           <span className="font-semibold text-slate-800 dark:text-slate-200">
                             {formatExactTime(sess.session_started)}
                           </span>
-                          <span className="text-[10.5px] text-slate-400 dark:text-slate-500">
+                          <span className="text-[11px] text-slate-400 dark:text-slate-500">
                             {formatRelativeTime(sess.session_started)}
                           </span>
                         </div>
@@ -309,7 +309,7 @@ export default function ActiveSessionsTab() {
                           <span className="font-bold text-slate-900 dark:text-white">
                             {formatRelativeTime(sess.last_active)}
                           </span>
-                          <span className="text-[10.5px] text-slate-400 dark:text-slate-500">
+                          <span className="text-[11px] text-slate-400 dark:text-slate-500">
                             {sess.last_active ? new Date(sess.last_active).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : "N/A"}
                           </span>
                         </div>
@@ -353,13 +353,13 @@ export default function ActiveSessionsTab() {
 
       {/* Remote Session Termination Modal */}
       {showTerminateModal && selectedSession && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-150">
+        <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-150">
             <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 flex items-center justify-center mb-4">
               <ShieldAlert size={24} />
             </div>
 
-            <h3 className="text-base font-bold text-slate-900">
+            <h3 className="modal-title text-base font-bold text-slate-900">
               Remotely Terminate Terminal Session?
             </h3>
             <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
@@ -369,7 +369,7 @@ export default function ActiveSessionsTab() {
             </p>
 
             <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-start gap-2">
-              <AlertTriangle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+              <AlertTriangle size={15} className="text-amber-700 shrink-0 mt-0.5" />
               <span>The cashier or admin terminal will immediately be disconnected and logged out on its next request.</span>
             </div>
 

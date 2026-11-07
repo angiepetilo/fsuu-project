@@ -22,7 +22,7 @@ export default function DataPrivacyTermsModal({
   const isPrivacy = activeTab === "privacy";
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5">
+    <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-slate-950/75 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
@@ -30,7 +30,7 @@ export default function DataPrivacyTermsModal({
       />
 
       {/* Modal Dialog Card */}
-      <div className="relative bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 w-full max-w-2xl max-h-[90vh] flex flex-col z-10 animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+      <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200/80 dark:border-slate-800 w-full max-w-2xl max-h-[90vh] flex flex-col z-10 animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
         
         {/* Plain Clean Header */}
         <div className="px-6 py-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shrink-0 flex items-center justify-between">
@@ -39,7 +39,7 @@ export default function DataPrivacyTermsModal({
               {isPrivacy ? <ShieldCheck size={20} /> : <FileText size={20} />}
             </div>
             <div>
-              <h2 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight">
+              <h2 className="modal-title text-base font-extrabold text-slate-900 dark:text-white tracking-tight">
                 {isPrivacy ? "Privacy Policy" : "Terms and Conditions"}
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">

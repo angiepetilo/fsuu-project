@@ -4,7 +4,8 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import api from "@/lib/axios";
 import { fetchWithCache } from "@/lib/apiCache";
-import { FileBarChart2, CheckCircle2 } from "lucide-react";
+import { FileBarChart2 } from "lucide-react";
+import notify from "@/lib/notify";
 import ExportModal, { filterRecordsByBounds } from "@/components/ui/ExportModal";
 import ExportButton from "@/components/ui/ExportButton";
 
@@ -74,7 +75,6 @@ export default function Reports() {
     }, { replace: true });
   }, [setSearchParams]);
 
-  const [feedback, setFeedback] = useState(null);
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
 
@@ -409,19 +409,16 @@ export default function Reports() {
         onStart: () => setIsExportingPdf(true),
         onComplete: () => {
           setIsExportingPdf(false);
-          setFeedback(`✅ ${tabLabels[activeTab]} PDF file saved to your device.`);
-          setTimeout(() => setFeedback(null), 3500);
+          notify.success("PDF saved", `${tabLabels[activeTab]} PDF file saved to your device.`);
         },
         onError: (err) => {
           setIsExportingPdf(false);
-          setFeedback(`❌ PDF generation failed: ${err?.message || "Unknown error"}`);
-          setTimeout(() => setFeedback(null), 5000);
+          notify.error("PDF generation failed", err?.message || "Unknown error");
         },
       });
     } catch (err) {
       setIsExportingPdf(false);
-      setFeedback(`❌ PDF generation failed: ${err?.message || "Unknown error"}`);
-      setTimeout(() => setFeedback(null), 5000);
+      notify.error("PDF generation failed", err?.message || "Unknown error");
     }
   };
 
@@ -483,13 +480,10 @@ export default function Reports() {
       });
 
       const scopeName = scope === "active" ? tabLabels[activeTab] : "Master Reports Workbook";
-      setFeedback(`✅ ${scopeName} exported to Excel (.xlsx) for ${timeframe === "all" ? "all records" : timeframe}.`);
-      setTimeout(() => setFeedback(null), 4000);
+      notify.success("Excel exported", `${scopeName} saved for ${timeframe === "all" ? "all records" : timeframe}.`);
       setShowExportModal(false);
     } catch (err) {
-      console.error("Excel export error in Reports:", err);
-      setFeedback(`❌ Excel export failed: ${err?.message || "Unknown error"}`);
-      setTimeout(() => setFeedback(null), 5000);
+      notify.error("Excel export failed", err?.message || "Unknown error");
     } finally {
       setIsExportingExcel(false);
     }
@@ -498,7 +492,7 @@ export default function Reports() {
   if (!hasPermission("reports")) {
     return (
       <div className="p-8 max-w-md mx-auto text-center space-y-3 mt-12 bg-white rounded-3xl border border-slate-200 shadow-xs">
-        <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto">
+        <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center mx-auto">
           <FileBarChart2 size={24} />
         </div>
         <h3 className="text-sm font-extrabold text-slate-900">Access Restricted</h3>
@@ -522,13 +516,6 @@ export default function Reports() {
           />
         )}
       </div>
-
-      {feedback && (
-        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-extrabold flex items-center gap-2 shadow-2xs animate-in fade-in duration-200">
-          <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
-          <span>{feedback}</span>
-        </div>
-      )}
 
       {/* Tabs Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-200 pb-3">

@@ -19,6 +19,12 @@ export default defineConfig({
     chunkSizeWarningLimit: 1200,
     rollupOptions: {
       output: {
+        // Production bundles never ship console.* debug output.
+        minify: {
+          compress: { dropConsole: true, dropDebugger: true },
+          mangle: true,
+          codegen: true,
+        },
         manualChunks(id) {
           if (id.includes('node_modules/lucide-react')) {
             return 'lucide-icons';

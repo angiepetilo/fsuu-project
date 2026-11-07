@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check, Package, PackageOpen, Info, Lock, Maximize2, X, ChevronLeft, ChevronRight, XCircle, Clock, CalendarDays, AlertTriangle, AlertCircle, Search, Loader2, Home, Wrench, ShieldAlert, Ban } from "lucide-react";
+import { Check, Package, PackageOpen, Info, Lock, X, ChevronLeft, ChevronRight, XCircle, Clock, CalendarDays, AlertTriangle, AlertCircle, Search, Loader2, Home, Wrench, ShieldAlert, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CustomTimePicker from "@/components/ui/custom-time-picker";
 import CustomCalendarPicker from "@/components/ui/custom-calendar-picker";
@@ -40,7 +40,7 @@ function CategoryItemImage({ item }) {
       <img
         src={srcUrl}
         alt={item?.name || "Equipment"}
-        className={`w-full h-full transition-transform duration-300 ${isCover ? "object-cover" : "object-contain"}`}
+        className={`w-full h-full transition-transform duration-300 ease-out group-hover:scale-105 ${isCover ? "object-cover" : "object-contain"}`}
         style={{ transform: `scale(${scale})` }}
         onError={() => setImgError(true)}
       />
@@ -127,6 +127,15 @@ export default function Step2Equipment({
   const [redundancyAlert, setRedundancyAlert] = useState(null);
   const [zoomedItem, setZoomedItem] = useState(null);
 
+  useEffect(() => {
+    if (!zoomedItem) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") setZoomedItem(null);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [zoomedItem]);
+
   const rawCatalogList = filteredCatalog || [];
   const catalogList = rawCatalogList.filter(item => {
     if (!equipSearch.trim()) return true;
@@ -143,7 +152,7 @@ export default function Step2Equipment({
   const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
   const startIndex = (safeCurrentPage - 1) * itemsPerPage;
   const currentGridItems = catalogList.slice(startIndex, startIndex + itemsPerPage);
-  
+
   // Detailed physical units and kit breakdown
   const selectionSummary = useMemo(() => {
     let primaryCount = 0;
@@ -708,26 +717,20 @@ export default function Step2Equipment({
                       }`}
                   >
                     <div>
-                      {/* Top Image Box: Tap to Zoom Lightbox on Kiosk */}
+                      {/* Top Image Box: Tap to Zoom Lightbox */}
                       <div
                         onClick={(e) => {
-                          e.stopPropagation();
-                          setZoomedItem(item);
+                          const hasImg = item?.avatar || item?.photo || item?.image || item?.photo_url;
+                          if (hasImg) {
+                            e.stopPropagation();
+                            setZoomedItem(item);
+                          }
                         }}
-                        className={`w-full aspect-video bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700/60 overflow-hidden flex flex-col items-center justify-center text-center relative group shadow-2xs cursor-zoom-in ${
-                          item?.photo_fit === "cover" ? "p-0" : "p-2"
-                        }`}
-                        title="Tap to zoom / inspect photo"
+                        className={`w-full aspect-video bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700/60 overflow-hidden flex flex-col items-center justify-center text-center relative group shadow-2xs cursor-zoom-in transition-all ${item?.photo_fit === "cover" ? "p-0" : "p-2"
+                          }`}
+                        title="Click photo to zoom in"
                       >
                         <CategoryItemImage item={item} />
-                        
-                        {/* Zoom button on top-left */}
-                        <div
-                          className="absolute top-2 left-2 z-10 w-7 h-7 rounded-full bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700 shadow-2xs flex items-center justify-center opacity-85 group-hover:opacity-100 group-hover:scale-105 transition-all backdrop-blur-xs"
-                          title="Expand photo"
-                        >
-                          <Maximize2 size={12} className="shrink-0" />
-                        </div>
 
                         {builtInNames.length > 0 && (
                           <div className="absolute top-2 right-2 z-10 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-extrabold bg-blue-600/90 text-white shadow-2xs backdrop-blur-xs">
@@ -895,8 +898,8 @@ export default function Step2Equipment({
               <span className={`order-2 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border transition-all ${totalSelectedCount > 0 ? "bg-blue-50 dark:bg-blue-950/60 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300" : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400"}`}>
                 {selectionSummary.hasKits
                   ? (selectionSummary.primaryCount === 1 && selectionSummary.kitCount === 1
-                      ? `1 Kit (${selectionSummary.totalPhysicalCount} Total Units)`
-                      : `${selectionSummary.primaryCount} Selected (${selectionSummary.totalPhysicalCount} Total Units)`)
+                    ? `1 Kit (${selectionSummary.totalPhysicalCount} Total Units)`
+                    : `${selectionSummary.primaryCount} Selected (${selectionSummary.totalPhysicalCount} Total Units)`)
                   : `Qty Selected: ${totalSelectedCount}`}
               </span>
               <h4 className="font-extrabold text-slate-900 dark:text-[#F8FAFC] text-xs uppercase tracking-wider">
@@ -996,49 +999,41 @@ export default function Step2Equipment({
             </div>
 
             {/* Time Settings */}
-            <div className="space-y-3 pt-1">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-800 dark:text-[#CBD5E1] block">
-                  Start
-                </label>
-                <CustomTimePicker
-                  value={startTimeVal}
-                  onChange={(newStartTime) => {
-                    setStartTime && setStartTime(`${activeBorrowDate}T${newStartTime}`);
-                    // Ensure end time is at least 1 hour after start time
-                    const [sh, sm] = (newStartTime || "08:00").split(":").map(Number);
-                    const [eh, em] = (endTimeVal || "17:00").split(":").map(Number);
-                    const startMins = (sh || 0) * 60 + (sm || 0);
-                    const endMins = (eh || 0) * 60 + (em || 0);
-                    if (endMins <= startMins) {
-                      const [ch, cm] = (kioskClose || "17:00").split(":").map(Number);
-                      const closeMins = (ch || 17) * 60 + (cm || 0);
-                      const newEndMins = (!isPortal && startMins < closeMins) ? Math.min(closeMins, startMins + 60) : Math.min(1439, startMins + 60);
-                      const nH = String(Math.floor(newEndMins / 60)).padStart(2, '0');
-                      const nM = String(newEndMins % 60).padStart(2, '0');
-                      setEndTime && setEndTime(`${activeBorrowDate}T${nH}:${nM}`);
-                    }
-                  }}
-                  minuteStep={5}
-                  align="left"
-                  dropUp
-                />
-              </div>
+            <div className="space-y-4 pt-2">
+              <CustomTimePicker
+                label="Start"
+                value={startTimeVal}
+                onChange={(newStartTime) => {
+                  setStartTime && setStartTime(`${activeBorrowDate}T${newStartTime}`);
+                  // Ensure end time is at least 1 hour after start time
+                  const [sh, sm] = (newStartTime || "08:00").split(":").map(Number);
+                  const [eh, em] = (endTimeVal || "17:00").split(":").map(Number);
+                  const startMins = (sh || 0) * 60 + (sm || 0);
+                  const endMins = (eh || 0) * 60 + (em || 0);
+                  if (endMins <= startMins) {
+                    const [ch, cm] = (kioskClose || "17:00").split(":").map(Number);
+                    const closeMins = (ch || 17) * 60 + (cm || 0);
+                    const newEndMins = (!isPortal && startMins < closeMins) ? Math.min(closeMins, startMins + 60) : Math.min(1439, startMins + 60);
+                    const nH = String(Math.floor(newEndMins / 60)).padStart(2, '0');
+                    const nM = String(newEndMins % 60).padStart(2, '0');
+                    setEndTime && setEndTime(`${activeBorrowDate}T${nH}:${nM}`);
+                  }
+                }}
+                minuteStep={5}
+                align="left"
+                dropUp
+              />
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-800 dark:text-[#CBD5E1] block">
-                  End
-                </label>
-                <CustomTimePicker
-                  value={endTimeVal}
-                  onChange={(newEndTime) => {
-                    setEndTime && setEndTime(`${activeBorrowDate}T${newEndTime}`);
-                  }}
-                  minuteStep={5}
-                  align="left"
-                  dropUp
-                />
-              </div>
+              <CustomTimePicker
+                label="End"
+                value={endTimeVal}
+                onChange={(newEndTime) => {
+                  setEndTime && setEndTime(`${activeBorrowDate}T${newEndTime}`);
+                }}
+                minuteStep={5}
+                align="left"
+                dropUp
+              />
 
               {endTimeVal <= startTimeVal && (
                 <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 rounded-2xl text-xs font-bold text-rose-800 dark:text-[#FCA5A5] flex items-center gap-2">
@@ -1312,122 +1307,56 @@ export default function Step2Equipment({
         </div>
       )}
 
-      {/* Kiosk Full-View Photo Lightbox Modal */}
+      {/* Smart Gesture Photo Zoom Overlay (Photo Zoom Only) */}
       {zoomedItem && (
-        <div 
-          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200"
+        <div
+          className="fixed inset-0 z-[99999] flex flex-col items-center justify-center p-4 sm:p-8 bg-slate-950/80 backdrop-blur-md cursor-zoom-out animate-in fade-in duration-200 select-none"
           onClick={() => setZoomedItem(null)}
         >
-          <div 
-            className="relative bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
+          {/* Subtle Floating Close Button */}
+          <button
+            type="button"
+            onClick={() => setZoomedItem(null)}
+            className="absolute top-4 right-4 sm:top-6 sm:right-6 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center backdrop-blur-md border border-white/20 transition-all cursor-pointer shadow-lg hover:scale-105 z-10"
+            title="Close (Esc)"
+            aria-label="Close photo preview"
           >
-            {/* Modal Header */}
-            <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3 shrink-0">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-black text-base sm:text-lg text-slate-900 dark:text-white truncate">
-                    {zoomedItem.name || zoomedItem.eq_name}
-                  </h3>
-                  {resolveBuiltInNames(zoomedItem, masterCatalog).length > 0 && (
-                    <span className="shrink-0 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                      <Package size={11} className="shrink-0" />
-                      Kit Package
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  <span>{zoomedItem.category || zoomedItem.eq_type || "Equipment"}</span>
-                  {zoomedItem.brand && (
-                    <>
-                      <span>•</span>
-                      <span>Brand: <strong className="text-slate-700 dark:text-slate-300">{zoomedItem.brand}</strong></span>
-                    </>
-                  )}
-                  {zoomedItem.model && (
-                    <>
-                      <span>•</span>
-                      <span>Model: <strong className="text-slate-700 dark:text-slate-300">{zoomedItem.model}</strong></span>
-                    </>
-                  )}
-                </div>
-              </div>
+            <X size={20} />
+          </button>
 
-              {/* Large Touch-friendly Close Button for Kiosk */}
-              <button
-                type="button"
-                onClick={() => setZoomedItem(null)}
-                className="w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center transition-colors cursor-pointer shrink-0 shadow-2xs"
-                aria-label="Close Preview"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Modal Body: Large High-Resolution Image */}
-            <div className="p-4 sm:p-6 overflow-y-auto flex-1 flex flex-col items-center justify-center bg-slate-50/70 dark:bg-slate-950/40 min-h-[280px]">
-              <div className="relative w-full max-h-[50vh] flex items-center justify-center rounded-2xl overflow-hidden bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-3 shadow-inner">
-                {(() => {
-                  const rawImg = zoomedItem?.avatar || zoomedItem?.photo || zoomedItem?.image || zoomedItem?.photo_url;
-                  if (!rawImg) {
-                    return (
-                      <div className="py-16 flex flex-col items-center justify-center text-slate-400">
-                        <PackageOpen size={48} className="mb-2 opacity-50" />
-                        <span className="text-xs font-bold">No High-Res Photo Available</span>
-                      </div>
-                    );
-                  }
-                  const resolved = resolveStorageUrl(rawImg) || rawImg;
-                  const srcUrl = resolved.startsWith("data:")
-                    ? resolved
-                    : `${resolved}${resolved.includes("?") ? "&" : "?"}v=${zoomedItem?.updated_at ? new Date(zoomedItem.updated_at).getTime() : "1"}`;
-                  return (
-                    <img 
-                      src={srcUrl} 
-                      alt={zoomedItem?.name || "Equipment"} 
-                      className="max-h-[46vh] w-auto max-w-full object-contain rounded-xl transition-all"
-                    />
-                  );
-                })()}
-              </div>
-
-              {/* Bundled Accessories list if kit */}
-              {(() => {
-                const builtIns = resolveBuiltInNames(zoomedItem, masterCatalog);
-                if (builtIns.length === 0) return null;
+          {/* Smart Gesture Zoom Image Container */}
+          <div
+            className="relative max-w-[92vw] max-h-[85vh] flex flex-col items-center justify-center animate-in zoom-in-75 duration-200 ease-out"
+            onClick={() => setZoomedItem(null)}
+          >
+            {(() => {
+              const rawImg = zoomedItem?.avatar || zoomedItem?.photo || zoomedItem?.image || zoomedItem?.photo_url;
+              if (!rawImg) {
                 return (
-                  <div className="mt-4 w-full p-3 rounded-2xl bg-blue-50/90 dark:bg-blue-950/50 border border-blue-200/80 dark:border-blue-900/60 text-xs">
-                    <div className="flex items-center gap-1.5 font-bold text-blue-900 dark:text-blue-200 mb-1.5">
-                      <Package size={13} className="text-blue-600 dark:text-blue-400" />
-                      <span>Kit Bundled Components ({builtIns.length}):</span>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {builtIns.map((bName, idx) => (
-                        <span 
-                          key={idx}
-                          className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-semibold border border-blue-200 dark:border-blue-900/50 shadow-2xs text-[11px]"
-                        >
-                          {bName}
-                        </span>
-                      ))}
-                    </div>
+                  <div className="p-8 bg-white/10 rounded-3xl backdrop-blur-md border border-white/15 flex flex-col items-center text-white">
+                    <PackageOpen size={48} className="mb-2 opacity-60" />
+                    <span className="text-xs font-semibold">No High-Res Photo Available</span>
                   </div>
                 );
-              })()}
-            </div>
+              }
+              const resolved = resolveStorageUrl(rawImg) || rawImg;
+              const srcUrl = resolved.startsWith("data:")
+                ? resolved
+                : `${resolved}${resolved.includes("?") ? "&" : "?"}v=${zoomedItem?.updated_at ? new Date(zoomedItem.updated_at).getTime() : "1"}`;
+              return (
+                <img
+                  src={srcUrl}
+                  alt={zoomedItem?.name || "Equipment"}
+                  className="max-h-[80vh] w-auto max-w-full object-contain rounded-2xl shadow-2xl drop-shadow-2xl cursor-zoom-out transition-transform duration-200 ease-out hover:scale-[1.01]"
+                />
+              );
+            })()}
 
-            {/* Modal Footer */}
-            <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3 shrink-0 bg-white dark:bg-slate-900">
-              <span className="text-xs text-slate-500 dark:text-slate-400">
-                Touch anywhere outside to dismiss
-              </span>
-              <button
-                type="button"
-                onClick={() => setZoomedItem(null)}
-                className="px-6 py-2.5 rounded-full border border-slate-200 dark:border-slate-700 bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer shadow-2xs"
-              >
-                Close Preview
-              </button>
+            {/* Minimalist Glassmorphic Caption Pill */}
+            <div className="mt-3.5 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/60 text-white text-xs font-medium backdrop-blur-md border border-white/15 shadow-xl pointer-events-none">
+              <span>{zoomedItem.name || zoomedItem.eq_name}</span>
+              <span className="text-white/40">•</span>
+              <span className="text-white/70 text-[11px]">Click anywhere to dismiss</span>
             </div>
           </div>
         </div>

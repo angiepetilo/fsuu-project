@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, lazy, Suspense } from "react";
 import { useOutletContext, useLocation } from "react-router-dom";
-import { AlertCircle } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import api from "@/lib/axios";
@@ -191,8 +191,8 @@ export default function Dashboard() {
   if (!isSuperAdmin && !hasPermission("dashboard") && !hasSpecificSubPermission) {
     return (
       <div className="p-8 max-w-md mx-auto text-center space-y-3 mt-12 bg-card rounded-3xl border border-border shadow-xs">
-        <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto">
-          <AlertCircle size={24} />
+        <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 flex items-center justify-center mx-auto">
+          <AlertTriangle size={24} />
         </div>
         <h3 className="text-sm font-extrabold text-foreground">Access Restricted</h3>
         <p className="text-xs text-muted-foreground font-medium">

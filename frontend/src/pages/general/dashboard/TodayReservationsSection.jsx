@@ -140,7 +140,7 @@ export default function TodayReservationsSection({
       return (
         <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-600 dark:text-slate-400">
           <span>Completed</span>
-          <span className="text-[10px] text-rose-600 dark:text-rose-400 font-semibold">(Damaged)</span>
+          <span className="text-[11px] text-rose-600 dark:text-rose-400 font-semibold">(Damaged)</span>
         </span>
       );
     }
@@ -148,7 +148,7 @@ export default function TodayReservationsSection({
       return (
         <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-600 dark:text-slate-400">
           <span>Completed</span>
-          <span className="text-[10px] text-rose-600 dark:text-rose-400 font-semibold">(Lost)</span>
+          <span className="text-[11px] text-rose-600 dark:text-rose-400 font-semibold">(Lost)</span>
         </span>
       );
     }
@@ -156,7 +156,7 @@ export default function TodayReservationsSection({
       return (
         <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-600 dark:text-slate-400">
           <span>Completed</span>
-          <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">(Late)</span>
+          <span className="text-[11px] text-amber-700 dark:text-amber-400 font-semibold">(Late)</span>
         </span>
       );
     }
@@ -175,7 +175,7 @@ export default function TodayReservationsSection({
       );
     }
     return (
-      <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400">
+      <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400">
         Pending
       </span>
     );
@@ -185,20 +185,20 @@ export default function TodayReservationsSection({
     const c = (classification || "student").toLowerCase();
     if (c === "faculty") {
       return (
-        <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">
+        <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400">
           Faculty
         </span>
       );
     }
     if (c === "external" || c === "external user") {
       return (
-        <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+        <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
           External
         </span>
       );
     }
     return (
-      <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400">
+      <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400">
         Student
       </span>
     );
@@ -312,7 +312,7 @@ export default function TodayReservationsSection({
         <div className="overflow-x-auto mt-3 rounded-xl border border-border bg-card">
           <table className="w-full text-xs text-left">
             <thead>
-              <tr className="border-b border-border bg-muted/30 text-left text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-wider sticky top-0 z-10">
+              <tr className="border-b border-border bg-muted/30 text-left text-[11px] font-mono font-bold text-muted-foreground uppercase tracking-wider sticky top-0 z-10">
                 <th className="py-2.5 px-3">REQUESTOR</th>
                 <th className="py-2.5 px-3">TRACKING NO.</th>
                 <th className="py-2.5 px-3">FACILITY / ITEM</th>
@@ -382,7 +382,7 @@ export default function TodayReservationsSection({
                         <div className="font-bold text-foreground text-xs">{filer}</div>
                         <div className="flex items-center gap-1.5 mt-0.5">
                           {getClassificationBadge(classification)}
-                          <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">{dept}</span>
+                          <span className="text-[11px] text-muted-foreground truncate max-w-[120px]">{dept}</span>
                         </div>
                       </td>
                       <td className="py-2.5 px-3 font-mono font-bold text-xs text-foreground whitespace-nowrap">
@@ -396,7 +396,7 @@ export default function TodayReservationsSection({
                       </td>
                       <td className="py-2.5 px-3">
                         <div className="font-semibold text-foreground text-xs truncate max-w-[160px]">{facilityOrItem}</div>
-                        <span className={`text-[10px] font-bold ${
+                        <span className={`text-[11px] font-bold ${
                           isVenue ? "text-blue-600 dark:text-blue-400" : "text-emerald-600 dark:text-emerald-400"
                         }`}>
                           {isVenue ? "Venue" : "Equipment"}

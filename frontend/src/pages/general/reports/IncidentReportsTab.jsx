@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Layers, Filter, ExternalLink } from "lucide-react";
+import { ChevronLeft, ChevronRight, Layers, Filter, ExternalLink, X } from "lucide-react";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
 import { formatDate } from "@/lib/dateUtils";
@@ -378,7 +378,7 @@ export default function IncidentReportsTab({
           <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800 w-fit">
             {label}
           </span>
-          {unitSummary && <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">{unitSummary}</span>}
+          {unitSummary && <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">{unitSummary}</span>}
         </div>
       );
     }
@@ -390,7 +390,7 @@ export default function IncidentReportsTab({
           <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800 w-fit">
             {label}
           </span>
-          {unitSummary && <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">{unitSummary}</span>}
+          {unitSummary && <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">{unitSummary}</span>}
         </div>
       );
     }
@@ -544,7 +544,7 @@ export default function IncidentReportsTab({
                         <span className="font-bold text-slate-900 dark:text-white block text-xs">
                           {formatDate(item.inspected_at || item.created_at)}
                         </span>
-                        <span className="text-[10px] text-slate-400 font-medium">
+                        <span className="text-[11px] text-slate-400 font-medium">
                           {new Date(item.inspected_at || item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </td>
@@ -561,7 +561,7 @@ export default function IncidentReportsTab({
                           {item.target_name || "General Facility / Item"}
                         </span>
                         {item.target_filer && (
-                          <span className="text-[10px] text-slate-400 font-medium block truncate">
+                          <span className="text-[11px] text-slate-400 font-medium block truncate">
                             by {item.target_filer}
                           </span>
                         )}
@@ -647,12 +647,12 @@ export default function IncidentReportsTab({
 
       {/* ── WRITE / FILE NEW REPORT MODAL (Side-by-Side Design, Plain Text, Flat Design, No Icons) ── */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4 overflow-y-auto">
+        <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 z-50 bg-slate-950/50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 max-w-4xl w-full p-6 space-y-5 my-8">
             {/* Header (No Icon, Flat Design) */}
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                <h3 className="modal-title text-base font-bold text-slate-900 dark:text-white">
                   File Incident, Damage, or Inspection Report
                 </h3>
                 <p className="text-xs text-slate-500 font-normal mt-0.5">
@@ -664,7 +664,7 @@ export default function IncidentReportsTab({
                 onClick={() => setShowCreateModal(false)}
                 className="text-slate-400 hover:text-slate-700 dark:hover:text-white text-base font-bold px-2 py-1 cursor-pointer"
               >
-                ✕
+                <X size={18} />
               </button>
             </div>
 
@@ -781,7 +781,7 @@ export default function IncidentReportsTab({
                             {/* Side-by-side: Auto displayed current condition & Report condition */}
                             <div className="grid grid-cols-2 gap-2 pt-1 items-center">
                               <div>
-                                <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
+                                <span className="text-[11px] font-bold text-slate-400 uppercase block mb-1">
                                   Current Status
                                 </span>
                                 <div className="px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300">
@@ -789,7 +789,7 @@ export default function IncidentReportsTab({
                                 </div>
                               </div>
                               <div>
-                                <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
+                                <span className="text-[11px] font-bold text-slate-400 uppercase block mb-1">
                                   Report Condition
                                 </span>
                                 <select
@@ -937,7 +937,7 @@ export default function IncidentReportsTab({
                             <button
                               type="button"
                               onClick={() => handleRemovePhoto(i)}
-                              className="absolute inset-0 bg-slate-950/70 text-white text-[10px] font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                              className="absolute inset-0 bg-slate-950/70 text-white text-[11px] font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                             >
                               Remove
                             </button>
@@ -973,14 +973,14 @@ export default function IncidentReportsTab({
 
       {/* View Full Report Details Modal (Flat Design, Plain Text, No Icons) */}
       {selectedReport && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
+        <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 z-50 bg-slate-950/50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 max-w-lg w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <div>
-                <span className="text-[10px] font-mono font-bold text-blue-600 uppercase">
+                <span className="text-[11px] font-mono font-bold text-blue-600 uppercase">
                   {selectedReport.target_code || `REP-${selectedReport.id}`}
                 </span>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                <h3 className="modal-title text-base font-bold text-slate-900 dark:text-white">
                   {selectedReport.target_name || "Inspection Report"}
                 </h3>
               </div>
@@ -989,32 +989,32 @@ export default function IncidentReportsTab({
                 onClick={() => setSelectedReport(null)}
                 className="text-slate-400 hover:text-slate-700 dark:hover:text-white text-base font-bold px-2 py-1 cursor-pointer"
               >
-                ✕
+                <X size={18} />
               </button>
             </div>
 
             <div className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-2 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Category</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase block">Category</span>
                   <span className="font-bold text-slate-800 dark:text-slate-100 capitalize">
                     {selectedReport.target_type?.replace('_', ' ')}
                   </span>
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Condition</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase block">Condition</span>
                   <span className="font-bold text-rose-600 dark:text-rose-400 capitalize">
                     {selectedReport.condition || "Good"}
                   </span>
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Reporter</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase block">Reporter</span>
                   <span className="font-bold text-slate-800 dark:text-slate-100">
                     {selectedReport.inspected_by_name || "Staff"}
                   </span>
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Date & Time</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase block">Date & Time</span>
                   <span className="font-bold text-slate-800 dark:text-slate-100">
                     {formatDate(selectedReport.inspected_at || selectedReport.created_at)}
                   </span>
@@ -1022,7 +1022,7 @@ export default function IncidentReportsTab({
               </div>
 
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Notes</span>
+                <span className="text-[11px] font-bold text-slate-400 uppercase block mb-1">Notes</span>
                 <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium whitespace-pre-wrap leading-relaxed">
                   {selectedReport.notes || "No notes recorded."}
                 </div>
@@ -1030,7 +1030,7 @@ export default function IncidentReportsTab({
 
               {selectedReport.evidence_photos && selectedReport.evidence_photos.length > 0 && (
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1.5">Evidence Photos</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase block mb-1.5">Evidence Photos</span>
                   <div className="flex flex-wrap gap-2">
                     {selectedReport.evidence_photos.map((src, idx) => (
                       <button

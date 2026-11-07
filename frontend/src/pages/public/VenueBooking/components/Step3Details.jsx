@@ -1,5 +1,8 @@
 import { FileText, CheckCircle2, FileCheck, ShieldAlert, Check, ShieldCheck, AlertCircle, RefreshCw, KeyRound, Loader2, Edit3, Lock, Mail, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { FloatingInput } from "@/components/ui/FloatingInput";
+import { FloatingTextarea } from "@/components/ui/FloatingTextarea";
+import { FloatingSelect } from "@/components/ui/FloatingSelect";
 import { useState, useEffect } from "react";
 import { formatDateRange } from "@/lib/dateUtils";
 import api from "@/lib/axios";
@@ -435,10 +438,9 @@ export default function Step3Details({
 
         {/* COMMON REQUIRED FIELDS: Structured Name Inputs (First Name, Middle Name, Last Name, Suffix) */}
         <div className="col-span-1 sm:col-span-2 grid grid-cols-1 sm:grid-cols-4 gap-3">
-          <div className="flex flex-col gap-1.5 sm:col-span-1">
-            <label className="text-xs font-bold text-slate-900 dark:text-white">First Name <span className="text-red-500">*</span></label>
-            <input
-              type="text"
+          <div className="sm:col-span-1">
+            <FloatingInput
+              label="First Name"
               required
               value={firstName}
               onChange={e => {
@@ -450,14 +452,13 @@ export default function Step3Details({
                 }
               }}
               placeholder="e.g. Juan"
-              className="w-full p-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all"
             />
           </div>
 
-          <div className="flex flex-col gap-1.5 sm:col-span-1">
-            <label className="text-xs font-bold text-slate-900 dark:text-white">Middle Name <span className="text-slate-400 dark:text-slate-500 font-normal">(Optional)</span></label>
-            <input
-              type="text"
+          <div className="sm:col-span-1">
+            <FloatingInput
+              label="Middle Name"
+              optional
               value={middleName}
               onChange={e => {
                 const val = e.target.value;
@@ -468,14 +469,12 @@ export default function Step3Details({
                 }
               }}
               placeholder="e.g. Santos"
-              className="w-full p-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all"
             />
           </div>
 
-          <div className="flex flex-col gap-1.5 sm:col-span-1">
-            <label className="text-xs font-bold text-slate-900 dark:text-white">Last Name <span className="text-red-500">*</span></label>
-            <input
-              type="text"
+          <div className="sm:col-span-1">
+            <FloatingInput
+              label="Last Name"
               required
               value={lastName}
               onChange={e => {
@@ -487,14 +486,13 @@ export default function Step3Details({
                 }
               }}
               placeholder="e.g. Dela Cruz"
-              className="w-full p-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all"
             />
           </div>
 
-          <div className="flex flex-col gap-1.5 sm:col-span-1">
-            <label className="text-xs font-bold text-slate-900 dark:text-white">Suffix <span className="text-slate-400 dark:text-slate-500 font-normal">(Optional)</span></label>
-            <input
-              type="text"
+          <div className="sm:col-span-1">
+            <FloatingInput
+              label="Suffix"
+              optional
               value={suffix}
               onChange={e => {
                 const val = e.target.value;
@@ -505,7 +503,6 @@ export default function Step3Details({
                 }
               }}
               placeholder="e.g. Jr., III"
-              className="w-full p-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all"
             />
           </div>
         </div>
@@ -569,102 +566,81 @@ export default function Step3Details({
 
         {/* EMAIL FIELD WITH INLINE DOMAIN CHECK & ATTACHED OTP VERIFY BUTTON */}
         <div className="flex flex-col gap-1.5 sm:col-span-1">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-slate-900 dark:text-white">
-              Email Address <span className="text-red-500">*</span>
-            </label>
-            {requireVerification && isEmailVerified && otpChannel === "email" ? (
-              <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-md">
-                <Check size={12} className="stroke-[3]" />
-                Verified via Email
-              </span>
-            ) : requireVerification && isEmailVerified ? (
-              <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-md">
-                <Check size={12} className="stroke-[3]" />
-                Verified
-              </span>
-            ) : requireVerification && otpChannel === "email" && emailCheckStatus === "valid" ? (
-              <span className="text-[10.5px] font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1">
-                <Check size={12} />
-                Domain Active
-              </span>
-            ) : null}
-          </div>
-
-          <div className="relative flex items-center">
-            <input
-              type="email"
-              required
-              readOnly={requireVerification && isEmailVerified && otpChannel === "email"}
-              value={email}
-              onChange={handleEmailChange}
-              onBlur={handleEmailBlur}
-              placeholder="email address"
-              className={`w-full p-3 ${requireVerification && otpChannel === "email" ? 'pr-24' : ''} border rounded-xl text-sm transition-all focus:outline-none ${(requireVerification && isEmailVerified && otpChannel === "email")
-                ? "bg-emerald-50/40 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-700 text-slate-800 dark:text-emerald-300 font-semibold cursor-not-allowed"
-                : (requireVerification && otpChannel === "email" && emailCheckStatus === "invalid")
-                  ? "bg-white dark:bg-slate-900/80 border-rose-300 dark:border-rose-700 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                  : (requireVerification && otpChannel === "email" && emailCheckStatus === "valid")
-                    ? "bg-white dark:bg-slate-900/80 border-blue-400 dark:border-blue-700 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                    : "bg-white dark:bg-slate-900/80 border-slate-200 dark:border-slate-700 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                }`}
-            />
-
-            {/* Attached Action Button inside field (Only when channel is email and verification is required) */}
-            {requireVerification && otpChannel === "email" && (
-              <div className="absolute right-1.5 flex items-center gap-1">
-                {isEmailVerified ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (setIsEmailVerified) setIsEmailVerified(false);
-                      setIsOtpRequested(false);
-                      setOtpCode("");
-                      setEmailCheckStatus("idle");
-                      setEmailCheckMessage("");
-                    }}
-                    className="px-2.5 py-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-bold text-slate-600 dark:text-slate-300 transition-colors shadow-2xs cursor-pointer flex items-center gap-1"
-                    title="Unlock and change email address"
-                  >
-                    <Edit3 size={11} />
-                    Change
-                  </button>
-                ) : (
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled={
-                      isSendingOtp ||
-                      !email ||
-                      !email.trim() ||
-                      emailCheckStatus !== "valid" ||
-                      (isOtpRequested && (otpCooldown > 0 || otpResendsLeft <= 0))
-                    }
-                    onClick={() => handleRequestOtp("email")}
-                    className={`h-8 px-3 rounded-lg text-xs font-black shadow-xs transition-all ${!email || !email.trim() || emailCheckStatus !== "valid" || (isOtpRequested && (otpCooldown > 0 || otpResendsLeft <= 0))
-                      ? "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 cursor-not-allowed opacity-60"
-                      : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white shadow-blue-600/20 active:scale-95 cursor-pointer"
-                      }`}
-                  >
-                    {isSendingOtp ? (
-                      <span className="flex items-center gap-1">
-                        <Loader2 size={12} className="animate-spin" />
-                        Sending...
-                      </span>
-                    ) : isOtpRequested ? (
-                      otpCooldown > 0
-                        ? `Wait ${otpCooldown}s`
-                        : otpResendsLeft <= 0
-                        ? "Limit Reached"
-                        : `Resend (${otpResendsLeft})`
-                    ) : (
-                      "Verify"
-                    )}
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
+          <FloatingInput
+            label="Email Address"
+            required
+            type="email"
+            value={email}
+            onChange={handleEmailChange}
+            onBlur={handleEmailBlur}
+            readOnly={requireVerification && isEmailVerified && otpChannel === "email"}
+            leftIcon={<Mail size={16} />}
+            placeholder="email address"
+            error={emailCheckStatus === "invalid" ? emailCheckMessage : undefined}
+            containerClassName={
+              requireVerification && isEmailVerified && otpChannel === "email"
+                ? "bg-emerald-50/40 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-700"
+                : undefined
+            }
+            rightAction={
+              requireVerification && otpChannel === "email" ? (
+                <div className="flex items-center gap-1">
+                  {isEmailVerified ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (setIsEmailVerified) setIsEmailVerified(false);
+                        setIsOtpRequested(false);
+                        setOtpCode("");
+                        setEmailCheckStatus("idle");
+                        setEmailCheckMessage("");
+                      }}
+                      className="px-2.5 py-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-bold text-slate-600 dark:text-slate-300 transition-colors shadow-2xs cursor-pointer flex items-center gap-1"
+                      title="Unlock and change email address"
+                    >
+                      <Edit3 size={11} />
+                      Change
+                    </button>
+                  ) : (
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={
+                        isSendingOtp ||
+                        !email ||
+                        !email.trim() ||
+                        emailCheckStatus !== "valid" ||
+                        (isOtpRequested && (otpCooldown > 0 || otpResendsLeft <= 0))
+                      }
+                      onClick={() => handleRequestOtp("email")}
+                      className={`h-8 px-3 rounded-lg text-xs font-black shadow-xs transition-all ${!email ||
+                          !email.trim() ||
+                          emailCheckStatus !== "valid" ||
+                          (isOtpRequested && (otpCooldown > 0 || otpResendsLeft <= 0))
+                          ? "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 cursor-not-allowed opacity-60"
+                          : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white shadow-blue-600/20 active:scale-95 cursor-pointer"
+                        }`}
+                    >
+                      {isSendingOtp ? (
+                        <span className="flex items-center gap-1">
+                          <Loader2 size={12} className="animate-spin" />
+                          Sending...
+                        </span>
+                      ) : isOtpRequested ? (
+                        otpCooldown > 0
+                          ? `Wait ${otpCooldown}s`
+                          : otpResendsLeft <= 0
+                            ? "Limit Reached"
+                            : `Resend (${otpResendsLeft})`
+                      ) : (
+                        "Verify"
+                      )}
+                    </Button>
+                  )}
+                </div>
+              ) : null
+            }
+          />
 
           {/* Inline Domain & Deliverability Feedback below placeholder */}
           {!isEmailVerified && (emailCheckStatus !== "idle" || (requireVerification && otpChannel === "email")) && (
@@ -824,104 +800,88 @@ export default function Step3Details({
 
         {/* CONTACT NUMBER FIELD WITH OPTIONAL SMS OTP VERIFICATION */}
         <div className="flex flex-col gap-1.5 sm:col-span-1">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-slate-900 dark:text-white">
-              Contact Number <span className="text-red-500">*</span>
-            </label>
-            <div className="flex items-center gap-1.5">
-              {requireVerification && isEmailVerified && otpChannel === "sms" ? (
-                <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-md">
-                  <Check size={12} className="stroke-[3]" />
-                  Verified via SMS
-                </span>
-              ) : contactNumber && contactNumber.length >= 4 && !phoneInfo.isValid ? (
-                <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">
-                  {phoneInfo.message}
-                </span>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="relative flex items-center">
-            <input
-              type="tel"
-              required
-              readOnly={requireVerification && isEmailVerified && otpChannel === "sms"}
-              value={contactNumber}
-              onChange={(e) => {
-                handleContactChange(e);
-                if (isEmailVerified && otpChannel === "sms" && setIsEmailVerified) {
-                  setIsEmailVerified(false);
-                }
-                if (isOtpRequested && otpChannel === "sms") {
-                  setIsOtpRequested(false);
-                  setOtpCode("");
-                  setOtpError("");
-                  setOtpSuccess("");
-                }
-              }}
-              pattern="[0-9]{11}"
-              title="Please enter an active 11-digit Philippine mobile number"
-              placeholder="0917 123 4567"
-              className={`w-full p-3 ${requireVerification && otpChannel === "sms" ? 'pr-24' : ''} border rounded-xl text-sm font-mono transition-all focus:outline-none ${(requireVerification && isEmailVerified && otpChannel === "sms")
-                ? "bg-emerald-50/40 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-700 text-slate-800 dark:text-emerald-300 font-semibold cursor-not-allowed"
-                : "bg-white dark:bg-slate-900/80 border-slate-200 dark:border-slate-700 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                }`}
-            />
-
-            {/* Attached Action Button for SMS verification */}
-            {requireVerification && otpChannel === "sms" && (
-              <div className="absolute right-1.5 flex items-center gap-1">
-                {isEmailVerified ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (setIsEmailVerified) setIsEmailVerified(false);
-                      setIsOtpRequested(false);
-                      setOtpCode("");
-                      setOtpError("");
-                      setOtpSuccess("");
-                    }}
-                    className="px-2.5 py-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-bold text-slate-600 dark:text-slate-300 transition-colors shadow-2xs cursor-pointer flex items-center gap-1"
-                    title="Unlock and change mobile number"
-                  >
-                    <Edit3 size={11} />
-                    Change
-                  </button>
-                ) : (
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled={
-                      !phoneInfo.isValid ||
-                      isSendingOtp ||
-                      (isOtpRequested && (otpCooldown > 0 || otpResendsLeft <= 0))
-                    }
-                    onClick={() => handleRequestOtp("sms")}
-                    className={`h-8 px-3 rounded-lg text-xs font-black shadow-xs transition-all cursor-pointer ${phoneInfo.isValid && (!isOtpRequested || (otpCooldown === 0 && otpResendsLeft > 0))
-                      ? "bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white shadow-blue-600/20"
-                      : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 cursor-not-allowed shadow-none"
-                      }`}
-                  >
-                    {isSendingOtp ? (
-                      <span className="flex items-center gap-1">
-                        <Loader2 size={12} className="animate-spin" />
-                        Sending...
-                      </span>
-                    ) : isOtpRequested ? (
-                      otpCooldown > 0
-                        ? `Wait ${otpCooldown}s`
-                        : otpResendsLeft <= 0
-                        ? "Limit Reached"
-                        : `Resend (${otpResendsLeft})`
-                    ) : (
-                      "Verify SMS"
-                    )}
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
+          <FloatingInput
+            label="Contact Number"
+            required
+            type="tel"
+            value={contactNumber}
+            onChange={(e) => {
+              handleContactChange(e);
+              if (isEmailVerified && otpChannel === "sms" && setIsEmailVerified) {
+                setIsEmailVerified(false);
+              }
+              if (isOtpRequested && otpChannel === "sms") {
+                setIsOtpRequested(false);
+                setOtpCode("");
+                setOtpError("");
+                setOtpSuccess("");
+              }
+            }}
+            pattern="[0-9]{11}"
+            title="Please enter an active 11-digit Philippine mobile number"
+            placeholder="0917 123 4567"
+            leftIcon={<Phone size={16} />}
+            readOnly={requireVerification && isEmailVerified && otpChannel === "sms"}
+            error={contactNumber && contactNumber.length >= 4 && !phoneInfo.isValid ? phoneInfo.message : undefined}
+            containerClassName={
+              requireVerification && isEmailVerified && otpChannel === "sms"
+                ? "bg-emerald-50/40 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-700"
+                : undefined
+            }
+            rightAction={
+              requireVerification && otpChannel === "sms" ? (
+                <div className="flex items-center gap-1">
+                  {isEmailVerified ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (setIsEmailVerified) setIsEmailVerified(false);
+                        setIsOtpRequested(false);
+                        setOtpCode("");
+                        setOtpError("");
+                        setOtpSuccess("");
+                      }}
+                      className="px-2.5 py-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-bold text-slate-600 dark:text-slate-300 transition-colors shadow-2xs cursor-pointer flex items-center gap-1"
+                      title="Unlock and change mobile number"
+                    >
+                      <Edit3 size={11} />
+                      Change
+                    </button>
+                  ) : (
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={
+                        !phoneInfo.isValid ||
+                        isSendingOtp ||
+                        (isOtpRequested && (otpCooldown > 0 || otpResendsLeft <= 0))
+                      }
+                      onClick={() => handleRequestOtp("sms")}
+                      className={`h-8 px-3 rounded-lg text-xs font-black shadow-xs transition-all cursor-pointer ${phoneInfo.isValid && (!isOtpRequested || (otpCooldown === 0 && otpResendsLeft > 0))
+                          ? "bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white shadow-blue-600/20"
+                          : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 cursor-not-allowed shadow-none"
+                        }`}
+                    >
+                      {isSendingOtp ? (
+                        <span className="flex items-center gap-1">
+                          <Loader2 size={12} className="animate-spin" />
+                          Sending...
+                        </span>
+                      ) : isOtpRequested ? (
+                        otpCooldown > 0
+                          ? `Wait ${otpCooldown}s`
+                          : otpResendsLeft <= 0
+                            ? "Limit Reached"
+                            : `Resend (${otpResendsLeft})`
+                      ) : (
+                        "Verify SMS"
+                      )}
+                    </Button>
+                  )}
+                </div>
+              ) : null
+            }
+          />
 
           {/* SMS Duplicate / Error Banner */}
           {requireVerification && otpChannel === "sms" && otpError && !isOtpRequested && (
@@ -1036,21 +996,22 @@ export default function Step3Details({
 
         {/* DEPARTMENT */}
         <div className="flex flex-col gap-1.5 sm:col-span-1">
-          <label className="text-xs font-bold text-slate-900 dark:text-white">
-            {isExternal ? "Office / Organization" : "Department"} <span className="text-red-500">*</span>
-          </label>
           {isExternal ? (
-            <input
-              type="text"
+            <FloatingInput
+              label="Office / Organization"
               required
               value={department}
               onChange={e => setDepartment(e.target.value)}
               placeholder="e.g. DepEd / LGU Butuan / Partner Company"
-              className="w-full p-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all font-semibold"
             />
           ) : (
-            <select required value={department} onChange={e => setDepartment(e.target.value)} className="w-full p-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all font-semibold">
-              <option value="" className="dark:bg-slate-900 dark:text-white">Select Department...</option>
+            <FloatingSelect
+              label="Department"
+              required
+              value={department}
+              onChange={e => setDepartment(e.target.value)}
+              placeholder="Select Department..."
+            >
               {(() => {
                 const defaultDepts = [
                   { code: "CITE", name: "College of Information Tech Education (CITE)" },
@@ -1076,259 +1037,256 @@ export default function Step3Details({
                   );
                 });
               })()}
-            </select>
+            </FloatingSelect>
           )}
         </div>
 
         {/* BOOKING CLASSIFICATION (SIDE BY SIDE WITH DEPARTMENT) */}
         <div className="flex flex-col gap-1.5 sm:col-span-1">
-          <label className="text-xs font-bold text-slate-900 dark:text-white">
-            Booking Classification <span className="text-red-500">*</span>
-          </label>
-          <select
+          <FloatingSelect
+            label="Booking Classification"
             required
             value={classification}
             onChange={e => setClassification(e.target.value)}
-            className="w-full p-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all font-semibold"
+            placeholder="Select Classification..."
           >
-            <option value="" className="dark:bg-slate-900 dark:text-white">Select Classification...</option>
             <option value="organization" className="dark:bg-slate-900 dark:text-white">Student Organization Event</option>
             <option value="academic" className="dark:bg-slate-900 dark:text-white">Academic Class</option>
             <option value="admin" className="dark:bg-slate-900 dark:text-white">Administrative Meeting</option>
-          </select>
+          </FloatingSelect>
         </div>
 
         {/* FORM SPECIFIC FIELDS */}
         <>
-            {/* Endorsement Letter Notice Based on Booking Classification */}
-            {classification && (
-              <div className="sm:col-span-2 p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-xl text-xs font-semibold text-amber-900 dark:text-amber-200 animate-in fade-in">
-                {classification === "organization" && (
-                  <span><strong>Mandatory Endorsement:</strong> Formal request letter signed and endorsed by the <strong>Director of OISAA</strong>.</span>
-                )}
-                {classification === "academic" && (
-                  <span><strong>Mandatory Endorsement:</strong> Formal request letter signed and endorsed by the <strong>OVPASA</strong>.</span>
-                )}
-                {classification === "admin" && (
-                  <span><strong>Mandatory Endorsement:</strong> Formal request letter signed and endorsed by the <strong>Office / Department Head</strong>.</span>
-                )}
-              </div>
-            )}
-
-            <div className="flex flex-col gap-1.5 sm:col-span-2">
-              <label className="text-xs font-bold text-slate-900 dark:text-white">
-                Expected Person Count <span className="text-red-500">*</span>
-                {(selectedVenue?.min_capacity || selectedVenue?.max_capacity || selectedVenue?.capacity) && (
-                  <span className="text-slate-500 dark:text-slate-400 font-normal ml-1">
-                    (Min {selectedVenue.min_capacity || 1} • Max {selectedVenue.max_capacity || selectedVenue.capacity} persons)
-                  </span>
-                )}
-              </label>
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                required
-                value={persons}
-                onKeyDown={(e) => {
-                  if (["e", "E", "+", "-", "."].includes(e.key)) {
-                    e.preventDefault();
-                  }
-                }}
-                onChange={e => {
-                  const cleaned = e.target.value.replace(/\D/g, "");
-                  const maxCap = selectedVenue?.max_capacity || selectedVenue?.capacity;
-                  if (cleaned && maxCap && parseInt(cleaned, 10) > maxCap) {
-                    setPersons(maxCap.toString());
-                  } else {
-                    setPersons(cleaned);
-                  }
-                }}
-                placeholder={`e.g. ${Math.min(75, selectedVenue?.max_capacity || selectedVenue?.capacity || 75)}`}
-                className="w-full p-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all font-mono"
-              />
-              {persons && selectedVenue?.min_capacity && parseInt(persons, 10) < selectedVenue.min_capacity && (
-                <p className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
-                  ⚠️ Minimum capacity for this venue is {selectedVenue.min_capacity} persons.
-                </p>
+          {/* Endorsement Letter Notice Based on Booking Classification */}
+          {classification && (
+            <div className="sm:col-span-2 p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-xl text-xs font-semibold text-amber-900 dark:text-amber-200 animate-in fade-in">
+              {classification === "organization" && (
+                <span><strong>Mandatory Endorsement:</strong> Formal request letter signed and endorsed by the <strong>Director of OISAA</strong>.</span>
+              )}
+              {classification === "academic" && (
+                <span><strong>Mandatory Endorsement:</strong> Formal request letter signed and endorsed by the <strong>OVPASA</strong>.</span>
+              )}
+              {classification === "admin" && (
+                <span><strong>Mandatory Endorsement:</strong> Formal request letter signed and endorsed by the <strong>Office / Department Head</strong>.</span>
               )}
             </div>
+          )}
 
-            <div className="sm:col-span-2 flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-900 dark:text-white">Event Purpose & Brief Summary <span className="text-red-500">*</span></label>
-              <textarea rows="3" required value={purpose} onChange={e => setPurpose(e.target.value)} placeholder="State event title, nature of activity, and specific requirements..." className="w-full p-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl text-sm focus:outline-none focus:border-blue-600"></textarea>
-            </div>
+          <div className="sm:col-span-2">
+            <FloatingInput
+              label="Expected Person Count"
+              required
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={persons}
+              onKeyDown={(e) => {
+                if (["e", "E", "+", "-", "."].includes(e.key)) {
+                  e.preventDefault();
+                }
+              }}
+              onChange={e => {
+                const cleaned = e.target.value.replace(/\D/g, "");
+                const maxCap = selectedVenue?.max_capacity || selectedVenue?.capacity;
+                if (cleaned && maxCap && parseInt(cleaned, 10) > maxCap) {
+                  setPersons(maxCap.toString());
+                } else {
+                  setPersons(cleaned);
+                }
+              }}
+              placeholder={`e.g. ${Math.min(75, selectedVenue?.max_capacity || selectedVenue?.capacity || 75)}`}
+              helperText={
+                persons && selectedVenue?.min_capacity && parseInt(persons, 10) < selectedVenue.min_capacity
+                  ? `⚠️ Minimum capacity for this venue is ${selectedVenue.min_capacity} persons.`
+                  : (selectedVenue?.min_capacity || selectedVenue?.max_capacity || selectedVenue?.capacity)
+                    ? `Min ${selectedVenue.min_capacity || 1} • Max ${selectedVenue.max_capacity || selectedVenue.capacity} persons`
+                    : undefined
+              }
+            />
+          </div>
 
-            <div className="sm:col-span-2 flex flex-col gap-2.5 bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-slate-900 dark:text-white">
-                  Allowed Venue Equipment <span className="text-slate-500 dark:text-slate-400 font-semibold text-[11px]">(Optional)</span>
-                </label>
-              </div>
+          <div className="sm:col-span-2">
+            <FloatingTextarea
+              label="Event Purpose & Brief Summary"
+              required
+              rows={3}
+              value={purpose}
+              onChange={e => setPurpose(e.target.value)}
+              placeholder="State event title, nature of activity, and specific requirements..."
+            />
+          </div>
 
-              {/* Informative Notice Banner for Venue Requisitions */}
-              <div className="p-2.5 rounded-xl bg-blue-50/80 dark:bg-slate-900/80 border border-blue-200 dark:border-blue-900/50 text-[11px] text-blue-900 dark:text-slate-300 leading-relaxed">
-                ℹ️ <strong className="text-blue-950 dark:text-white">Event Setup Priority:</strong> Requested equipment is secured upon booking approval and prepared inside the venue by AVR staff on your event date.
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 text-xs pt-1">
-                {(() => {
-                  if (loadingEquipment && equipmentCatalog.length === 0) {
-                    return Array.from({ length: 4 }).map((_, sIdx) => (
-                      <div
-                        key={`eq-skel-${sIdx}`}
-                        className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/80 animate-pulse"
-                      >
-                        <div className="w-4 h-4 rounded bg-slate-200 dark:bg-slate-800 shrink-0" />
-                        <div className="flex-1 space-y-1.5">
-                          <div className="h-3 w-20 bg-slate-200 dark:bg-slate-800 rounded" />
-                          <div className="h-2.5 w-14 bg-slate-100 dark:bg-slate-800/70 rounded" />
-                        </div>
-                      </div>
-                    ));
-                  }
-
-                  let baseCatalog = [];
-
-                  const rawAllowed = selectedVenue?.allowed_equipment;
-                  let allowedList = [];
-                  if (Array.isArray(rawAllowed)) {
-                    allowedList = rawAllowed;
-                  } else if (typeof rawAllowed === "string") {
-                    try { allowedList = JSON.parse(rawAllowed); } catch { allowedList = []; }
-                  }
-
-                  if (Array.isArray(allowedList) && allowedList.length > 0) {
-                    baseCatalog = equipmentCatalog.filter(e => {
-                      const eIdStr = String(e.id);
-                      const eNameLower = String(e.name || e.eq_name || "").trim().toLowerCase();
-                      return allowedList.some(a => {
-                        const aStr = String(a).trim();
-                        return aStr === eIdStr || (eNameLower && aStr.toLowerCase() === eNameLower) || (Number(a) > 0 && Number(a) === Number(e.id));
-                      });
-                    });
-                  } else {
-                    baseCatalog = [];
-                  }
-
-                  if (!baseCatalog || baseCatalog.length === 0) {
-                    return <div className="col-span-full text-slate-500 dark:text-slate-400 italic text-center py-4 bg-white dark:bg-slate-900/60 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">No equipment configured or available for this venue.</div>;
-                  }
-
-                  const catalogToRender = baseCatalog.map(e => ({
-                    id: e.id || e.eq_name || e.name,
-                    name: e.eq_name || e.name || e.category,
-                    available_count: e.available_count ?? e.available_quantity,
-                    total_quantity: e.total_quantity
-                  }));
-
-                  return catalogToRender.map((item, idx) => {
-                    const key = String(item.id || item.name || idx);
-                    const val = avrEquipment[key] || avrEquipment[item.name];
-
-                    // Determine real registered stock strictly from available column
-                    let realStock = 0;
-                    if (typeof item.available_count === "number") {
-                      realStock = item.available_count;
-                    } else if (typeof item.available_quantity === "number") {
-                      realStock = item.available_quantity;
-                    } else {
-                      realStock = 0;
-                    }
-
-                    // Check if venue has a specific Max Needed Qty configured for this equipment category
-                    const venueQtys = selectedVenue?.equipment_max_qtys || {};
-                    let venueCap = venueQtys[item.id] ?? venueQtys[String(item.id)] ?? venueQtys[item.name] ?? venueQtys[String(item.name || '').toLowerCase()];
-                    if (typeof venueCap === "string") venueCap = Number(venueCap);
-
-                    const effectiveMax = typeof venueCap === "number" && venueCap > 0
-                      ? Math.min(venueCap, realStock)
-                      : realStock;
-
-                    const isOutOfStock = effectiveMax <= 0 || realStock <= 0;
-                    const isChecked = Boolean(val) && !isOutOfStock;
-                    const qty = isOutOfStock ? 0 : Math.min(typeof val === "number" ? val : 1, Math.max(1, effectiveMax));
-
-                    return (
-                      <div
-                        key={`eq-cat-${item.id || key}-${idx}`}
-                        className={`flex items-center justify-between gap-2 p-2.5 rounded-xl border transition-all ${isOutOfStock
-                          ? "bg-slate-100/70 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800 opacity-60 text-slate-400 dark:text-slate-500"
-                          : isChecked
-                            ? "bg-blue-50/70 dark:bg-blue-950/40 border-blue-300 dark:border-blue-800 shadow-xs"
-                            : "bg-white dark:bg-slate-900/80 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700"
-                          }`}
-                      >
-                        <label className={`flex items-center gap-2 font-semibold flex-1 min-w-0 ${isOutOfStock ? "cursor-not-allowed text-slate-400 dark:text-slate-500" : "cursor-pointer text-slate-800 dark:text-slate-200"}`}>
-                          <input
-                            type="checkbox"
-                            disabled={isOutOfStock}
-                            checked={isChecked}
-                            onChange={(e) => {
-                              if (isOutOfStock) return;
-                              const checked = e.target.checked;
-                              setAvrEquipment({
-                                ...avrEquipment,
-                                [key]: checked ? 1 : false
-                              });
-                            }}
-                            className="rounded text-blue-600 focus:ring-blue-500 accent-blue-600 dark:accent-blue-500 w-4 h-4 cursor-pointer disabled:cursor-not-allowed"
-                          />
-                          <div className="flex flex-col min-w-0">
-                            <span className="truncate text-xs font-bold text-slate-900 dark:text-white">{item.name}</span>
-                            {!isOutOfStock && (
-                              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
-                                {effectiveMax} Available
-                              </span>
-                            )}
-                          </div>
-                        </label>
-
-                        {isOutOfStock ? (
-                          <span className="text-[10px] font-extrabold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/50 px-1.5 py-0.5 rounded-md shrink-0">
-                            Out of Stock
-                          </span>
-                        ) : isChecked && (
-                          <div className="flex items-center gap-1 shrink-0">
-                            <span className="text-[10px] font-extrabold text-blue-600 dark:text-blue-400">Qty:</span>
-                            <input
-                              type="number"
-                              min="1"
-                              max={effectiveMax}
-                              value={qty}
-                              onChange={(e) => {
-                                const inputVal = parseInt(e.target.value) || 1;
-                                const newQty = Math.min(Math.max(1, inputVal), effectiveMax);
-                                setAvrEquipment({ ...avrEquipment, [key]: newQty });
-                              }}
-                              className="w-11 py-0.5 px-1 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700/80 rounded-lg text-xs font-black text-center text-blue-900 dark:text-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                            />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  });
-                })()}
-              </div>
-            </div>
-
-            {/* Optional Equipment Needed Remarks */}
-            <div className="sm:col-span-2 space-y-1.5 pt-2">
-              <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">
-                Equipment-Needed Remarks <span className="text-slate-500 dark:text-slate-400 font-semibold text-[11px]">(Optional)</span>
+          <div className="sm:col-span-2 flex flex-col gap-2.5 bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-900 dark:text-white">
+                Allowed Venue Equipment <span className="text-slate-500 dark:text-slate-400 font-semibold text-[11px]">(Optional)</span>
               </label>
-              <textarea
-                rows={2}
-                value={equipmentRemarks || ""}
-                onChange={(e) => setEquipmentRemarks && setEquipmentRemarks(e.target.value)}
-                placeholder="Explain why you require more units than the venue's allowed limit (e.g., expected high attendee count, workshop breakout activities, extra speakers)..."
-                className="w-full p-3 bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-blue-600 shadow-2xs"
-              />
-              <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
-                Note: If your event requires more units than the venue's default limit, provide your justification here for AVR administrator review and special allocation.
-              </p>
             </div>
-          </>
+
+            {/* Informative Notice Banner for Venue Requisitions */}
+            <div className="p-2.5 rounded-xl bg-blue-50/80 dark:bg-slate-900/80 border border-blue-200 dark:border-blue-900/50 text-[11px] text-blue-900 dark:text-slate-300 leading-relaxed">
+              ℹ️ <strong className="text-blue-950 dark:text-white">Event Setup Priority:</strong> Requested equipment is secured upon booking approval and prepared inside the venue by AVR staff on your event date.
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 text-xs pt-1">
+              {(() => {
+                if (loadingEquipment && equipmentCatalog.length === 0) {
+                  return Array.from({ length: 4 }).map((_, sIdx) => (
+                    <div
+                      key={`eq-skel-${sIdx}`}
+                      className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/80 animate-pulse"
+                    >
+                      <div className="w-4 h-4 rounded bg-slate-200 dark:bg-slate-800 shrink-0" />
+                      <div className="flex-1 space-y-1.5">
+                        <div className="h-3 w-20 bg-slate-200 dark:bg-slate-800 rounded" />
+                        <div className="h-2.5 w-14 bg-slate-100 dark:bg-slate-800/70 rounded" />
+                      </div>
+                    </div>
+                  ));
+                }
+
+                let baseCatalog = [];
+
+                const rawAllowed = selectedVenue?.allowed_equipment;
+                let allowedList = [];
+                if (Array.isArray(rawAllowed)) {
+                  allowedList = rawAllowed;
+                } else if (typeof rawAllowed === "string") {
+                  try { allowedList = JSON.parse(rawAllowed); } catch { allowedList = []; }
+                }
+
+                if (Array.isArray(allowedList) && allowedList.length > 0) {
+                  baseCatalog = equipmentCatalog.filter(e => {
+                    const eIdStr = String(e.id);
+                    const eNameLower = String(e.name || e.eq_name || "").trim().toLowerCase();
+                    return allowedList.some(a => {
+                      const aStr = String(a).trim();
+                      return aStr === eIdStr || (eNameLower && aStr.toLowerCase() === eNameLower) || (Number(a) > 0 && Number(a) === Number(e.id));
+                    });
+                  });
+                } else {
+                  baseCatalog = [];
+                }
+
+                if (!baseCatalog || baseCatalog.length === 0) {
+                  return <div className="col-span-full text-slate-500 dark:text-slate-400 italic text-center py-4 bg-white dark:bg-slate-900/60 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">No equipment configured or available for this venue.</div>;
+                }
+
+                const catalogToRender = baseCatalog.map(e => ({
+                  id: e.id || e.eq_name || e.name,
+                  name: e.eq_name || e.name || e.category,
+                  available_count: e.available_count ?? e.available_quantity,
+                  total_quantity: e.total_quantity
+                }));
+
+                return catalogToRender.map((item, idx) => {
+                  const key = String(item.id || item.name || idx);
+                  const val = avrEquipment[key] || avrEquipment[item.name];
+
+                  // Determine real registered stock strictly from available column
+                  let realStock = 0;
+                  if (typeof item.available_count === "number") {
+                    realStock = item.available_count;
+                  } else if (typeof item.available_quantity === "number") {
+                    realStock = item.available_quantity;
+                  } else {
+                    realStock = 0;
+                  }
+
+                  // Check if venue has a specific Max Needed Qty configured for this equipment category
+                  const venueQtys = selectedVenue?.equipment_max_qtys || {};
+                  let venueCap = venueQtys[item.id] ?? venueQtys[String(item.id)] ?? venueQtys[item.name] ?? venueQtys[String(item.name || '').toLowerCase()];
+                  if (typeof venueCap === "string") venueCap = Number(venueCap);
+
+                  const effectiveMax = typeof venueCap === "number" && venueCap > 0
+                    ? Math.min(venueCap, realStock)
+                    : realStock;
+
+                  const isOutOfStock = effectiveMax <= 0 || realStock <= 0;
+                  const isChecked = Boolean(val) && !isOutOfStock;
+                  const qty = isOutOfStock ? 0 : Math.min(typeof val === "number" ? val : 1, Math.max(1, effectiveMax));
+
+                  return (
+                    <div
+                      key={`eq-cat-${item.id || key}-${idx}`}
+                      className={`flex items-center justify-between gap-2 p-2.5 rounded-xl border transition-all ${isOutOfStock
+                        ? "bg-slate-100/70 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800 opacity-60 text-slate-400 dark:text-slate-500"
+                        : isChecked
+                          ? "bg-blue-50/70 dark:bg-blue-950/40 border-blue-300 dark:border-blue-800 shadow-xs"
+                          : "bg-white dark:bg-slate-900/80 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700"
+                        }`}
+                    >
+                      <label className={`flex items-center gap-2 font-semibold flex-1 min-w-0 ${isOutOfStock ? "cursor-not-allowed text-slate-400 dark:text-slate-500" : "cursor-pointer text-slate-800 dark:text-slate-200"}`}>
+                        <input
+                          type="checkbox"
+                          disabled={isOutOfStock}
+                          checked={isChecked}
+                          onChange={(e) => {
+                            if (isOutOfStock) return;
+                            const checked = e.target.checked;
+                            setAvrEquipment({
+                              ...avrEquipment,
+                              [key]: checked ? 1 : false
+                            });
+                          }}
+                          className="rounded text-blue-600 focus:ring-blue-500 accent-blue-600 dark:accent-blue-500 w-4 h-4 cursor-pointer disabled:cursor-not-allowed"
+                        />
+                        <div className="flex flex-col min-w-0">
+                          <span className="truncate text-xs font-bold text-slate-900 dark:text-white">{item.name}</span>
+                          {!isOutOfStock && (
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+                              {effectiveMax} Available
+                            </span>
+                          )}
+                        </div>
+                      </label>
+
+                      {isOutOfStock ? (
+                        <span className="text-[10px] font-extrabold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/50 px-1.5 py-0.5 rounded-md shrink-0">
+                          Out of Stock
+                        </span>
+                      ) : isChecked && (
+                        <div className="flex items-center gap-1 shrink-0">
+                          <span className="text-[10px] font-extrabold text-blue-600 dark:text-blue-400">Qty:</span>
+                          <input
+                            type="number"
+                            min="1"
+                            max={effectiveMax}
+                            value={qty}
+                            onChange={(e) => {
+                              const inputVal = parseInt(e.target.value) || 1;
+                              const newQty = Math.min(Math.max(1, inputVal), effectiveMax);
+                              setAvrEquipment({ ...avrEquipment, [key]: newQty });
+                            }}
+                            className="w-11 py-0.5 px-1 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700/80 rounded-lg text-xs font-black text-center text-blue-900 dark:text-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          </div>
+
+          {/* Optional Equipment Needed Remarks */}
+          <div className="sm:col-span-2 space-y-1.5 pt-2">
+            <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">
+              Equipment-Needed Remarks <span className="text-slate-500 dark:text-slate-400 font-semibold text-[11px]">(Optional)</span>
+            </label>
+            <textarea
+              rows={2}
+              value={equipmentRemarks || ""}
+              onChange={(e) => setEquipmentRemarks && setEquipmentRemarks(e.target.value)}
+              placeholder="Explain why you require more units than the venue's allowed limit (e.g., expected high attendee count, workshop breakout activities, extra speakers)..."
+              className="w-full p-3 bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-blue-600 shadow-2xs"
+            />
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
+              Note: If your event requires more units than the venue's default limit, provide your justification here for AVR administrator review and special allocation.
+            </p>
+          </div>
+        </>
 
         <div className="sm:col-span-2 flex items-center justify-between mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
           <Button

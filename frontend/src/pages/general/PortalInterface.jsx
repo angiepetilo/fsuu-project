@@ -26,7 +26,7 @@ export default function PortalInterface() {
         {/* Header Row */}
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase bg-blue-500 text-white shadow-xs">
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black tracking-wider uppercase bg-blue-500 text-white shadow-xs">
               Internal Portal Mode
             </span>
             <span className="flex items-center gap-1 text-xs font-bold text-slate-300">

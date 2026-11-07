@@ -6,7 +6,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import api from "@/lib/axios";
 import { getTodayISO, isPastDate, isPastTimeToday, isPastDateTime } from "@/lib/dateTimeUtils";
 import IosToggle from "@/components/ui/ios-toggle";
-import { Building, MapPin, Users, Check, Clock, ChevronLeft, ChevronRight, AlertTriangle, XCircle } from "lucide-react";
+import { Building, MapPin, Users, Check, Clock, ChevronLeft, ChevronRight, AlertTriangle, XCircle, Wrench } from "lucide-react";
 
 const BLOCKING_STATUSES = ["approved", "ongoing", "on-going", "reserved"];
 
@@ -362,7 +362,7 @@ export default function Step2Venue({
           tooltip: `${monthLabel} ${day}: ${affectedVenues} are ${isMaint ? 'Under Maintenance' : 'Closed'} (${sample.notes || 'Blocked by Admin'})`,
           box: {
             status: isMaint ? "Maintenance" : "Closed",
-            badgeClass: isMaint ? "bg-amber-500 text-white" : "bg-rose-600 text-white",
+            badgeClass: isMaint ? "bg-amber-700 text-white" : "bg-rose-600 text-white",
             time: sample.start_time && sample.end_time ? `${formatTime12(sample.start_time)} - ${formatTime12(sample.end_time)}` : defaultTimeRange,
             details: sample.notes || `${affectedVenues} ${isMaint ? 'Under Maintenance' : 'Closed'}`,
           },
@@ -415,7 +415,7 @@ export default function Step2Venue({
         tooltip: `${monthLabel} ${day}: ${selectedVenue.name} is ${isMaint ? 'Under Maintenance' : 'Closed'} (${dbMatch.notes || 'Blocked by Admin'})`,
         box: {
           status: isMaint ? "Maintenance" : "Closed",
-          badgeClass: isMaint ? "bg-amber-500 text-white" : "bg-rose-600 text-white",
+          badgeClass: isMaint ? "bg-amber-700 text-white" : "bg-rose-600 text-white",
           time: dbMatch.start_time && dbMatch.end_time ? `${formatTime12(dbMatch.start_time)} - ${formatTime12(dbMatch.end_time)}` : "All Day Blocked",
           details: `${selectedVenue.name} (${dbMatch.notes || (isMaint ? 'Under Maintenance' : 'Closed by Admin')})`,
         },
@@ -672,84 +672,107 @@ export default function Step2Venue({
                     onClick={() => {
                       if (!isCardBlocked) onSelectVenue(v);
                     }}
-                    className={`group relative border rounded-2xl p-4 transition-all duration-200 flex flex-col justify-between overflow-hidden ${isClosed
-                      ? "border-rose-200 dark:border-rose-900/60 bg-rose-50/30 dark:bg-rose-950/20 opacity-85 cursor-not-allowed shadow-none"
+                    role="radio"
+                    aria-checked={isSelected}
+                    aria-disabled={isCardBlocked}
+                    tabIndex={isCardBlocked ? -1 : 0}
+                    onKeyDown={(e) => {
+                      if ((e.key === "Enter" || e.key === " ") && !isCardBlocked) {
+                        e.preventDefault();
+                        onSelectVenue(v);
+                      }
+                    }}
+                    className={`group relative flex flex-col h-full rounded-xl border p-3 transition-[border-color,box-shadow,background-color] duration-150 outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 ${isClosed
+                      ? "border-rose-200 dark:border-rose-500/20 bg-rose-50/40 dark:bg-rose-500/5 cursor-not-allowed"
                       : isMaintenance
-                        ? "border-amber-300/80 dark:border-amber-700/50 bg-amber-50/20 dark:bg-amber-950/20 opacity-90 cursor-not-allowed shadow-2xs"
+                        ? "border-amber-200 dark:border-amber-500/20 bg-amber-50/40 dark:bg-amber-500/5 cursor-not-allowed"
                         : isSelected
-                          ? "border-blue-600 bg-white dark:bg-slate-900 shadow-md ring-2 ring-blue-500/20 cursor-pointer"
-                          : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-500 hover:ring-2 hover:ring-blue-500/20 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-0.5 cursor-pointer"
+                          ? "border-blue-600 bg-blue-50/40 dark:bg-blue-500/10 ring-2 ring-blue-600/15 cursor-pointer"
+                          : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-400 hover:shadow-sm cursor-pointer"
                       }`}
                   >
-                    <div>
-                      {/* Venue Image Container (aspect 16/9, subtle padding, cover fit) */}
-                      <div className="w-full aspect-[16/9] bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 rounded-xl overflow-hidden flex flex-col items-center justify-center text-center relative shadow-2xs p-1">
-                        {venueInfo.photo ? (
-                          <img
-                            src={venueInfo.photo}
-                            alt={v.name}
-                            className="w-full h-full object-cover rounded-lg group-hover:scale-105 transition-transform duration-300"
-                          />
-                        ) : (
-                          <div className="p-4 flex flex-col items-center justify-center h-full w-full bg-slate-50 dark:bg-slate-800/40">
-                            <Building size={28} className="text-slate-300 dark:text-slate-600 mb-1" />
-                            <span className="text-slate-700 dark:text-slate-300 font-extrabold text-xs sm:text-sm leading-snug line-clamp-2 uppercase tracking-wide">
-                              {v.name}
-                            </span>
-                          </div>
-                        )}
-                      </div>
+                    {/* Photo */}
+                    <div className="relative w-full aspect-video rounded-lg bg-slate-50 dark:bg-slate-800/50 overflow-hidden flex items-center justify-center">
+                      {venueInfo.photo ? (
+                        <img
+                          src={venueInfo.photo}
+                          alt={v.name}
+                          className={`w-full h-full object-cover ${isCardBlocked ? "grayscale-[40%]" : ""}`}
+                        />
+                      ) : (
+                        <Building size={34} strokeWidth={1.5} className="text-slate-300 dark:text-slate-600" aria-hidden="true" />
+                      )}
 
-                      {/* Venue Metadata */}
-                      <div className="mt-3.5 space-y-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <h4 className="font-bold text-slate-900 dark:text-[#F8FAFC] text-sm leading-tight truncate" title={v.name}>
-                            {v.name}
-                          </h4>
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold shrink-0 ${isClosed
-                            ? "bg-rose-500/15 border border-rose-400/30 text-rose-700 dark:text-rose-400"
-                            : isMaintenance
-                              ? "bg-amber-500/15 border border-amber-400/30 text-amber-700 dark:text-[#FCD34D]"
-                              : "bg-emerald-500/15 border border-emerald-400/30 text-emerald-700 dark:text-[#6EE7B7]"
-                            }`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${isClosed ? "bg-rose-400" : isMaintenance ? "bg-amber-400" : "bg-emerald-400 animate-pulse"}`} />
-                            {isClosed ? "Closed" : isMaintenance ? "Maintenance" : "Available"}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium line-clamp-1 flex items-center gap-1.5">
-                          <MapPin size={11} className="shrink-0 text-slate-400 dark:text-slate-500" />
-                          <span>{formatVenueLocation(v)}</span>
-                        </p>
-                        <p className="text-[11px] text-slate-600 dark:text-slate-300 font-semibold flex items-center gap-1.5">
-                          <Users size={11} className="shrink-0 text-slate-400 dark:text-slate-500" />
-                          <span>Min {v.min_capacity || 1} • Max {v.max_capacity || v.capacity || venueInfo.capacity || 80} guests</span>
-                        </p>
-                      </div>
+                      {/* Selection indicator (radio: one venue only) */}
+                      {!isCardBlocked && (
+                        <span
+                          aria-hidden="true"
+                          className={`absolute top-2 left-2 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected
+                            ? "bg-white border-blue-600"
+                            : "bg-white/95 dark:bg-slate-900/90 border-slate-300 dark:border-slate-600 group-hover:border-blue-400"
+                            }`}
+                        >
+                          {isSelected && <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />}
+                        </span>
+                      )}
+
+                      {/* Status shown on the photo only when the venue can't be booked */}
+                      {isCardBlocked && (
+                        <span className={`absolute top-2 left-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold border bg-white/95 dark:bg-slate-900/90 ${isClosed
+                          ? "text-rose-700 border-rose-200 dark:text-rose-300 dark:border-rose-500/30"
+                          : "text-amber-800 border-amber-200 dark:text-amber-300 dark:border-amber-500/30"
+                          }`}>
+                          {isClosed ? <XCircle size={11} /> : <Wrench size={11} />}
+                          {isClosed ? "Closed" : "Maintenance"}
+                        </span>
+                      )}
                     </div>
 
-                    {/* Bottom Action Pill Button */}
-                    <div className="mt-5">
+                    {/* Name + details */}
+                    <div className="mt-3 flex-1 space-y-1">
+                      <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-50 leading-snug line-clamp-2" title={v.name}>
+                        {v.name}
+                      </h4>
+                      {formatVenueLocation(v) && formatVenueLocation(v).trim().toLowerCase() !== String(v.name || "").trim().toLowerCase() && (
+                        <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 flex items-center gap-1.5">
+                          <MapPin size={12} className="shrink-0" />
+                          <span>{formatVenueLocation(v)}</span>
+                        </p>
+                      )}
+                      {(v.max_capacity || v.capacity || venueInfo.capacity) && (
+                        <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                          <Users size={12} className="shrink-0" />
+                          <span>
+                            {v.min_capacity ? `${v.min_capacity}–` : "Up to "}
+                            {v.max_capacity || v.capacity || venueInfo.capacity} guests
+                          </span>
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Action */}
+                    <div className="mt-3">
                       {isClosed ? (
                         <button
                           disabled
-                          className="w-full py-3 rounded-full border border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/30 text-rose-800 dark:text-rose-300 text-xs font-extrabold flex items-center justify-center gap-1.5 opacity-85 cursor-not-allowed"
+                          className="w-full h-9 rounded-lg border border-rose-200 dark:border-rose-500/20 bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-not-allowed"
                         >
-                          <XCircle size={14} className="text-rose-500 dark:text-rose-400" />
-                          <span>Closed</span>
+                          <XCircle size={14} />
+                          <span>Closed on this date</span>
                         </button>
                       ) : isMaintenance ? (
                         <button
                           disabled
-                          className="w-full py-3 rounded-full border border-amber-300 dark:border-amber-700/50 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 text-xs font-extrabold flex items-center justify-center gap-1.5 opacity-90 cursor-not-allowed"
+                          className="w-full h-9 rounded-lg border border-amber-200 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/10 text-amber-800 dark:text-amber-300 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-not-allowed"
                         >
-                          <AlertTriangle size={14} className="text-amber-600 dark:text-amber-400" />
-                          <span>Maintenance Block</span>
+                          <Wrench size={14} />
+                          <span>Under maintenance</span>
                         </button>
                       ) : isSelected ? (
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); onSelectVenue(v); }}
-                          className="w-full py-3 rounded-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-colors cursor-pointer"
+                          className="w-full h-9 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                         >
                           <Check size={14} />
                           <span>Selected</span>
@@ -758,9 +781,9 @@ export default function Step2Venue({
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); onSelectVenue(v); }}
-                          className="w-full py-3 rounded-full border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900/80 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 group-hover:shadow-md dark:group-hover:bg-blue-600 dark:group-hover:text-white dark:group-hover:border-blue-600 hover:bg-blue-700 hover:text-white hover:border-blue-700 text-slate-800 dark:text-white text-xs font-black transition-all cursor-pointer shadow-2xs"
+                          className="w-full h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white text-xs font-semibold flex items-center justify-center transition-colors cursor-pointer group-hover:border-blue-400 group-hover:text-blue-700 dark:group-hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-500/10"
                         >
-                          Select Venue
+                          Select venue
                         </button>
                       )}
                     </div>
@@ -1110,7 +1133,7 @@ export default function Step2Venue({
               <div className="space-y-2 pt-1">
                 {selectedDateOverride ? (
                   <div className={`p-3.5 border rounded-lg text-xs font-bold space-y-1.5 ${selectedDateOverride.status === "maintenance"
-                    ? "bg-amber-50 border-amber-300 text-amber-900"
+                    ? "bg-amber-50 border-amber-200 text-amber-900"
                     : "bg-rose-50 border-rose-300 text-rose-900"
                     }`}>
                     <div className="font-extrabold">

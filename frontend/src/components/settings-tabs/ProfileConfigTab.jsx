@@ -259,7 +259,7 @@ export default function ProfileConfigTab({ showMsg }) {
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h3 className="font-bold text-slate-900 text-sm">Personal Information</h3>
+                <h3 className="card-title font-bold text-slate-900 text-sm">Personal Information</h3>
                 <p className="text-xs text-slate-500 font-normal mt-0.5">
                   Manage administrator display credentials and recovery email.
                 </p>
@@ -439,7 +439,7 @@ export default function ProfileConfigTab({ showMsg }) {
           {/* Password & Security card */}
           <div className="bg-white rounded-2xl border border-slate-200 p-5 flex items-center justify-between gap-4">
             <div>
-              <h3 className="font-bold text-slate-900 text-sm">Password &amp; Security</h3>
+              <h3 className="card-title font-bold text-slate-900 text-sm">Password &amp; Security</h3>
               <p className="text-xs text-slate-500 font-normal mt-0.5">
                 Update your login password. You must enter your current password to confirm.
               </p>
@@ -457,12 +457,12 @@ export default function ProfileConfigTab({ showMsg }) {
 
       {/* Change Password Modal */}
       {showPasswordModal && (
-        <div className="fixed inset-0 bg-black/20 z-[1500] flex items-center justify-center p-4 animate-in fade-in">
+        <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 bg-black/20 z-[1500] flex items-center justify-center p-4 animate-in fade-in">
           <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 border border-slate-200">
             <div className="flex items-center justify-between p-4 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <Lock size={15} className="text-slate-700" />
-                <h3 className="font-bold text-slate-900 text-sm">Change Account Password</h3>
+                <h3 className="modal-title font-bold text-slate-900 text-sm">Change Account Password</h3>
               </div>
               <button
                 type="button"
@@ -544,7 +544,7 @@ export default function ProfileConfigTab({ showMsg }) {
 
               {passForm.new_password.length > 0 && passForm.new_password_confirmation.length > 0 && (
                 <div className={`p-2 rounded-lg text-[11px] font-semibold border ${passForm.new_password === passForm.new_password_confirmation ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"}`}>
-                  {passForm.new_password === passForm.new_password_confirmation ? "✓ Passwords match" : "✕ Passwords do not match yet"}
+                  {passForm.new_password === passForm.new_password_confirmation ? "Passwords match" : "Passwords do not match yet"}
                 </div>
               )}
 

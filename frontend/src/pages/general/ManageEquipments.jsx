@@ -4,11 +4,7 @@ import api from "@/lib/axios";
 import notify from "@/lib/notify";
 import { fetchWithCache, invalidateCache } from "@/lib/apiCache";
 import {
-  PackageOpen, Plus, Search, Filter, Edit3, Ban, CheckCircle2,
-  AlertTriangle, Barcode, Eye, Copy, Check,
-  ChevronLeft, ChevronRight, LayoutGrid, Loader2, MoreVertical,
-  CircleCheck, Layers, PackageCheck, ArrowUpDown, Download, Upload,
-  FileSpreadsheet, ChevronDown
+  Plus, Search, Filter, Ban, CheckCircle2, AlertTriangle, Eye, Check, ChevronLeft, ChevronRight, Loader2, MoreVertical, CircleCheck, Layers, ArrowUpDown, Upload, AlertCircle,
 } from "lucide-react";
 function generateSequentialBarcodes(baseBarcode, count) {
   const clean = (baseBarcode || "").trim();
@@ -439,7 +435,7 @@ export default function ManageEquipments() {
     }
 
     if (activeCats.length === 0) {
-      alert("⚠️ No Equipment Category created yet! Please create an Equipment Category first in Settings -> Equipment Catalog before adding equipment units.");
+      notify.warning("No equipment category yet", "Create an Equipment Category in Settings → Equipment Catalog before adding equipment units.");
       return;
     }
 
@@ -467,7 +463,7 @@ export default function ManageEquipments() {
   const handleAddEquipment = async (e) => {
     e.preventDefault();
     if (categories.length === 0) {
-      alert("No equipment categories created yet. Please create an Equipment Category in Settings -> Equipment Catalog first.");
+      notify.warning("No equipment category yet", "Create an Equipment Category in Settings → Equipment Catalog first.");
       return;
     }
 
@@ -1103,7 +1099,7 @@ export default function ManageEquipments() {
   if (!hasPermission("manage_equipments")) {
     return (
       <div className="p-8 max-w-md mx-auto text-center space-y-3 mt-12 bg-white rounded-3xl border border-slate-200 shadow-xs">
-        <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto">
+        <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center mx-auto">
           <AlertTriangle size={24} />
         </div>
         <h3 className="text-sm font-extrabold text-slate-900">Access Restricted</h3>
@@ -1150,7 +1146,7 @@ export default function ManageEquipments() {
       {categories.length === 0 && !loading && (
         <div className="bg-amber-50 border-2 border-amber-200 p-4 rounded-2xl text-amber-900 text-xs font-semibold flex items-center justify-between gap-3 shadow-xs">
           <div className="flex items-center gap-2">
-            <AlertTriangle size={18} className="text-amber-600 shrink-0" />
+            <AlertTriangle size={18} className="text-amber-700 shrink-0" />
             <span>
               <strong>No Equipment Category Created Yet:</strong> You cannot add physical equipment units until an Equipment Category is created in <strong>Settings → Equipment Catalog</strong>.
             </span>
@@ -1235,7 +1231,7 @@ export default function ManageEquipments() {
             <thead>
               <tr className="bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-800">
                 {["#", "Serial No.", "Seq No.", "Equipment Unit Name", "Built-In", "Status", "Date Purchased", "Lifespan vs Current", "Action"].map((h, i) => (
-                  <th key={h} className={`px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap ${i === 0 ? 'rounded-tl-2xl' : i === 8 ? 'rounded-tr-2xl' : ''}`}>
+                  <th key={h} className={`px-4 py-3.5 text-left text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap ${i === 0 ? 'rounded-tl-2xl' : i === 8 ? 'rounded-tr-2xl' : ''}`}>
                     {h}
                   </th>
                 ))}
@@ -1252,8 +1248,8 @@ export default function ManageEquipments() {
                 <tr>
                   <td colSpan={9} className="text-center py-12 text-slate-400">
                     {categories.length === 0
-                      ? "⚠️ Create an Equipment Category in Settings first before adding physical equipment units."
-                      : "📦 No physical equipment units added yet. Click 'Add Equipment' to add units to a category."}
+                      ? "Create an Equipment Category in Settings first before adding physical equipment units."
+                      : "No physical equipment units added yet. Click 'Add Equipment' to add units to a category."}
                   </td>
                 </tr>
               ) : (
@@ -1295,8 +1291,8 @@ export default function ManageEquipments() {
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span>{item.serial_number || item.barcode}</span>
                           {isHighlighted && (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-extrabold uppercase bg-rose-600 text-white shadow-xs animate-pulse">
-                              <AlertTriangle size={10} /> Flagged Unit
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-extrabold uppercase bg-rose-600 text-white shadow-xs animate-pulse">
+                              <AlertCircle size={10} /> Flagged Unit
                             </span>
                           )}
                         </div>

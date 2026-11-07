@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useOutletContext } from "react-router-dom";
 import api from "@/lib/axios";
 import { fetchWithCache, invalidateCache } from "@/lib/apiCache";
+import notify from "@/lib/notify";
 import {
   Save, Loader2, CheckCircle2,
   Barcode, Copy, Check, MoreVertical, Eye,
@@ -26,7 +27,6 @@ export default function EquipmentStockTab({
   const officeScope = context?.adminOffice || context?.selectedOffice || "All Offices";
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [feedback, setFeedback] = useState(null);
 
   // ── Top Table (Category Stock Audit) Pagination & State ──
   const [categoryPage, setCategoryPage] = useState(1);
@@ -368,8 +368,7 @@ export default function EquipmentStockTab({
       invalidateCache('equipment');
       invalidateCache('academic_terms');
 
-      setFeedback("Equipment stock report saved successfully!");
-      setTimeout(() => setFeedback(null), 3000);
+      notify.success("Stock report saved");
 
       // Trigger silent background refresh of both parent report data and local unit list
       if (fetchReportsData) fetchReportsData({ isSilent: true });
@@ -378,8 +377,7 @@ export default function EquipmentStockTab({
       // Notify other components listening for inventory changes
       window.dispatchEvent(new CustomEvent('equipment_inventory_updated'));
     } catch {
-      setFeedback("Failed to update stock backend.");
-      setTimeout(() => setFeedback(null), 3000);
+      notify.error("Stock report not saved", "Please try again. If it keeps failing, contact the system admin.");
     } finally {
       setIsSubmitting(false);
     }
@@ -733,13 +731,6 @@ export default function EquipmentStockTab({
           </div>
         </div>
 
-        {feedback && (
-          <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2 shadow-2xs">
-            <CheckCircle2 size={16} className="text-emerald-600" />
-            <span>{feedback}</span>
-          </div>
-        )}
-
         {/* Category Audit Table with Mobile Responsive Card Grid */}
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
           {/* Desktop View */}
@@ -813,7 +804,7 @@ export default function EquipmentStockTab({
                           {stats.builtInCount}
                         </td>
                         <td className={`px-4 py-3 text-center font-bold ${
-                          stats.unavailableCount > 0 ? "text-amber-600 dark:text-amber-400" : "text-slate-400 dark:text-slate-600"
+                          stats.unavailableCount > 0 ? "text-amber-700 dark:text-amber-400" : "text-slate-400 dark:text-slate-600"
                         }`}>
                           {stats.unavailableCount}
                         </td>
@@ -833,7 +824,7 @@ export default function EquipmentStockTab({
                           {stats.currentDamaged}
                         </td>
                         <td className={`px-4 py-3 text-center font-bold ${
-                          stats.currentLost > 0 ? "text-amber-600 dark:text-amber-400" : "text-slate-400 dark:text-slate-600"
+                          stats.currentLost > 0 ? "text-amber-700 dark:text-amber-400" : "text-slate-400 dark:text-slate-600"
                         }`}>
                           {stats.currentLost}
                         </td>
@@ -881,38 +872,38 @@ export default function EquipmentStockTab({
 
                     <div className="grid grid-cols-4 gap-2 text-center text-xs">
                       <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
-                        <span className="block text-[9px] text-slate-400 font-bold uppercase">Total</span>
+                        <span className="block text-[10px] text-slate-400 font-bold uppercase">Total</span>
                         <span className="font-extrabold text-slate-900">{stats.expectedQty}</span>
                       </div>
                       <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-100">
-                        <span className="block text-[9px] text-emerald-600 font-bold uppercase">Available</span>
+                        <span className="block text-[10px] text-emerald-600 font-bold uppercase">Available</span>
                         <span className="font-extrabold text-emerald-700">{stats.availablePresent}</span>
                       </div>
                       <div className="p-2 rounded-xl bg-violet-50 border border-violet-100">
-                        <span className="block text-[9px] text-violet-600 font-bold uppercase">Built-In</span>
+                        <span className="block text-[10px] text-violet-600 font-bold uppercase">Built-In</span>
                         <span className="font-extrabold text-violet-700">{stats.builtInCount}</span>
                       </div>
                       <div className="p-2 rounded-xl bg-amber-50 border border-amber-100">
-                        <span className="block text-[9px] text-amber-600 font-bold uppercase">Unavail</span>
+                        <span className="block text-[10px] text-amber-700 font-bold uppercase">Unavail</span>
                         <span className="font-extrabold text-amber-700">{stats.unavailableCount}</span>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-4 gap-2 text-center text-xs">
                       <div className="p-2 rounded-xl bg-indigo-50 border border-indigo-100">
-                        <span className="block text-[9px] text-indigo-600 font-bold uppercase">Reserved</span>
+                        <span className="block text-[10px] text-indigo-600 font-bold uppercase">Reserved</span>
                         <span className="font-extrabold text-indigo-700">{stats.reservedCount}</span>
                       </div>
                       <div className="p-2 rounded-xl bg-blue-50 border border-blue-100">
-                        <span className="block text-[9px] text-blue-600 font-bold uppercase">Released</span>
+                        <span className="block text-[10px] text-blue-600 font-bold uppercase">Released</span>
                         <span className="font-extrabold text-blue-700">{stats.currentReleased}</span>
                       </div>
                       <div className="p-2 rounded-xl bg-rose-50 border border-rose-100">
-                        <span className="block text-[9px] text-rose-600 font-bold uppercase">Damaged</span>
+                        <span className="block text-[10px] text-rose-600 font-bold uppercase">Damaged</span>
                         <span className="font-extrabold text-rose-700">{stats.currentDamaged}</span>
                       </div>
                       <div className="p-2 rounded-xl bg-amber-50 border border-amber-100">
-                        <span className="block text-[9px] text-amber-700 font-bold uppercase">Lost</span>
+                        <span className="block text-[10px] text-amber-700 font-bold uppercase">Lost</span>
                         <span className="font-extrabold text-amber-800">{stats.currentLost}</span>
                       </div>
                     </div>
@@ -1019,7 +1010,7 @@ export default function EquipmentStockTab({
               <thead>
                 <tr className="bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-800">
                   {["#", "Serial No.", "Equipment Unit Name", "Built-In", "Status", "Action"].map((h, i) => (
-                    <th key={h} className={`px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap ${i === 0 ? 'rounded-tl-2xl' : i === 5 ? 'rounded-tr-2xl' : ''}`}>
+                    <th key={h} className={`px-4 py-3.5 text-left text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap ${i === 0 ? 'rounded-tl-2xl' : i === 5 ? 'rounded-tr-2xl' : ''}`}>
                       {h}
                     </th>
                   ))}

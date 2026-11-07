@@ -22,10 +22,10 @@ export default function MetricsOverview({
           key={i}
           className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs p-4 space-y-1"
         >
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{s.label}</p>
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{s.label}</p>
           <p
             className={`text-2xl font-black tracking-tight ${
-              s.danger ? "text-rose-600" : s.warn ? "text-amber-600" : "text-slate-900"
+              s.danger ? "text-rose-600" : s.warn ? "text-amber-700" : "text-slate-900"
             }`}
           >
             {s.value}

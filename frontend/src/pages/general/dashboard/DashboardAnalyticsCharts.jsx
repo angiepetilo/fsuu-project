@@ -261,7 +261,7 @@ export default function DashboardAnalyticsCharts({
                 <span className="text-xl font-black text-slate-900 dark:text-white font-mono leading-none">
                   {totalDemoSum}
                 </span>
-                <span className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Total</span>
+                <span className="text-[11px] text-slate-400 font-bold uppercase mt-0.5">Total</span>
               </div>
             </div>
 
@@ -294,7 +294,7 @@ export default function DashboardAnalyticsCharts({
                 const heightPct = Math.max(8, Math.round((dept.count / maxDept) * 100));
                 return (
                   <div key={i} className="flex-1 flex flex-col items-center h-full justify-end group">
-                    <span className="text-[10px] font-mono font-bold text-slate-500 mb-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="text-[11px] font-mono font-bold text-slate-500 mb-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       {dept.count}
                     </span>
                     <div
@@ -310,7 +310,7 @@ export default function DashboardAnalyticsCharts({
               {departments.slice(0, 6).map((dept, i) => (
                 <div key={i} className="flex-1 flex justify-center">
                   <span
-                    className="text-[10px] font-bold text-slate-600 dark:text-slate-400 truncate max-w-[50px] inline-block origin-top-left -rotate-35"
+                    className="text-[11px] font-bold text-slate-600 dark:text-slate-400 truncate max-w-[50px] inline-block origin-top-left -rotate-35"
                     title={dept.name}
                   >
                     {dept.name}
@@ -336,7 +336,7 @@ export default function DashboardAnalyticsCharts({
                 const heightPct = Math.max(8, Math.round((st.count / maxStatus) * 100));
                 return (
                   <div key={i} className="flex-1 flex flex-col items-center h-full justify-end group">
-                    <span className="text-[10px] font-mono font-bold text-slate-500 mb-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="text-[11px] font-mono font-bold text-slate-500 mb-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       {st.count}
                     </span>
                     <div
@@ -403,7 +403,7 @@ export default function DashboardAnalyticsCharts({
                 const heightPct = Math.max(6, Math.round((t.bookings / maxTimeBand) * 100));
                 return (
                   <div key={idx} className="flex-1 flex flex-col items-center h-full justify-end group">
-                    <span className="text-[10.5px] font-mono font-bold text-slate-600 dark:text-slate-300 mb-1 group-hover:scale-110 transition-transform">
+                    <span className="text-[11px] font-mono font-bold text-slate-600 dark:text-slate-300 mb-1 group-hover:scale-110 transition-transform">
                       {t.bookings}
                     </span>
                     <div

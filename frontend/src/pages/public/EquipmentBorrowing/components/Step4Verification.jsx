@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ShieldCheck, Package, PackageOpen, User, Calendar, MapPin, Mail, Phone, CheckCircle2, Loader2, Shield, Lock } from "lucide-react";
+import { ShieldCheck, Package, PackageOpen, User, Calendar, MapPin, Mail, Phone, CheckCircle2, Loader2, Shield, Lock, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DataPrivacyTermsModal from "@/components/ui/DataPrivacyTermsModal";
 
@@ -96,14 +96,14 @@ export default function Step4Verification({
                   </div>
                   <div>
                     <h5 className="font-extrabold text-slate-900 dark:text-white text-xs truncate max-w-[200px]">{item.name}</h5>
-                    <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                    <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
                       {item.builtInNames && item.builtInNames.length > 0
                         ? `${item.quantity} kit package (${(item.builtInNames.length + 1) * item.quantity} physical units total)`
                         : `${item.quantity} physical unit${item.quantity === 1 ? '' : 's'}`}
                     </span>
                     {item.builtInNames && item.builtInNames.length > 0 && (
                       <div className="flex items-center flex-wrap gap-1 mt-1.5">
-                        <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                        <span className="text-[11px] font-extrabold text-slate-700 dark:text-slate-300 flex items-center gap-1">
                           <Package size={11} className="text-blue-600 dark:text-blue-400 shrink-0" />
                           Built-in:
                         </span>
@@ -122,7 +122,7 @@ export default function Step4Verification({
           </div>
 
           <div className="pt-2 border-t border-slate-200/70 dark:border-slate-800 space-y-1">
-            <span className="text-slate-400 text-[10.5px] uppercase font-extrabold block">Purpose of Requisition:</span>
+            <span className="text-slate-400 text-[11px] uppercase font-extrabold block">Purpose of Requisition:</span>
             <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 leading-relaxed bg-white dark:bg-slate-950/60 p-3 rounded-xl border border-slate-200/80 dark:border-blue-900/40">
               {purpose || "Academic / Event Requisition"} {handlerName ? `(Designated Operator: ${handlerName})` : ""}
             </p>
@@ -157,7 +157,7 @@ export default function Step4Verification({
               <div className="text-right">
                 <span className="font-bold text-blue-700 dark:text-blue-400">{placeOfUse || (isOutsideCampus ? "Outside Campus" : "Inside Campus")}</span>
                 {isOutsideCampus && (
-                  <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                  <span className="ml-2 px-1.5 py-0.5 rounded text-[11px] font-extrabold bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
                     Outside Campus
                   </span>
                 )}
@@ -189,13 +189,13 @@ export default function Step4Verification({
                     setPrivacyModalTab("privacy");
                     setShowPrivacyModal(true);
                   }}
-                  className="text-[10.5px] font-bold text-blue-700 dark:text-blue-400 hover:underline cursor-pointer flex items-center gap-1"
+                  className="text-[11px] font-bold text-blue-700 dark:text-blue-400 hover:underline cursor-pointer flex items-center gap-1"
                 >
                   <Lock size={11} />
                   <span>View Details</span>
                 </button>
               </div>
-              <p className="font-medium text-[10.5px] text-blue-900/80 dark:text-blue-300/80">
+              <p className="font-medium text-[11px] text-blue-900/80 dark:text-blue-300/80">
                 FSUU collects your name, email, contact phone, and requisition details exclusively for equipment custody tracking, SMS/Email dispatch, security verification, and accountability under the Data Privacy Act.
               </p>
             </div>
@@ -209,7 +209,7 @@ export default function Step4Verification({
                     setPrivacyModalTab("terms");
                     setShowPrivacyModal(true);
                   }}
-                  className="text-[10.5px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                  className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
                 >
                   View Full Terms →
                 </button>
@@ -291,15 +291,16 @@ export default function Step4Verification({
           type="button"
           variant="outline"
           onClick={() => onBack && onBack()}
-          className="border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 px-6 py-5 rounded-xl font-bold text-xs cursor-pointer"
+          className="h-11 px-4 rounded-lg text-sm font-semibold gap-2 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
         >
-          ← Back to Details
+          <ArrowLeft size={16} />
+          Back
         </Button>
 
         <Button
           onClick={handleVerifySubmit}
           disabled={isSubmitting || !agreedToTerms}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-5 rounded-xl font-extrabold text-xs shadow-xl shadow-emerald-600/20 transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-2 cursor-pointer"
+          className="bg-emerald-600 hover:bg-emerald-700 text-white h-11 px-6 rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 flex items-center gap-2 cursor-pointer"
         >
           {isSubmitting ? (
             <Loader2 size={18} className="animate-spin" />

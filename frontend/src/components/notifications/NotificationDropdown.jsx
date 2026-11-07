@@ -26,9 +26,9 @@ const getNotificationColorConfig = (n) => {
     return {
       border: "border-l-4 border-l-amber-500",
       bgUnread: "bg-amber-50/40 hover:bg-amber-50/70 dark:bg-amber-950/20 dark:hover:bg-amber-950/35",
-      badgeBg: "bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800 font-extrabold",
+      badgeBg: "bg-amber-50 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800 font-extrabold",
       badgeText: "NEEDS INSPECTION",
-      iconBg: "bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-400",
+      iconBg: "bg-amber-50 dark:bg-amber-950/70 text-amber-700 dark:text-amber-400",
       dot: "bg-amber-600 dark:bg-amber-500",
       Icon: Clock,
     };
@@ -71,9 +71,9 @@ const getNotificationColorConfig = (n) => {
     return {
       border: "border-l-4 border-l-amber-500",
       bgUnread: "bg-amber-50/40 hover:bg-amber-50/70 dark:bg-amber-950/20 dark:hover:bg-amber-950/35",
-      badgeBg: "bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800",
+      badgeBg: "bg-amber-50 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800",
       badgeText: "LOST",
-      iconBg: "bg-amber-100 dark:bg-amber-950/70 text-amber-600 dark:text-amber-400",
+      iconBg: "bg-amber-50 dark:bg-amber-950/70 text-amber-700 dark:text-amber-400",
       dot: "bg-amber-600 dark:bg-amber-500",
       Icon: AlertCircle,
     };
@@ -394,7 +394,7 @@ export default function NotificationDropdown({
       >
         <Bell size={16} />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-red-600 text-white font-black text-[10px] rounded-full flex items-center justify-center border-2 border-white shadow-xs">
+          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-red-600 text-white font-black text-[11px] rounded-full flex items-center justify-center border-2 border-white shadow-xs">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
@@ -417,7 +417,7 @@ export default function NotificationDropdown({
               >
                 <span>Inbox</span>
                 {unreadCount > 0 && (
-                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300">
+                  <span className="px-1.5 py-0.2 rounded-full text-[11px] font-black bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300">
                     {unreadCount}
                   </span>
                 )}
@@ -434,7 +434,7 @@ export default function NotificationDropdown({
               >
                 <span>Archive</span>
                 {archiveItems.length > 0 && (
-                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                  <span className="px-1.5 py-0.2 rounded-full text-[11px] font-black bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
                     {archiveItems.length}
                   </span>
                 )}
@@ -492,7 +492,7 @@ export default function NotificationDropdown({
                     <div className="flex-1 min-w-0 pr-1">
                       <div className="flex items-center justify-between gap-1.5">
                         <div className="flex items-center gap-1.5 min-w-0">
-                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border shrink-0 ${cfg.badgeBg}`}>
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border shrink-0 ${cfg.badgeBg}`}>
                             {cfg.badgeText}
                           </span>
                           <h5 className={`text-xs leading-snug truncate ${!isRead ? "font-extrabold text-slate-900 dark:text-white" : "font-semibold text-slate-800 dark:text-slate-200"}`}>
@@ -500,7 +500,7 @@ export default function NotificationDropdown({
                           </h5>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
-                          <span className="text-[10.5px] font-medium text-slate-400 dark:text-slate-500 whitespace-nowrap">
+                          <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 whitespace-nowrap">
                             {n.time}
                           </span>
                           {activeTab === "inbox" && !isRead && (
@@ -513,7 +513,7 @@ export default function NotificationDropdown({
                         {n.message}
                       </p>
 
-                      <div className="flex flex-wrap items-center gap-2 mt-1.5 text-[10.5px]">
+                      <div className="flex flex-wrap items-center gap-2 mt-1.5 text-[11px]">
                         {n.ref && <span className="font-mono text-blue-600 dark:text-blue-400 font-bold">{n.ref}</span>}
                         {n.person_name && (
                           <span className="text-slate-500 dark:text-slate-400 font-medium">
@@ -535,7 +535,7 @@ export default function NotificationDropdown({
                           <button
                             type="button"
                             onClick={(e) => handleDirectView(e, n)}
-                            className="px-2 py-1 text-[10px] font-extrabold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/60 rounded-md transition-colors cursor-pointer"
+                            className="px-2 py-1 text-[11px] font-extrabold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/60 rounded-md transition-colors cursor-pointer"
                             title="Directly view and locate record"
                           >
                             View
@@ -547,7 +547,7 @@ export default function NotificationDropdown({
                                 e.stopPropagation();
                                 if (markAsRead) markAsRead(n.id);
                               }}
-                              className="px-2 py-1 text-[10px] font-extrabold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
+                              className="px-2 py-1 text-[11px] font-extrabold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
                             >
                               Read
                             </button>
@@ -555,7 +555,7 @@ export default function NotificationDropdown({
                           <button
                             type="button"
                             onClick={(e) => handleSingleArchive(e, n)}
-                            className="px-2 py-1 text-[10px] font-extrabold text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
+                            className="px-2 py-1 text-[11px] font-extrabold text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
                           >
                             Archive
                           </button>
@@ -565,14 +565,14 @@ export default function NotificationDropdown({
                           <button
                             type="button"
                             onClick={(e) => handleDirectView(e, n)}
-                            className="px-2 py-1 text-[10.5px] font-black text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
+                            className="px-2 py-1 text-[11px] font-black text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
                           >
                             View
                           </button>
                           <button
                             type="button"
                             onClick={(e) => handleRestore(e, n)}
-                            className="px-2.5 py-1 text-[10.5px] font-black text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/60 rounded-md transition-colors cursor-pointer"
+                            className="px-2.5 py-1 text-[11px] font-black text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/60 rounded-md transition-colors cursor-pointer"
                           >
                             Restore
                           </button>

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Loader2, Play, Mail, CheckCircle2, PackageCheck, AlertCircle, Smartphone, ChevronDown, X, Check, Clock, Ban, ArrowUpDown, RotateCcw } from "lucide-react";
+import { Loader2, Play, Mail, CheckCircle2, PackageCheck, AlertCircle, ChevronDown, X, Check, Clock, Ban, ArrowUpDown, RotateCcw, AlertTriangle } from "lucide-react";
 import api from "@/lib/axios";
 import { getTodayISO } from "@/lib/dateTimeUtils";
 
@@ -274,6 +274,7 @@ function BorrowSlotBarcodeSelector({
         handleChoose(searchFiltered[0]);
       }
     } else if (e.key === "Escape") {
+      e.preventDefault();
       setIsOpen(false);
     }
   };
@@ -317,7 +318,7 @@ function BorrowSlotBarcodeSelector({
 
       {isOpen && (
         <div className="absolute z-50 left-0 right-0 mt-1 max-h-64 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-blue-900/50 rounded-xl shadow-lg py-1 text-xs animate-in fade-in">
-          <div className="px-3 py-1.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2 text-[10.5px] font-bold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/80">
+          <div className="px-3 py-1.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2 text-[11px] font-bold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/80">
             <span className="truncate">AVAILABLE MODELS FOR {String(categoryName).toUpperCase()}</span>
             <div className="flex items-center gap-2 shrink-0">
               <button
@@ -326,7 +327,7 @@ function BorrowSlotBarcodeSelector({
                   e.stopPropagation();
                   setSeqSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
                 }}
-                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-extrabold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-extrabold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
                 title="Sort by Sequence No."
               >
                 <ArrowUpDown size={10} />
@@ -365,7 +366,7 @@ function BorrowSlotBarcodeSelector({
                   <div className="flex flex-col gap-0.5 min-w-0 pr-2">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       {seqNo && (
-                        <span className="font-mono text-[10.5px] font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800/80 shrink-0">
+                        <span className="font-mono text-[11px] font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800/80 shrink-0">
                           {seqNo}
                         </span>
                       )}
@@ -375,12 +376,12 @@ function BorrowSlotBarcodeSelector({
                         {model && <span className="font-semibold text-slate-700 dark:text-slate-300">{model}</span>}
                         {!brand && !model && (unit.name || categoryName || "Equipment Unit")}
                       </span>
-                      <span className="font-mono text-[10.5px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800 shrink-0">
+                      <span className="font-mono text-[11px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800 shrink-0">
                         {bCode}
                       </span>
                     </div>
                     {builtIns.length > 0 && (
-                      <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1.5 flex-wrap mt-0.5">
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1.5 flex-wrap mt-0.5">
                         <span className="font-bold text-blue-600 dark:text-blue-400">Built-in:</span>
                         <span className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-1.5 py-0.2 rounded border border-slate-200 dark:border-slate-700 font-semibold">
                           {builtIns.join(", ")}
@@ -661,13 +662,13 @@ export default function EquipBorrowUnitAssignment({
       {/* Equipment Unit Assignments */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <span className={`text-[10px] font-mono uppercase tracking-wider block font-bold ${
+          <span className={`text-[11px] font-mono uppercase tracking-wider block font-bold ${
             isCompleted ? "text-emerald-600" : "text-slate-500"
           }`}>
             {isPending ? "REQUESTED EQUIPMENT" : "EQUIPMENT UNIT ASSIGNMENT"}
           </span>
           {(isApproved || isOngoing) && (
-            <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border ${
+            <span className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded-full border ${
               allUnitsAssigned
                 ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
                 : "bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800"
@@ -676,8 +677,8 @@ export default function EquipBorrowUnitAssignment({
             </span>
           )}
           {isCompleted && (
-            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200">
-              ✓ Completed
+            <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200">
+              Completed
             </span>
           )}
         </div>
@@ -712,7 +713,7 @@ export default function EquipBorrowUnitAssignment({
                     {reqCat.category}
                   </span>
                   {isRestricted && (
-                    <span className="px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900 text-[10px] font-black uppercase tracking-wider">
+                    <span className="px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900 text-[11px] font-black uppercase tracking-wider">
                       Denied / Not Approved
                     </span>
                   )}
@@ -726,7 +727,7 @@ export default function EquipBorrowUnitAssignment({
                     <button
                       type="button"
                       onClick={() => onToggleRestrictCategory(reqCat)}
-                      className={`px-2.5 py-1 rounded-lg text-[10.5px] font-black transition-all cursor-pointer flex items-center gap-1 border shadow-2xs ${
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-black transition-all cursor-pointer flex items-center gap-1 border shadow-2xs ${
                         isRestricted
                           ? "bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 border-slate-300 dark:border-slate-600"
                           : "bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border-rose-200 hover:border-rose-600 dark:bg-rose-950/50 dark:hover:bg-rose-600 dark:text-rose-300 dark:hover:text-white dark:border-rose-900/60"
@@ -765,7 +766,7 @@ export default function EquipBorrowUnitAssignment({
                 <>
                   <div className="flex items-center justify-between text-[11px] font-semibold text-slate-600 dark:text-slate-300">
                     <span>{isOngoing ? "Dispatched Unit / Model (Changeable):" : "Select Equipment Unit / Model:"}</span>
-                    <span className={catAssignedCount >= reqQty ? "text-emerald-600 dark:text-emerald-400 font-extrabold" : "text-amber-600 dark:text-amber-400 font-extrabold"}>
+                    <span className={catAssignedCount >= reqQty ? "text-emerald-600 dark:text-emerald-400 font-extrabold" : "text-amber-700 dark:text-amber-400 font-extrabold"}>
                       {catAssignedCount} of {reqQty} {isOngoing ? "dispatched" : "selected"}
                     </span>
                   </div>
@@ -782,8 +783,8 @@ export default function EquipBorrowUnitAssignment({
                   ) : (
                     <div className="space-y-2 pt-1">
                       {availableUnits.length === 0 && (
-                        <div className="px-2.5 py-1.5 bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/60 rounded-lg text-[10.5px] font-semibold text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
-                          <AlertCircle size={12} className="shrink-0" />
+                        <div className="px-2.5 py-1.5 bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/60 rounded-lg text-[11px] font-semibold text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
+                          <AlertTriangle size={12} className="shrink-0" />
                           <span>No additional spare units in stock to swap.</span>
                         </div>
                       )}
@@ -797,7 +798,7 @@ export default function EquipBorrowUnitAssignment({
 
                         return (
                           <div key={uIdx} className="relative space-y-1">
-                            <div className="flex items-center justify-between text-[10.5px] font-bold text-slate-500 dark:text-slate-400">
+                            <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400">
                               <span>Unit Slot #{uIdx + 1}</span>
                               {val ? (() => {
                                 const match = (allUnits || []).find(u => {
@@ -865,7 +866,7 @@ export default function EquipBorrowUnitAssignment({
                                       <span className="w-2 h-2 rounded-full bg-blue-600 dark:bg-blue-400 animate-pulse"></span>
                                       Built-in to [{val}]
                                     </span>
-                                    <span className="text-[10px] font-bold text-blue-700 dark:text-blue-300 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800 px-2 py-0.5 rounded-full shadow-2xs">
+                                    <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800 px-2 py-0.5 rounded-full shadow-2xs">
                                       {slotBuiltIns.length} {slotBuiltIns.length === 1 ? "Unit" : "Units"} Linked
                                     </span>
                                   </div>
@@ -877,7 +878,7 @@ export default function EquipBorrowUnitAssignment({
                                       >
                                         <div className="flex items-center gap-2 flex-wrap">
                                           {biUnit.seq_no && (
-                                            <span className="font-mono font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800/80 text-[10.5px]">
+                                            <span className="font-mono font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800/80 text-[11px]">
                                               {biUnit.seq_no}
                                             </span>
                                           )}
@@ -906,14 +907,14 @@ export default function EquipBorrowUnitAssignment({
               {isCompleted && (
                 <div className="space-y-1.5 pt-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10.5px] font-mono text-slate-400 font-bold uppercase">
+                    <span className="text-[11px] font-mono text-slate-400 font-bold uppercase">
                       Dispatched Physical Units:
                     </span>
                     {reqCat.quantity > 1 && (
                       <button
                         type="button"
                         onClick={() => setReleasedSeqSort((prev) => (prev === "asc" ? "desc" : "asc"))}
-                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
                         title="Sort released units by sequence number"
                       >
                         <ArrowUpDown size={10} />
@@ -959,7 +960,7 @@ export default function EquipBorrowUnitAssignment({
                             <span>Unit {uIdx + 1}</span>
                             <div className="flex items-center gap-1.5 flex-wrap justify-end">
                               {seq && (
-                                <span className="font-mono text-[10.5px] font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800/80">
+                                <span className="font-mono text-[11px] font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800/80">
                                   {seq}
                                 </span>
                               )}
@@ -971,7 +972,7 @@ export default function EquipBorrowUnitAssignment({
                               <span className={`px-2 py-0.5 rounded-lg border font-extrabold ${
                                 val && val !== "—"
                                   ? "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-blue-700 dark:text-blue-300 shadow-xs"
-                                  : "bg-amber-100/60 dark:bg-amber-950/60 border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300"
+                                  : "bg-amber-100/60 dark:bg-amber-950/60 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300"
                               }`}>
                                 {val || "Unassigned"}
                               </span>
@@ -992,7 +993,7 @@ export default function EquipBorrowUnitAssignment({
 
                           {slotBuiltIns.length > 0 && (
                             <div className="pt-1.5 border-t border-slate-200/80 dark:border-slate-800 space-y-1">
-                              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
                                 Built-in Linked Units ({slotBuiltIns.length}):
                               </span>
                               <div className="flex flex-wrap gap-1.5">
@@ -1012,7 +1013,7 @@ export default function EquipBorrowUnitAssignment({
                                       }`}
                                     >
                                       {biUnit.seq_no && (
-                                        <span className="font-mono font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1 py-0.2 rounded border border-amber-200 dark:border-amber-800 text-[10px]">
+                                        <span className="font-mono font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1 py-0.2 rounded border border-amber-200 dark:border-amber-800 text-[11px]">
                                           {biUnit.seq_no}
                                         </span>
                                       )}
@@ -1023,7 +1024,7 @@ export default function EquipBorrowUnitAssignment({
                                         {!biUnit.brand && !biUnit.model && (biUnit.name || "Unit")}
                                       </span>
                                       {biCond && biCond.toLowerCase() !== "complete" && biCond.toLowerCase() !== "good" && (
-                                        <span className={`text-[10px] uppercase font-black px-1.5 py-0.2 rounded ${isBiLost ? "bg-rose-900 text-white" : "bg-rose-600 text-white"}`}>
+                                        <span className={`text-[11px] uppercase font-black px-1.5 py-0.2 rounded ${isBiLost ? "bg-rose-900 text-white" : "bg-rose-600 text-white"}`}>
                                           {biCond}
                                         </span>
                                       )}
@@ -1053,10 +1054,10 @@ export default function EquipBorrowUnitAssignment({
                 hasCompromisedUnits
                   ? "text-rose-600 dark:text-rose-400"
                   : isDateBlocked
-                  ? "text-amber-600 dark:text-amber-400"
+                  ? "text-amber-700 dark:text-amber-400"
                   : allUnitsAssigned
                   ? "text-emerald-600 dark:text-emerald-400"
-                  : "text-amber-600 dark:text-amber-400"
+                  : "text-amber-700 dark:text-amber-400"
               }`}>
                 {hasCompromisedUnits
                   ? "Unit / Built-in Damaged or Lost"
@@ -1075,7 +1076,7 @@ export default function EquipBorrowUnitAssignment({
             )}
             {isDateBlocked && (
               <div className="p-2.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 rounded-xl text-[11px] font-semibold text-amber-800 dark:text-amber-300 flex items-start gap-2">
-                <Clock size={14} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                <Clock size={14} className="text-amber-700 dark:text-amber-400 shrink-0 mt-0.5" />
                 <span>Borrowing scheduled for <strong>{scheduledBorrowDate}</strong>. Equipment cannot be released until the scheduled date arrives.</span>
               </div>
             )}
@@ -1107,7 +1108,7 @@ export default function EquipBorrowUnitAssignment({
           <div className="p-3 bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-900/50 rounded-2xl flex items-center justify-between gap-2 text-xs font-bold text-emerald-800 dark:text-emerald-300">
             <div className="flex items-center gap-2">
               <Mail size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <span>Email Sent: Equipment Clearance Receipt dispatched to borrower.</span>
+              <span>Return receipt emailed to the borrower.</span>
             </div>
             <CheckCircle2 size={15} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
           </div>

@@ -52,7 +52,7 @@ export default function AcademicTermSelect({ terms = [], selectedId, onSelect, c
               onClick={() => { onSelect(t.id); setOpen(false); }}
               className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between hover:bg-blue-50 dark:hover:bg-blue-950/40 cursor-pointer transition-colors ${String(selectedId) === String(t.id) ? "bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-extrabold" : "text-slate-700 dark:text-slate-300"}`}
             >
-              <span className="truncate">{t.name} <span className="text-[10px] text-slate-400">({t.is_active ? "Active" : "Archived"})</span></span>
+              <span className="truncate">{t.name} <span className="text-[11px] text-slate-400">({t.is_active ? "Active" : "Archived"})</span></span>
               {String(selectedId) === String(t.id) && <Check size={13} className="text-blue-600 dark:text-blue-400" />}
             </button>
           ))}

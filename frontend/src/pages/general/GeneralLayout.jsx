@@ -7,6 +7,7 @@ import { useTheme } from "@/context/ThemeContext";
 import api from "@/lib/axios";
 import echoInstance from "@/lib/echo";
 import { notify } from "@/lib/notify";
+import { announceNewBooking } from "@/lib/bookingAnnouncer";
 import {
   LayoutDashboard, Building2, PackageOpen, Box, CalendarCheck,
   FileBarChart2, Settings, ShieldCheck, ChevronRight,
@@ -155,11 +156,13 @@ export default function GeneralLayout() {
     const generalChannel = echoInstance?.channel("general-notifications");
 
     const handleBookingCreated = (data) => {
-      const title = data.type === "venue_booking" ? "New Venue Reservation" : "New Equipment Borrow";
-      notify.info(
-        `${title} • ${data.reference_code || ''}`,
-        `${data.filer_name || 'Applicant'} (${data.program_office || 'Department'}) - ${data.place_of_use || 'Campus'}`
-      );
+      announceNewBooking({
+        type: data.type,
+        ref: data.reference_code,
+        filer: data.filer_name,
+        office: data.program_office,
+        place: data.place_of_use,
+      });
       fetchNotifs();
       window.dispatchEvent(new Event("equipment_inventory_updated"));
       window.dispatchEvent(new Event("venue_bookings_updated"));
@@ -199,11 +202,7 @@ export default function GeneralLayout() {
       if (e.key === "fsuu_booking_created_ping" && e.newValue) {
         try {
           const payload = JSON.parse(e.newValue);
-          const title = payload.type === "venue_booking" ? "New Venue Reservation" : "New Equipment Borrow";
-          notify.info(
-            `${title} • ${payload.ref || ''}`,
-            `${payload.filer || 'Applicant'} - ${payload.place || 'Campus'}`
-          );
+          announceNewBooking({ type: payload.type, ref: payload.ref, filer: payload.filer, place: payload.place });
         } catch {}
         fetchNotifs();
         window.dispatchEvent(new Event("equipment_inventory_updated"));
@@ -229,11 +228,7 @@ export default function GeneralLayout() {
 
     const handleCustomBookingCreated = (e) => {
       const data = e.detail || {};
-      const title = data.type === "venue_booking" ? "New Venue Reservation" : "New Equipment Borrow";
-      notify.info(
-        `${title} • ${data.reference_code || ''}`,
-        `${data.filer_name || 'Applicant'} - ${data.place_of_use || 'Campus'}`
-      );
+      announceNewBooking({ type: data.type, ref: data.reference_code, filer: data.filer_name, place: data.place_of_use });
       fetchNotifs();
       window.dispatchEvent(new Event("equipment_inventory_updated"));
       window.dispatchEvent(new Event("venue_bookings_updated"));
@@ -339,13 +334,13 @@ export default function GeneralLayout() {
     if (path.includes("/dashboard")) {
       return {
         title: "Dashboard",
-        subtitle: `${getGreeting()}, ${adminName} • Live facility utilization & inventory overview.`
+        subtitle: `${getGreeting()}, ${adminName}. Here's today's bookings and equipment.`
       };
     }
     if (path.includes("/today-reservations")) {
       return {
         title: "Today's Reservations",
-        subtitle: "Real-time daily schedule of facility bookings and equipment requisitions."
+        subtitle: "Today's venue bookings and equipment pickups."
       };
     }
     if (path.includes("/equipment-release")) {
@@ -363,49 +358,49 @@ export default function GeneralLayout() {
     if (path.includes("/interface")) {
       return {
         title: "Interface",
-        subtitle: "Staff & general operations desk reservation interface with PIN verification overrides."
+        subtitle: "Book a venue or equipment for a walk-in requester."
       };
     }
     if (path.includes("/venue-booking")) {
       return {
         title: "Venue Booking",
-        subtitle: "Review, approve, and manage campus venue reservation schedules."
+        subtitle: "Review and approve venue requests."
       };
     }
     if (path.includes("/equipment-borrowing")) {
       return {
         title: "Equipment Borrowing",
-        subtitle: "Walk-in & advance equipment requisitions, custodial dispatch, and return tracking."
+        subtitle: "Review borrow requests, release equipment, and record returns."
       };
     }
     if (path.includes("/manage-equipment")) {
       return {
         title: "Manage Equipment",
-        subtitle: "Physical unit inventory, barcode registry, and equipment categories."
+        subtitle: "Equipment units, serial numbers, and categories."
       };
     }
     if (path.includes("/manage-venue")) {
       return {
         title: "Manage Venue",
-        subtitle: "Campus facility catalog, capacity configurations, and operating availability."
+        subtitle: "Venues, capacity, and availability."
       };
     }
     if (path.includes("/report")) {
       return {
         title: "Reports & Analytics",
-        subtitle: "Utilization metrics, statistical summaries, and official export logs."
+        subtitle: "Usage reports you can export to Excel or PDF."
       };
     }
     if (path.includes("/history-log")) {
       return {
         title: "History Log",
-        subtitle: "Comprehensive audit trail and transaction history records."
+        subtitle: "Completed, cancelled, and rejected bookings."
       };
     }
     if (path.includes("/settings")) {
       return {
         title: "Settings",
-        subtitle: "Campus venue catalog, equipment categories, departments, communication logs, and profile."
+        subtitle: "Accounts, venues, equipment setup, and system options."
       };
     }
     return {
@@ -417,7 +412,7 @@ export default function GeneralLayout() {
   const currentFeature = getFeatureDetails(location.pathname);
 
   return (
-    <div className="h-screen flex font-sans antialiased relative bg-background text-foreground overflow-hidden">
+    <div className="h-screen flex font-portal antialiased relative bg-background text-foreground overflow-hidden">
       {/* ── Inactivity Auto-Logout Warning Modal ── */}
       <SessionTimeoutModal
         isOpen={showIdleWarning}
@@ -440,7 +435,7 @@ export default function GeneralLayout() {
 
       {/* ── Logout Loading Overlay ── */}
       {isLoggingOut && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex flex-col items-center justify-center text-white animate-in fade-in duration-200">
+        <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-xs flex flex-col items-center justify-center text-white animate-in fade-in duration-200">
           <div className="bg-card p-7 rounded-2xl border border-border shadow-sm flex flex-col items-center gap-3 text-center max-w-xs mx-4">
             <Loader2 size={36} className="animate-spin text-primary" />
             <p className="text-sm font-bold text-foreground tracking-tight">Signing out...</p>
@@ -489,7 +484,7 @@ export default function GeneralLayout() {
             return (
               <div key={group.title} className="space-y-1.5 overflow-hidden">
                 <div className="px-3 pb-1 pt-1 overflow-hidden">
-                  <p className="text-[10px] font-bold tracking-widest uppercase truncate leading-none overflow-hidden whitespace-nowrap text-muted-foreground">
+                  <p className="text-[11px] font-bold tracking-widest uppercase truncate leading-none overflow-hidden whitespace-nowrap text-muted-foreground">
                     <span className={sidebarOpen ? "inline" : "inline lg:hidden"}>{group.title}</span>
                     {!sidebarOpen && <span className="hidden lg:inline">—</span>}
                   </p>
@@ -541,7 +536,7 @@ export default function GeneralLayout() {
               </div>
               <div className="flex-1 min-w-0 overflow-hidden">
                 <p className="text-xs font-medium truncate text-foreground">{adminName}</p>
-                <p className="text-[10.5px] truncate capitalize text-muted-foreground">{userRole.replace("_", " ")}</p>
+                <p className="text-[11px] truncate capitalize text-muted-foreground">{userRole.replace("_", " ")}</p>
               </div>
               <ChevronDown size={13} className={`flex-shrink-0 transition-transform ${userMenuOpen ? "rotate-180" : ""} text-muted-foreground`} />
             </div>
@@ -578,7 +573,7 @@ export default function GeneralLayout() {
       {/* Mobile Backdrop */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 bg-slate-950/40 z-30 lg:hidden backdrop-blur-xs"
+          className="fixed inset-0 bg-slate-950/50 z-30 lg:hidden backdrop-blur-xs"
           onClick={() => setMobileOpen(false)}
         />
       )}

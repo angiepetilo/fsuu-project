@@ -99,8 +99,8 @@ export function PinModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-xs z-[2500] flex items-center justify-center p-4 animate-in fade-in duration-150">
-      <div className="bg-white dark:bg-[#131C2E] rounded-2xl p-6 sm:p-7 max-w-sm w-full text-center shadow-2xl relative border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-150">
+    <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 bg-slate-950/50 dark:bg-black/70 backdrop-blur-xs z-[2500] flex items-center justify-center p-4 animate-in fade-in duration-150">
+      <div className="bg-white dark:bg-[#131C2E] rounded-2xl p-6 sm:p-7 max-w-sm w-full text-center shadow-xl relative border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-150">
         <button
           type="button"
           onClick={onClose}
@@ -114,7 +114,7 @@ export function PinModal({
         </div>
 
         {/* Title */}
-        <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white mb-1">
+        <h3 className="modal-title text-sm sm:text-base font-bold text-slate-900 dark:text-white mb-1">
           {activeTitle}
         </h3>
 

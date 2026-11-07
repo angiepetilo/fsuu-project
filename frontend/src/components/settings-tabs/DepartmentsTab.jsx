@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { BookOpen, Plus, Edit2, Ban, Power, CheckCircle2, X, Loader2, Lock, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Ban, CheckCircle2, X, Loader2, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import api, { clearApiCache } from "@/lib/axios";
 import { invalidateCache } from "@/lib/apiCache";
@@ -141,7 +141,7 @@ export default function DepartmentsTab({ showMsg }) {
       {/* Top Header Card */}
       <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
         <div>
-          <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+          <h3 className="card-title font-extrabold text-slate-900 text-sm flex items-center gap-2">
             Departments
           </h3>
           <p className="text-xs text-slate-500 font-medium">
@@ -167,7 +167,7 @@ export default function DepartmentsTab({ showMsg }) {
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-x-auto w-full">
         <table className="w-full text-xs text-left min-w-[650px]">
           <thead>
-            <tr className="bg-slate-50/80 border-b border-slate-100 text-slate-400 font-bold uppercase text-[10px] tracking-wider">
+            <tr className="bg-slate-50/80 border-b border-slate-100 text-slate-500 font-bold uppercase text-[11px] tracking-wider">
               <th className="px-4 py-3.5 w-12">#</th>
               <th className="px-4 py-3.5 w-32">Code</th>
               <th className="px-4 py-3.5">Department / Program Name</th>
@@ -188,7 +188,7 @@ export default function DepartmentsTab({ showMsg }) {
             ) : departments.length === 0 ? (
               <tr>
                 <td colSpan={5} className="text-center py-10 text-slate-400 text-xs font-semibold">
-                  📚 No departments configured yet.
+                  No departments configured yet.
                 </td>
               </tr>
             ) : (
@@ -209,7 +209,7 @@ export default function DepartmentsTab({ showMsg }) {
                         {dept.name || dept.department_name}
                       </td>
                       <td className="px-4 py-3.5">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold border ${
                           !isItemDisabled
                             ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800"
                             : "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800"
@@ -250,12 +250,12 @@ export default function DepartmentsTab({ showMsg }) {
                                 className="p-1.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 cursor-pointer transition-all shadow-2xs"
                                 title="Edit Department"
                               >
-                                <Edit2 size={13} />
+                                <Pencil size={13} />
                               </button>
                             )}
                           </div>
                         ) : (
-                          <span className="text-[10.5px] font-bold text-slate-400 italic">View Only</span>
+                          <span className="text-[11px] font-bold text-slate-400 italic">View Only</span>
                         )}
                       </td>
                     </tr>
@@ -296,10 +296,10 @@ export default function DepartmentsTab({ showMsg }) {
 
       {/* Modal */}
       {showAddDeptModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[1500] flex items-center justify-center p-4 animate-in fade-in">
+        <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 bg-slate-950/50 backdrop-blur-xs z-[1500] flex items-center justify-center p-4 animate-in fade-in">
           <div className="bg-white rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-sm animate-in zoom-in-95 border border-slate-200 space-y-4">
             <div className="flex justify-between items-center pb-3 border-b border-slate-100">
-              <h3 className="font-extrabold text-slate-900 text-sm">
+              <h3 className="modal-title font-extrabold text-slate-900 text-sm">
                 {editDept ? "Edit Department" : "Add Department"}
               </h3>
             <button onClick={handleDeptClose} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer">

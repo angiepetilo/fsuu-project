@@ -1,14 +1,6 @@
 import { useState, useRef } from "react";
 import {
-  X,
-  Upload,
-  Building,
-  Download,
-  CheckCircle2,
-  AlertTriangle,
-  Loader2,
-  Trash2,
-  FileText,
+  X, Upload, Building, Download, CheckCircle2, Loader2, Trash2, FileText, AlertCircle,
 } from "lucide-react";
 import { parseFileToObjects } from "@/lib/excelExportImport";
 import { downloadVenueTemplate } from "@/pages/general/venueExportHelper";
@@ -147,8 +139,8 @@ export default function VenueImportModal({ isOpen, onClose, onSuccess }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-slate-900 w-full max-w-3xl rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+    <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-slate-900 w-full max-w-3xl rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4.5 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-3">
@@ -156,7 +148,7 @@ export default function VenueImportModal({ isOpen, onClose, onSuccess }) {
               <Building size={20} />
             </div>
             <div>
-              <h2 className="text-base font-extrabold text-slate-900 dark:text-white">
+              <h2 className="modal-title text-base font-extrabold text-slate-900 dark:text-white">
                 Batch Import Venue Facilities
               </h2>
               <p className="text-xs text-slate-500 font-medium">
@@ -275,7 +267,7 @@ export default function VenueImportModal({ isOpen, onClose, onSuccess }) {
           {/* Parse Error */}
           {parseError && (
             <div className="bg-rose-50 border border-rose-200 p-3.5 rounded-2xl text-rose-800 text-xs flex items-center gap-2.5">
-              <AlertTriangle size={16} className="text-rose-600 shrink-0" />
+              <AlertCircle size={16} className="text-rose-600 shrink-0" />
               <span>{parseError}</span>
             </div>
           )}
@@ -317,7 +309,7 @@ export default function VenueImportModal({ isOpen, onClose, onSuccess }) {
                           {v.min_capacity} - {v.max_capacity}
                         </td>
                         <td className="py-2 px-3">
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700">
+                          <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700">
                             {v.status}
                           </span>
                         </td>

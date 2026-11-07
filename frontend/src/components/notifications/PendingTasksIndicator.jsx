@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { ClipboardList, Building2, PackageOpen, ClipboardCheck, RefreshCw } from "lucide-react";
 import api, { clearApiCache } from "@/lib/axios";
@@ -36,8 +36,14 @@ export default function PendingTasksIndicator({ isSysad = false, basePath: propB
     }
   }, []);
 
-  // Re-fetch instantly on page/route navigation so navigation never shows stale numbers
+  // Re-fetch on route navigation so numbers are never stale.
+  // The first load is done by useRealtimeSync below, so skip it here (no double request).
+  const isFirstRouteRef = useRef(true);
   useEffect(() => {
+    if (isFirstRouteRef.current) {
+      isFirstRouteRef.current = false;
+      return;
+    }
     fetchPendingCounts(true);
   }, [location.pathname, location.search, fetchPendingCounts]);
 
@@ -93,7 +99,7 @@ export default function PendingTasksIndicator({ isSysad = false, basePath: propB
         <ClipboardList size={14} className="text-slate-500 dark:text-slate-400" />
         <span className="hidden md:inline">Tasks</span>
         {totalPending > 0 && (
-          <span className="px-1.5 py-0.5 rounded-full text-xs font-sans font-bold bg-amber-500 text-white leading-none shadow-xs">
+          <span className="min-w-[20px] px-1.5 py-0.5 rounded-full text-xs font-sans font-bold bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20 leading-none tabular-nums text-center">
             {totalPending}
           </span>
         )}
@@ -138,7 +144,7 @@ export default function PendingTasksIndicator({ isSysad = false, basePath: propB
                 </div>
                 <span className={`text-xs font-sans font-bold px-2 py-0.5 rounded-md ${
                   counts.pendingVenue > 0 
-                    ? "bg-amber-100 text-amber-900 dark:bg-amber-900/50 dark:text-amber-200" 
+                    ? "bg-amber-50 text-amber-900 dark:bg-amber-900/50 dark:text-amber-200" 
                     : "text-slate-400 dark:text-slate-500"
                 }`}>
                   {counts.pendingVenue}
@@ -156,7 +162,7 @@ export default function PendingTasksIndicator({ isSysad = false, basePath: propB
                 </div>
                 <span className={`text-xs font-sans font-bold px-2 py-0.5 rounded-md ${
                   counts.pendingEquip > 0 
-                    ? "bg-amber-100 text-amber-900 dark:bg-amber-900/50 dark:text-amber-200" 
+                    ? "bg-amber-50 text-amber-900 dark:bg-amber-900/50 dark:text-amber-200" 
                     : "text-slate-400 dark:text-slate-500"
                 }`}>
                   {counts.pendingEquip}

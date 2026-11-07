@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   X, CheckCircle, CheckCircle2, Clock, Play, Check, Loader2,
-  FileText, Mail, FileCheck, BellRing, ShieldAlert, ShieldCheck, Ban, PackageCheck
+  FileText, Mail, FileCheck, BellRing, ShieldAlert, ShieldCheck, Ban, PackageCheck, AlertCircle
 } from "lucide-react";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
@@ -1273,7 +1273,7 @@ export default function EquipmentBorrowDetailModal({
   if (!selected) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-0 sm:p-6 overflow-hidden animate-in fade-in duration-200">
+    <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-xs flex items-center justify-center p-0 sm:p-6 overflow-hidden animate-in fade-in duration-200">
       <div className="bg-white dark:bg-slate-900/80 rounded-none sm:rounded-2xl border-0 sm:border border-slate-200 dark:border-blue-900/50 shadow-sm w-full max-w-5xl h-full sm:h-auto sm:max-h-[90vh] flex flex-col overflow-hidden text-slate-800 dark:text-slate-200">
 
         <EquipBorrowHeader
@@ -1309,7 +1309,7 @@ export default function EquipmentBorrowDetailModal({
                   <span className="text-[11px] font-extrabold text-slate-800 dark:text-white uppercase tracking-wider">
                     Borrowing Request Details
                   </span>
-                  <span className="font-mono text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">
+                  <span className="font-mono text-[11px] font-bold text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">
                     ID: #{selected.id}
                   </span>
                 </div>
@@ -1333,7 +1333,7 @@ export default function EquipmentBorrowDetailModal({
                       {formatPhilippineNumber(selected.requestor_contact_number || selected.contact_number || selected.contact_no) || "—"}
                     </span>
                     {(selected.is_phone_verified ?? true) && (
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shrink-0" title="Contact phone number verified via SMS OTP">
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shrink-0" title="Contact phone number verified via SMS OTP">
                         <CheckCircle2 size={11} className="text-emerald-600 dark:text-emerald-400" />
                         Verified
                       </span>
@@ -1345,7 +1345,7 @@ export default function EquipmentBorrowDetailModal({
                   <div className="sm:col-span-2 flex items-center gap-1.5 flex-wrap">
                     <span className="font-bold text-slate-800 dark:text-slate-200 break-all">{selected.requestor_email || selected.email_address || selected.email || "—"}</span>
                     {(selected.is_email_verified) && (
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shrink-0" title="Email address verified via OTP">
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shrink-0" title="Email address verified via OTP">
                         <CheckCircle2 size={11} className="text-emerald-600 dark:text-emerald-400" />
                         Verified
                       </span>
@@ -1363,7 +1363,7 @@ export default function EquipmentBorrowDetailModal({
                   <div className="col-span-2 flex items-center gap-2">
                     <span className="font-bold text-slate-800 dark:text-slate-200">{selected.place_of_use || "Main Campus"}</span>
                     {(selected.used_inside_campus === false || selected.used_inside_campus === 0 || String(selected.place_of_use || '').toLowerCase().includes('outside')) && (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                      <span className="px-1.5 py-0.5 rounded text-[11px] font-extrabold bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
                         Outside Campus
                       </span>
                     )}
@@ -1382,7 +1382,7 @@ export default function EquipmentBorrowDetailModal({
                     <FileText size={14} className="text-blue-600 dark:text-blue-400" />
                     Equipment Categories &amp; Qty Borrowed
                   </span>
-                  <span className="text-[10.5px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded-full border border-blue-200 dark:border-blue-800">
+                  <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded-full border border-blue-200 dark:border-blue-800">
                     {categoriesToRender.reduce((sum, c) => sum + (parseInt(c.quantity, 10) || 1), 0)} Total Unit(s)
                   </span>
                 </div>
@@ -1437,11 +1437,11 @@ export default function EquipmentBorrowDetailModal({
                           </span>
                           {catItem.builtInNames && catItem.builtInNames.length > 0 && (
                             <div className="flex items-center flex-wrap gap-1 pt-0.5">
-                              <span className="text-[10.5px] font-bold text-slate-600 dark:text-slate-400">Built-in:</span>
+                              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">Built-in:</span>
                               {catItem.builtInNames.map((biName, biIdx) => (
                                 <span
                                   key={biIdx}
-                                  className="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 text-[10px] font-bold border border-blue-200 dark:border-blue-800"
+                                  className="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 text-[11px] font-bold border border-blue-200 dark:border-blue-800"
                                 >
                                   {biName}
                                 </span>
@@ -1450,14 +1450,14 @@ export default function EquipmentBorrowDetailModal({
                           )}
                           {assignedList.length > 0 && (
                             <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Assigned:</span>
+                              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Assigned:</span>
                               {assignedList.map((au, aIdx) => (
                                 <span
                                   key={aIdx}
                                   className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs shadow-2xs"
                                 >
                                   {au.seqNo && (
-                                    <span className="font-mono text-[10px] font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.2 rounded border border-amber-200 dark:border-amber-800/80 shrink-0">
+                                    <span className="font-mono text-[11px] font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.2 rounded border border-amber-200 dark:border-amber-800/80 shrink-0">
                                       {au.seqNo}
                                     </span>
                                   )}
@@ -1466,7 +1466,7 @@ export default function EquipmentBorrowDetailModal({
                                       {au.brandModel}
                                     </span>
                                   )}
-                                  <span className="font-mono text-[10px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-1 py-0.2 rounded border border-blue-200 dark:border-blue-800 shrink-0">
+                                  <span className="font-mono text-[11px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-1 py-0.2 rounded border border-blue-200 dark:border-blue-800 shrink-0">
                                     {au.barcode}
                                   </span>
                                 </span>
@@ -1521,7 +1521,7 @@ export default function EquipmentBorrowDetailModal({
                 <span className="text-xs font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
                   <FileText size={15} className="text-blue-600" />
                 </span>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                   Check item condition &amp; return timeliness
                 </span>
               </div>
@@ -1608,7 +1608,7 @@ export default function EquipmentBorrowDetailModal({
             <div className="flex items-center gap-2.5 flex-wrap justify-between w-full">
               {!canApprove ? (
                 <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/70 px-3 py-1.5 rounded-xl text-xs text-amber-900 dark:text-amber-200 shadow-2xs">
-                  <ShieldAlert size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                  <ShieldAlert size={14} className="text-amber-700 dark:text-amber-400 shrink-0" />
                   <span className="text-[11px] leading-tight">
                     <strong>Awaiting Custodian Approval:</strong> Your account does not have approval permissions. Only authorized Staff or Super Admin can approve.
                   </span>
@@ -1621,7 +1621,7 @@ export default function EquipmentBorrowDetailModal({
                     type="button"
                     onClick={handleNotifyUrgent}
                     disabled={notifyingUrgent}
-                    className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                    className="px-4 py-2.5 bg-amber-700 hover:bg-amber-800 active:bg-amber-900 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
                     title="Dispatch urgent approval alert to Staff and Super Admin"
                   >
                     {notifyingUrgent ? <Loader2 size={14} className="animate-spin" /> : <BellRing size={14} />}
@@ -1704,7 +1704,7 @@ export default function EquipmentBorrowDetailModal({
                     onClick={handleStartInspection}
                     disabled={!isInspectionReady || startingInspection}
                     title={!isInspectionReady ? inspectionEligibility.reason : "Return Equipment"}
-                    className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 dark:bg-amber-600 dark:hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all duration-150 cursor-pointer"
+                    className="px-5 py-2.5 bg-amber-700 hover:bg-amber-800 active:bg-amber-900 dark:bg-amber-600 dark:hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all duration-150 cursor-pointer"
                   >
                     {startingInspection ? (
                       <>
@@ -1863,7 +1863,7 @@ export default function EquipmentBorrowDetailModal({
         confirmDisabled={!rejectionRemarks.trim()}
       >
         <div className="space-y-2.5 mt-2">
-          <span className="text-[10.5px] font-extrabold uppercase text-slate-500 dark:text-slate-400 tracking-wider block">
+          <span className="text-[11px] font-extrabold uppercase text-slate-500 dark:text-slate-400 tracking-wider block">
             Quick Reason Templates:
           </span>
           <div className="flex flex-wrap gap-1.5">
@@ -1879,7 +1879,7 @@ export default function EquipmentBorrowDetailModal({
                 onClick={() => setRejectionRemarks(tmpl)}
                 className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-700 dark:hover:text-rose-300 text-slate-700 dark:text-slate-300 text-[11px] font-semibold border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer text-left"
               >
-                ⚡ {tmpl}
+                {tmpl}
               </button>
             ))}
           </div>

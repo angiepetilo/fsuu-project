@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import api from "@/lib/axios";
 import { notify } from "@/lib/notify";
+import { confirmDialog } from "@/lib/confirmDialog";
 import { Download, FileText, UploadCloud, X, Paperclip, Eye, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import DocxPreviewModal from "@/components/ui/DocxPreviewModal";
 import ActionPopover from "@/components/ui/action-popover";
@@ -338,7 +339,13 @@ export default function VerificationPinTab({
   };
 
   const handleDeleteReq = async (id) => {
-    if (!confirm("Are you sure you want to delete this requirement?")) return;
+    const ok = await confirmDialog({
+      title: "Delete requirement?",
+      message: "This requirement will be removed from the booking checklist.",
+      confirmLabel: "Delete",
+      variant: "danger",
+    });
+    if (!ok) return;
     const prev = requirements;
     setRequirements(r => r.filter(x => x.id !== id));
     try {
@@ -392,7 +399,7 @@ export default function VerificationPinTab({
         {/* Header & Master Toggle */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
           <div>
-            <h3 className="text-sm font-semibold text-slate-900">
+            <h3 className="card-title text-sm font-semibold text-slate-900">
               Verification PIN Settings
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
@@ -415,7 +422,6 @@ export default function VerificationPinTab({
         {/* Disabled banner */}
         {!pinSettings.isEnabled && (
           <div className="flex items-center gap-2 px-3.5 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs font-semibold text-amber-700">
-            <span>⚠</span>
             PIN Protection is currently <strong>disabled</strong>. All PIN trigger rules are inactive.
           </div>
         )}
@@ -469,7 +475,7 @@ export default function VerificationPinTab({
                   <span className="text-xs font-semibold text-slate-900">
                     External Users: Venue Bookings &amp; Equipment Borrowings
                   </span>
-                  <span className="px-1.5 py-0.5 text-[10px] font-medium bg-slate-100 text-slate-700 rounded">
+                  <span className="px-1.5 py-0.5 text-[11px] font-medium bg-slate-100 text-slate-700 rounded">
                     Mandatory
                   </span>
                 </div>
@@ -497,7 +503,7 @@ export default function VerificationPinTab({
                   <span className="text-xs font-semibold text-slate-900">
                     Multi-Day Venue Bookings: Faculty &amp; Students (2+ Days)
                   </span>
-                  <span className="px-1.5 py-0.5 text-[10px] font-medium bg-slate-100 text-slate-700 rounded">
+                  <span className="px-1.5 py-0.5 text-[11px] font-medium bg-slate-100 text-slate-700 rounded">
                     Mandatory
                   </span>
                 </div>
@@ -519,7 +525,7 @@ export default function VerificationPinTab({
                   <span className="text-xs font-semibold text-slate-900">
                     Outside Campus Office Hours
                   </span>
-                  <span className="px-1.5 py-0.5 text-[10px] font-medium bg-blue-50 text-blue-700 rounded">
+                  <span className="px-1.5 py-0.5 text-[11px] font-medium bg-blue-50 text-blue-700 rounded">
                     Configurable
                   </span>
                 </div>
@@ -887,7 +893,7 @@ export default function VerificationPinTab({
                       <td className="p-2.5 text-slate-400">{idx + 1}</td>
                       <td className="p-2.5 font-medium text-slate-900">{req.label}</td>
                       <td className="p-2.5">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-700">
+                        <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700">
                           {req.classification || "All"}
                         </span>
                       </td>
@@ -910,7 +916,7 @@ export default function VerificationPinTab({
                         )}
                       </td>
                       <td className="p-2.5">
-                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${
+                        <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-semibold ${
                           req.template_display_mode === 'digital_format'
                             ? 'bg-purple-50 text-purple-700 border border-purple-200'
                             : req.template_display_mode === 'both'
@@ -1034,11 +1040,11 @@ export default function VerificationPinTab({
 
       {/* Requirement Modal */}
       {showReqModal && (
-        <div className="fixed inset-0 bg-black/40 z-[1500] flex items-center justify-center p-4">
+        <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 bg-slate-950/50 z-[1500] flex items-center justify-center p-4">
           <div className="bg-white rounded-xl p-5 max-w-2xl w-full border border-slate-200 shadow-sm space-y-4">
             <div className="flex justify-between items-center pb-2.5 border-b border-slate-100">
               <div>
-                <h3 className="text-sm font-semibold text-slate-900">
+                <h3 className="modal-title text-sm font-semibold text-slate-900">
                   {editReq ? "Edit Requirement" : "Add Requirement"}
                 </h3>
                 <p className="text-xs text-slate-500 font-normal mt-0.5">
@@ -1050,7 +1056,7 @@ export default function VerificationPinTab({
                 onClick={handleCloseReq}
                 className="text-slate-400 hover:text-slate-600 text-sm cursor-pointer p-1"
               >
-                ✕
+                <X size={16} />
               </button>
             </div>
 
@@ -1185,10 +1191,10 @@ export default function VerificationPinTab({
                         />
                         {reqForm.template_file && (
                           <p className="text-[11px] text-emerald-600 font-medium flex items-center gap-1">
-                            ✓ Selected: {reqForm.template_file.name}
+                            Selected: {reqForm.template_file.name}
                           </p>
                         )}
-                        <p className="text-[10.5px] text-slate-400 font-normal">
+                        <p className="text-[11px] text-slate-400 font-normal">
                           Microsoft Word document (.docx or .doc) up to 10MB.
                         </p>
                       </div>

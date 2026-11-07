@@ -77,20 +77,20 @@ export default function CommunicationLogsTab() {
   const getChannelBadge = (channel) => {
     if (channel === "sms") {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10.5px] font-black uppercase tracking-wider bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-black uppercase tracking-wider bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
           SMS
         </span>
       );
     }
     if (channel === "notification") {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10.5px] font-black uppercase tracking-wider bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 border border-purple-200 dark:border-purple-800">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-black uppercase tracking-wider bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 border border-purple-200 dark:border-purple-800">
           Notice
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10.5px] font-black uppercase tracking-wider bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-black uppercase tracking-wider bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
         Email
       </span>
     );
@@ -122,20 +122,20 @@ export default function CommunicationLogsTab() {
   const getStatusBadge = (status) => {
     if (status === "sent") {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10.5px] font-black uppercase tracking-wider bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400">
           SENT
         </span>
       );
     }
     if (status === "failed") {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10.5px] font-black uppercase tracking-wider bg-rose-50 dark:bg-rose-900/30 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-rose-50 dark:bg-rose-900/30 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400">
           FAILED
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10.5px] font-black uppercase tracking-wider bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400">
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400">
         QUEUED
       </span>
     );
@@ -146,7 +146,7 @@ export default function CommunicationLogsTab() {
       {/* Header Summary */}
       <div className="bg-white dark:bg-slate-900/80 rounded-2xl border border-slate-200/90 dark:border-blue-900/50 shadow-xs p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">Communications &amp; Dispatch Log</h3>
+          <h3 className="card-title text-lg font-black text-slate-900 dark:text-white tracking-tight">SMS and Email Log</h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
             Audit history of automated and manual emails, SMS notices, booking confirmations, overdue reminders, and credentials.
           </p>
@@ -245,7 +245,7 @@ export default function CommunicationLogsTab() {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 text-[11px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider">
+              <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                 <th className="py-3.5 px-4 w-12 text-center">#</th>
                 <th className="py-3.5 px-4">CHANNEL</th>
                 <th className="py-3.5 px-4">CATEGORY</th>
@@ -295,7 +295,7 @@ export default function CommunicationLogsTab() {
                     <td className="py-3.5 px-4 max-w-[240px] truncate" title={log.subject || log.message_preview}>
                       <span className="text-slate-900 dark:text-slate-200 font-medium block truncate">{log.subject || "No Subject"}</span>
                       {log.message_preview && (
-                        <span className="text-[10.5px] text-slate-400 dark:text-slate-500 font-normal truncate block">
+                        <span className="text-[11px] text-slate-400 dark:text-slate-500 font-normal truncate block">
                           {log.message_preview}
                         </span>
                       )}
@@ -355,7 +355,7 @@ export default function CommunicationLogsTab() {
 
       {/* Details Modal */}
       {selectedLog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
+        <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-xs animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl max-w-lg w-full p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <h4 className="text-sm font-black text-slate-900 dark:text-white">Communication Dispatch Details</h4>
@@ -373,39 +373,39 @@ export default function CommunicationLogsTab() {
             <div className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-2 bg-slate-50 dark:bg-slate-800/80 p-3.5 rounded-xl border border-slate-100 dark:border-slate-700">
                 <div>
-                  <span className="text-slate-400 dark:text-slate-500 block text-[10.5px] font-bold uppercase">Channel</span>
+                  <span className="text-slate-400 dark:text-slate-500 block text-[11px] font-bold uppercase">Channel</span>
                   <span className="font-extrabold">{getChannelBadge(selectedLog.channel)}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 dark:text-slate-500 block text-[10.5px] font-bold uppercase">Status</span>
+                  <span className="text-slate-400 dark:text-slate-500 block text-[11px] font-bold uppercase">Status</span>
                   <span className="font-extrabold">{getStatusBadge(selectedLog.status)}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 dark:text-slate-500 block text-[10.5px] font-bold uppercase">Reference Code</span>
+                  <span className="text-slate-400 dark:text-slate-500 block text-[11px] font-bold uppercase">Reference Code</span>
                   <span className="font-mono font-extrabold text-blue-600 dark:text-blue-400">{selectedLog.reference_code || "—"}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 dark:text-slate-500 block text-[10.5px] font-bold uppercase">Category</span>
+                  <span className="text-slate-400 dark:text-slate-500 block text-[11px] font-bold uppercase">Category</span>
                   <span className="font-bold text-slate-800 dark:text-slate-200">{getCategoryLabel(selectedLog.category)}</span>
                 </div>
               </div>
 
               <div>
-                <span className="text-slate-400 dark:text-slate-500 block text-[10.5px] font-bold uppercase mb-0.5">Recipient</span>
+                <span className="text-slate-400 dark:text-slate-500 block text-[11px] font-bold uppercase mb-0.5">Recipient</span>
                 <p className="font-extrabold text-slate-900 dark:text-white">{selectedLog.recipient_name || "—"}</p>
                 <p className="text-slate-600 dark:text-slate-400 font-mono text-[11px]">{selectedLog.recipient_email || selectedLog.recipient_phone || "—"}</p>
               </div>
 
               {selectedLog.subject && (
                 <div>
-                  <span className="text-slate-400 dark:text-slate-500 block text-[10.5px] font-bold uppercase mb-0.5">Subject</span>
+                  <span className="text-slate-400 dark:text-slate-500 block text-[11px] font-bold uppercase mb-0.5">Subject</span>
                   <p className="font-bold text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/80 p-2.5 rounded-xl border border-slate-100 dark:border-slate-700">{selectedLog.subject}</p>
                 </div>
               )}
 
               {selectedLog.message_preview && (
                 <div>
-                  <span className="text-slate-400 dark:text-slate-500 block text-[10.5px] font-bold uppercase mb-0.5">Message Content Preview</span>
+                  <span className="text-slate-400 dark:text-slate-500 block text-[11px] font-bold uppercase mb-0.5">Message Content Preview</span>
                   <div className="bg-slate-50 dark:bg-slate-800/80 p-3 rounded-xl border border-slate-100 dark:border-slate-700 font-mono text-[11px] text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
                     {selectedLog.message_preview}
                   </div>
@@ -414,7 +414,7 @@ export default function CommunicationLogsTab() {
 
               {selectedLog.error_message && (
                 <div>
-                  <span className="text-rose-500 block text-[10.5px] font-bold uppercase mb-0.5">Delivery Error Log</span>
+                  <span className="text-rose-500 block text-[11px] font-bold uppercase mb-0.5">Delivery Error Log</span>
                   <div className="bg-rose-50 dark:bg-rose-950/40 p-3 rounded-xl border border-rose-200 dark:border-rose-900/60 font-mono text-[11px] text-rose-700 dark:text-rose-300 whitespace-pre-wrap leading-relaxed">
                     {selectedLog.error_message}
                   </div>

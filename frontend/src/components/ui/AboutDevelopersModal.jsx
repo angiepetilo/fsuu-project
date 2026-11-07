@@ -43,7 +43,7 @@ export default function AboutDevelopersModal({ isOpen, onClose }) {
   ];
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5">
+    <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-slate-950/75 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
@@ -51,7 +51,7 @@ export default function AboutDevelopersModal({ isOpen, onClose }) {
       />
 
       {/* Modal Card */}
-      <div className="relative bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 w-full max-w-lg flex flex-col z-10 animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+      <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200/80 dark:border-slate-800 w-full max-w-lg flex flex-col z-10 animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
         
         {/* Plain Clean Header */}
         <div className="px-5 sm:px-6 py-3.5 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shrink-0 flex items-center justify-between">
@@ -60,7 +60,7 @@ export default function AboutDevelopersModal({ isOpen, onClose }) {
               <GraduationCap size={19} />
             </div>
             <div>
-              <h2 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white tracking-tight">
+              <h2 className="modal-title text-sm sm:text-base font-extrabold text-slate-900 dark:text-white tracking-tight">
                 Capstone Development Team
               </h2>
               <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium">
@@ -91,7 +91,7 @@ export default function AboutDevelopersModal({ isOpen, onClose }) {
               <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
                 FSUU Facilities &amp; Equipment Booking System
               </h3>
-              <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-medium">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
                 Official Capstone Project • Father Saturnino Urios University
               </p>
             </div>
@@ -183,8 +183,8 @@ export default function AboutDevelopersModal({ isOpen, onClose }) {
           </div>
 
           {/* Institutional Note */}
-          <div className="p-2 sm:p-2.5 bg-blue-50/70 dark:bg-blue-950/40 rounded-xl border border-blue-200/60 dark:border-blue-900/40 text-[10.5px] text-blue-800 dark:text-blue-300 font-medium leading-relaxed">
-            🎓 Developed in partial fulfillment of the requirements for the degree in <strong>Bachelor of Science in Information Technology (BSIT)</strong>, Father Saturnino Urios University, Butuan City.
+          <div className="p-2 sm:p-2.5 bg-blue-50/70 dark:bg-blue-950/40 rounded-xl border border-blue-200/60 dark:border-blue-900/40 text-[11px] text-blue-800 dark:text-blue-300 font-medium leading-relaxed">
+            Developed in partial fulfillment of the requirements for the degree in <strong>Bachelor of Science in Information Technology (BSIT)</strong>, Father Saturnino Urios University, Butuan City.
           </div>
         </div>
 

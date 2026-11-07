@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { Search, Hash, CheckCircle2, Loader2, AlertCircle, Building2, PackageOpen, AlertTriangle, ArrowLeft, Clock, UploadCloud, FileText, Check, Hourglass } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import FloatingInput from "@/components/ui/FloatingInput";
 import { StatusBadge } from "@/components/ui/status-badge";
 import AlertModal from "@/components/ui/AlertModal";
 import api from "@/lib/axios";
@@ -42,7 +43,7 @@ export default function TrackBooking() {
         const list = Array.isArray(res.data) ? res.data : (res.data?.data || []);
         setCatalog(list);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   useEffect(() => {
@@ -143,7 +144,7 @@ export default function TrackBooking() {
       if (data && (data.reference_code || data.tracking_number || data.id)) {
         foundRecord = data;
       }
-    } catch {}
+    } catch { }
 
     if (foundRecord) {
       setIsFound(true);
@@ -339,7 +340,7 @@ export default function TrackBooking() {
 
   if (booking?.unit_conditions) {
     let uConds = booking.unit_conditions;
-    if (typeof uConds === 'string') { try { uConds = JSON.parse(uConds); } catch {} }
+    if (typeof uConds === 'string') { try { uConds = JSON.parse(uConds); } catch { } }
     if (typeof uConds === 'object' && uConds !== null) {
       Object.values(uConds).forEach((val) => {
         const c = String(typeof val === 'object' && val !== null ? (val.condition || val.status || '') : val).toLowerCase();
@@ -379,13 +380,13 @@ export default function TrackBooking() {
 
     const returnTime = booking.time_end || (booking.end_datetime ? booking.end_datetime.slice(11, 19) : null) || "17:00:00";
     const dStr = typeof returnDate === 'string' ? returnDate.split('T')[0] : new Date(returnDate).toISOString().split('T')[0];
-    
+
     let tStr = "17:00:00";
     if (returnTime.includes("AM") || returnTime.includes("PM")) {
       try {
         const d = new Date(`1970-01-01 ${returnTime.trim()}`);
         if (!isNaN(d.getTime())) tStr = d.toTimeString().slice(0, 8);
-      } catch {}
+      } catch { }
     } else {
       const parts = returnTime.trim().split(":");
       tStr = `${parts[0]?.padStart(2, '0') || '00'}:${parts[1]?.padStart(2, '0') || '00'}:00`;
@@ -451,7 +452,7 @@ export default function TrackBooking() {
         if (Array.isArray(parsed)) {
           return parsed.map(r => typeof r === 'object' ? (r.name || r.category || r.eq_name || '') : String(r)).filter(Boolean);
         }
-      } catch {}
+      } catch { }
     }
     return [];
   };
@@ -554,22 +555,15 @@ export default function TrackBooking() {
         </p>
 
         <form onSubmit={handleTrack} className="flex flex-col gap-4 mb-6">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-foreground uppercase tracking-wide">
-              Reference Code <span className="text-destructive">*</span>
-            </label>
-            <div className="relative">
-              <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-              <input
-                type="text"
-                value={trackCode}
-                onChange={e => setTrackCode(e.target.value)}
-                placeholder="e.g. TRK-AVR8921 or EQUIP-REQ-101"
-                required
-                className="w-full pl-10 pr-4 py-2.5 min-h-[44px] bg-card border border-border hover:border-primary/50 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg text-foreground text-sm font-medium transition-all outline-none"
-              />
-            </div>
-          </div>
+          <FloatingInput
+            label="Reference Code"
+            required
+            value={trackCode}
+            onChange={e => setTrackCode(e.target.value)}
+            placeholder="e.g. TRK-AVR8921 or EQUIP-REQ-101"
+            leftIcon={<Hash size={18} />}
+            bgClassName="bg-card dark:bg-card"
+          />
 
           <Button
             type="submit"
@@ -815,8 +809,8 @@ export default function TrackBooking() {
                   </p>
                   {booking.missing_requirements_list && (
                     <div className="pl-5 pt-1 flex flex-wrap gap-1.5">
-                      {(Array.isArray(booking.missing_requirements_list) 
-                        ? booking.missing_requirements_list 
+                      {(Array.isArray(booking.missing_requirements_list)
+                        ? booking.missing_requirements_list
                         : typeof booking.missing_requirements_list === 'string' && booking.missing_requirements_list.startsWith('[')
                           ? JSON.parse(booking.missing_requirements_list)
                           : [booking.missing_requirements_list]
@@ -1075,22 +1069,22 @@ export default function TrackBooking() {
                           <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/30">
                             {booking.is_auto_rejected || String(booking.rejection_reason || booking.remarks).toLowerCase().includes('automatically rejected')
                               ? 'Automatic — Schedule Conflict'
-                              : String(booking.rejection_reason || booking.remarks).toLowerCase().includes('conflict') 
-                                ? 'Schedule Conflict' 
-                                : String(booking.rejection_reason || booking.remarks).toLowerCase().includes('requirement') 
-                                  ? 'Incomplete Requirements' 
+                              : String(booking.rejection_reason || booking.remarks).toLowerCase().includes('conflict')
+                                ? 'Schedule Conflict'
+                                : String(booking.rejection_reason || booking.remarks).toLowerCase().includes('requirement')
+                                  ? 'Incomplete Requirements'
                                   : 'Administrative Review'}
                           </span>
                         )}
                       </div>
-                      
+
                       {/* Detailed Rejection Reason */}
                       <div className="mt-2 p-3 bg-card/90 border border-rose-500/30 rounded-xl shadow-2xs space-y-1">
                         <span className="text-[11px] font-extrabold uppercase tracking-wide text-rose-600 dark:text-rose-400 block">
                           Reason for Rejection:
                         </span>
                         <p className="text-xs font-semibold text-foreground leading-relaxed whitespace-pre-wrap">
-                          {booking.rejection_reason || booking.remarks || (isVenue 
+                          {booking.rejection_reason || booking.remarks || (isVenue
                             ? "This request was not approved because another reservation for the same venue and time was approved first. Please submit a new reservation for a different venue or schedule."
                             : "This borrowing request was not approved due to equipment availability or administrative policy. Please submit a new request or consult the facility custodian.")}
                         </p>
@@ -1098,7 +1092,7 @@ export default function TrackBooking() {
 
                       {/* Conflict & Re-booking Policy Guidance */}
                       <p className="text-[11.5px] text-rose-900/80 dark:text-rose-300/80 mt-2 font-medium leading-relaxed">
-                        {isVenue 
+                        {isVenue
                           ? "Under university facility booking policies, reservations for the same venue and timeslot are processed on a First-Come, First-Served basis among applicants who have completed all required endorsements. You may submit a new reservation for an available vacant venue or alternative schedule."
                           : "Equipment loans are allocated based on available physical units and verified academic requirements. You may submit a new borrowing request for an alternative date or visit the PMO/AVR office."}
                       </p>

@@ -209,6 +209,7 @@ function SlotBarcodeSelector({
         handleChoose(searchFiltered[0]);
       }
     } else if (e.key === "Escape") {
+      e.preventDefault();
       setIsOpen(false);
     }
   };
@@ -266,7 +267,7 @@ function SlotBarcodeSelector({
                   e.stopPropagation();
                   setSeqSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
                 }}
-                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white border border-slate-200 text-[10px] font-extrabold text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white border border-slate-200 text-[11px] font-extrabold text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
                 title="Sort by Sequence No."
               >
                 <ArrowUpDown size={10} />
@@ -307,7 +308,7 @@ function SlotBarcodeSelector({
                   <div className="flex flex-col gap-0.5 min-w-0 pr-2">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       {seqNo && (
-                        <span className="font-mono text-[10.5px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 shrink-0">
+                        <span className="font-mono text-[11px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 shrink-0">
                           {seqNo}
                         </span>
                       )}
@@ -317,12 +318,12 @@ function SlotBarcodeSelector({
                         {model && <span className="text-slate-600">{model}</span>}
                         {!brand && !model && (unit.name || categoryName || "Equipment Unit")}
                       </span>
-                      <span className="font-mono text-[10.5px] text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 shrink-0">
+                      <span className="font-mono text-[11px] text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 shrink-0">
                         {bCode}
                       </span>
                     </div>
                     {builtIns.length > 0 && (
-                      <div className="text-[10px] text-slate-500 font-normal flex items-center gap-1.5 flex-wrap mt-0.5">
+                      <div className="text-[11px] text-slate-500 font-normal flex items-center gap-1.5 flex-wrap mt-0.5">
                         <span className="font-medium text-slate-600">Built-in:</span>
                         <span className="bg-slate-50 text-slate-600 px-1.5 py-0.2 rounded border border-slate-200">
                           {builtIns.join(", ")}
@@ -426,7 +427,7 @@ export default function VenueEquipmentChecklist({
 
       // Check if biId corresponds to a known category
       const isNum = typeof biId === "number" || /^\d+$/.test(String(biId));
-      const targetCat = (categories || []).find((c) => {
+      const targetCat = (Array.isArray(dbEquipmentTypes) ? dbEquipmentTypes : []).find((c) => {
         if (isNum) return String(c.id || c.equipment_type_id) === String(biId);
         const cName = (c.category || c.name || c.eq_name || "").trim().toLowerCase();
         return cName === biKey || cName === String(biRaw).trim().toLowerCase();
@@ -685,7 +686,7 @@ export default function VenueEquipmentChecklist({
             <button
               type="button"
               onClick={() => setReleasedSeqSort((prev) => (prev === "asc" ? "desc" : "asc"))}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10.5px] font-bold text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
               title="Sort released units by sequence number"
             >
               <ArrowUpDown size={11} />
@@ -770,7 +771,7 @@ export default function VenueEquipmentChecklist({
                       </span>
                     )}
                     {isRestricted && (
-                      <span className="px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900 text-[10px] font-black uppercase tracking-wider">
+                      <span className="px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900 text-[11px] font-black uppercase tracking-wider">
                         Denied / Not Approved
                       </span>
                     )}
@@ -859,12 +860,12 @@ export default function VenueEquipmentChecklist({
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Unit #{uIdx + 1}</span>
                               {assignedBarcode && (
-                                <span className="font-mono text-[10.5px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/70 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800">
+                                <span className="font-mono text-[11px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/70 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800">
                                   [{assignedBarcode}]
                                 </span>
                               )}
                               {seqNo && (
-                                <span className="font-mono text-[10px] font-black text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/70 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800 shrink-0">
+                                <span className="font-mono text-[11px] font-black text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/70 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800 shrink-0">
                                   {seqNo}
                                 </span>
                               )}
@@ -877,7 +878,7 @@ export default function VenueEquipmentChecklist({
 
                             {isHistoryView ? (
                               <span className={`text-xs font-mono font-black uppercase ${
-                                cond === "Damaged" ? "text-rose-600 dark:text-rose-400" : (cond === "Lost" ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400")
+                                cond === "Damaged" ? "text-rose-600 dark:text-rose-400" : (cond === "Lost" ? "text-amber-700 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400")
                               }`}>
                                 {cond}
                               </span>
@@ -923,15 +924,15 @@ export default function VenueEquipmentChecklist({
                           {/* Built-ins in inspection mode */}
                           {slotBuiltIns.length > 0 && (
                             <div className="mt-1 p-2 rounded bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-1">
-                              <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block">
+                              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block">
                                 Linked Built-in Components ({slotBuiltIns.length}):
                               </span>
                               <div className="flex flex-wrap gap-1">
                                 {slotBuiltIns.map((bi) => (
-                                  <span key={bi.id || bi.barcode} className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-[10px] font-medium text-slate-700 dark:text-slate-300">
+                                  <span key={bi.id || bi.barcode} className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-[11px] font-medium text-slate-700 dark:text-slate-300">
                                     <span className="text-slate-400">•</span>
                                     {bi.seq_no && (
-                                      <span className="font-mono text-[9px] font-black text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/70 px-1 rounded border border-amber-200 dark:border-amber-800">
+                                      <span className="font-mono text-[10px] font-black text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/70 px-1 rounded border border-amber-200 dark:border-amber-800">
                                         {bi.seq_no}
                                       </span>
                                     )}
@@ -983,7 +984,7 @@ export default function VenueEquipmentChecklist({
                               <span className="font-semibold text-slate-800 dark:text-slate-200">
                                 {currentSelectedBarcode ? `Barcode: [${currentSelectedBarcode}]` : "Physical Unit Pre-Assigned"}
                               </span>
-                              <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+                              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
                                 Pre-Inspected (Good)
                               </span>
                             </div>
@@ -1012,7 +1013,7 @@ export default function VenueEquipmentChecklist({
                             <div className="mt-1.5 p-2.5 rounded bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-1.5">
                               <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300">
                                 <span>Built-in to [{currentSelectedBarcode}]</span>
-                                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                                <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
                                   {slotBuiltIns.length} {slotBuiltIns.length === 1 ? "Unit" : "Units"} Linked
                                 </span>
                               </div>
@@ -1035,7 +1036,7 @@ export default function VenueEquipmentChecklist({
                           {/* Pre-event physical unit condition inspection */}
                           {setUnitReturnedConditions && !isHistoryView && !isSideBySide && !isApproved && (
                             <div className="flex items-center justify-between pt-1">
-                              <span className="text-[10.5px] font-bold text-slate-500 dark:text-slate-400">Unit Condition:</span>
+                              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Unit Condition:</span>
                               <div className="flex items-center gap-1.5">
                                 <button
                                   type="button"

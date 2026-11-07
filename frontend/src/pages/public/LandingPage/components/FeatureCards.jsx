@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { AlertCircle, Info, Search, Building2, PackageOpen, Clock } from "lucide-react";
+import { AlertCircle, Info, Search, Building2, Clock, Projector } from "lucide-react";
 import api from "@/lib/axios";
 
 const CACHE_KEY = "fsuu_operating_hours_cache";
@@ -30,13 +30,14 @@ export default function FeatureCards() {
           return `${h12}:${String(m || 0).padStart(2, "0")} ${ampm}`;
         };
 
+        // Empty string = no schedule configured (the pill is hidden, no made-up hours)
         const vSched = (d.venue_open_12 && d.venue_close_12)
           ? `${d.venue_open_12} – ${d.venue_close_12}`
-          : (d.venue_open && d.venue_close ? `${format12(d.venue_open)} – ${format12(d.venue_close)}` : "7:30 AM – 5:00 PM");
+          : (d.venue_open && d.venue_close ? `${format12(d.venue_open)} – ${format12(d.venue_close)}` : "");
 
         const eqSched = (d.equipment_open_12 && d.equipment_close_12)
           ? `${d.equipment_open_12} – ${d.equipment_close_12}`
-          : (d.equipment_open && d.equipment_close ? `${format12(d.equipment_open)} – ${format12(d.equipment_close)}` : "7:30 AM – 5:00 PM");
+          : (d.equipment_open && d.equipment_close ? `${format12(d.equipment_open)} – ${format12(d.equipment_close)}` : "");
 
         const updated = { venue: vSched, equipment: eqSched };
         setSchedules(updated);
@@ -45,9 +46,10 @@ export default function FeatureCards() {
         } catch {}
       })
       .catch(() => {
+        // Keep the last known (cached) hours; otherwise hide the pill
         setSchedules((prev) => ({
-          venue: prev.venue || "7:30 AM – 5:00 PM",
-          equipment: prev.equipment || "7:30 AM – 5:00 PM",
+          venue: prev.venue || "",
+          equipment: prev.equipment || "",
         }));
       });
   }, []);
@@ -88,11 +90,11 @@ export default function FeatureCards() {
                 <Clock size={13} className="shrink-0" />
                 <span>Schedule: {schedules.venue}</span>
               </div>
-            ) : (
+            ) : schedules.venue === null ? (
               <div className="mt-4 inline-flex items-center justify-center gap-1.5 text-xs bg-slate-100 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 px-4 py-1.5 rounded-full animate-pulse">
                 <span className="w-32 h-3 bg-slate-300 dark:bg-slate-700 rounded-sm block" />
               </div>
-            )}
+            ) : null}
           </div>
         </Link>
 
@@ -103,8 +105,8 @@ export default function FeatureCards() {
         >
           <div className="flex flex-col items-center text-center w-full">
             {/* Equipment Icon */}
-            <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400 flex items-center justify-center mx-auto mb-5 transition-transform duration-200 group-hover:scale-105">
-              <PackageOpen size={32} />
+            <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400 flex items-center justify-center mx-auto mb-5 transition-transform duration-200 group-hover:scale-105">
+              <Projector size={32} />
             </div>
 
             {/* Institutional Notice Pill Badge */}
@@ -127,11 +129,11 @@ export default function FeatureCards() {
                 <Clock size={13} className="shrink-0" />
                 <span>Schedule: {schedules.equipment}</span>
               </div>
-            ) : (
+            ) : schedules.equipment === null ? (
               <div className="mt-4 inline-flex items-center justify-center gap-1.5 text-xs bg-slate-100 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 px-4 py-1.5 rounded-full animate-pulse">
                 <span className="w-32 h-3 bg-slate-300 dark:bg-slate-700 rounded-sm block" />
               </div>
-            )}
+            ) : null}
           </div>
         </Link>
 

@@ -156,11 +156,11 @@ export default function AccountActivation() {
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-[11px] font-semibold text-slate-600">
                   <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Assigned Email</span>
+                    <span className="text-slate-400 block text-[11px] uppercase font-bold">Assigned Email</span>
                     <span className="font-mono text-slate-900 font-bold">{inviteData.email}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Assigned Role</span>
+                    <span className="text-slate-400 block text-[11px] uppercase font-bold">Assigned Role</span>
                     <span className="font-bold text-blue-600 inline-flex items-center gap-1">
                       {inviteData.role || "Staff"}
                     </span>

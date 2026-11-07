@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { Plus, Edit2, Ban, X, Loader2, CheckCircle2, Archive, RefreshCw, Lock, Eye, EyeOff, ShieldAlert, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Ban, X, Loader2, Archive, Lock, Eye, EyeOff, ShieldAlert, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import api from "@/lib/axios";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import { confirmDialog } from "@/lib/confirmDialog";
 
 export default function AcademicTermsTab({ showMsg }) {
   const [terms, setTerms] = useState([]);
@@ -64,7 +65,7 @@ export default function AcademicTermsTab({ showMsg }) {
       }
     } catch (err) {
       console.error("Failed to load academic terms:", err);
-      notify("❌ Failed to load academic terms data.");
+      notify("Failed to load academic terms data.");
     } finally {
       setLoading(false);
     }
@@ -167,8 +168,14 @@ export default function AcademicTermsTab({ showMsg }) {
   };
 
   const handleActivateTerm = async (term) => {
-    if (!term?.id) { notify("❌ Cannot activate: term ID is missing. Please refresh the page."); return; }
-    if (!confirm(`Set "${term.name}" as the active academic semester?`)) return;
+    if (!term?.id) { notify("Cannot activate: term ID is missing. Please refresh the page."); return; }
+    const ok = await confirmDialog({
+      title: "Set active semester?",
+      message: `"${term.name}" will become the active academic semester.`,
+      confirmLabel: "Set Active",
+      variant: "primary",
+    });
+    if (!ok) return;
     // ── OPTIMISTIC ACTIVATE ────────────────────────────────────────────────
     const prev = terms;
     const prevActive = activeTerm;
@@ -185,9 +192,15 @@ export default function AcademicTermsTab({ showMsg }) {
   };
 
   const handleDeleteTerm = async (term) => {
-    if (!term?.id) { notify("❌ Cannot delete: term ID is missing. Please refresh the page."); return; }
+    if (!term?.id) { notify("Cannot delete: term ID is missing. Please refresh the page."); return; }
     if (term.is_active) { notify("Cannot delete the currently active semester."); return; }
-    if (!confirm(`Delete "${term.name}"?`)) return;
+    const ok = await confirmDialog({
+      title: "Delete academic term?",
+      message: `"${term.name}" will be removed. This cannot be undone.`,
+      confirmLabel: "Delete",
+      variant: "danger",
+    });
+    if (!ok) return;
     // ── OPTIMISTIC DELETE ────────────────────────────────────────────────
     const prev = terms;
     setTerms(t => t.filter(x => x.id !== term.id));
@@ -258,7 +271,7 @@ export default function AcademicTermsTab({ showMsg }) {
         password: passwordInput,
       };
       const res = await api.post("/general/academic-terms/close-term", payload);
-      notify(res.data.message || "✅ Semester archived into TiDB successfully!");
+      notify(res.data.message || "Semester archived successfully.");
       setShowPasswordModal(false);
       setShowCloseModal(false);
       setPasswordInput("");
@@ -276,7 +289,7 @@ export default function AcademicTermsTab({ showMsg }) {
       {/* Top Header Card */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
         <div>
-          <h2 className="text-lg font-bold text-slate-900">Academic Terms & Archiving</h2>
+          <h2 className="card-title text-lg font-bold text-slate-900">Academic Terms & Archiving</h2>
           <p className="text-xs text-slate-500 mt-0.5">
             Manage academic years, semesters, and TiDB cloud archival transitions.
           </p>
@@ -318,7 +331,7 @@ export default function AcademicTermsTab({ showMsg }) {
       ) : (
         <div className="overflow-x-auto border border-slate-200 rounded-xl">
           <table className="w-full text-left text-xs text-slate-700">
-            <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 uppercase text-[10px] tracking-wider">
+            <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 uppercase text-[11px] tracking-wider">
               <tr>
                 <th className="py-3 px-4">#</th>
                 <th className="py-3 px-4">Academic Term Name</th>
@@ -367,7 +380,7 @@ export default function AcademicTermsTab({ showMsg }) {
                         className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg cursor-pointer"
                         title="Edit Term"
                       >
-                        <Edit2 size={14} />
+                        <Pencil size={14} />
                       </button>
                       {!term.is_active && (
                         <button
@@ -424,15 +437,15 @@ export default function AcademicTermsTab({ showMsg }) {
 
       {/* Add / Edit Term Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-100">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4">
+        <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-xs animate-in fade-in duration-100">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold text-slate-900">
+                <h3 className="modal-title text-sm font-bold text-slate-900">
                   {editTerm ? "Edit Academic Term" : "Add New Academic Term"}
                 </h3>
                 {isTermFormDirty && (
-                  <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 rounded-full">
+                  <span className="px-2 py-0.5 text-[11px] font-bold bg-amber-50 text-amber-800 rounded-full">
                     Unsaved
                   </span>
                 )}
@@ -549,15 +562,15 @@ export default function AcademicTermsTab({ showMsg }) {
 
       {/* Close Term Modal */}
       {showCloseModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-100">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4">
+        <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-xs animate-in fade-in duration-100">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold text-slate-900">
+                <h3 className="modal-title text-sm font-bold text-slate-900">
                   Close Semester
                 </h3>
                 {isCloseFormDirty && (
-                  <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 rounded-full">
+                  <span className="px-2 py-0.5 text-[11px] font-bold bg-amber-50 text-amber-800 rounded-full">
                     Unsaved
                   </span>
                 )}
@@ -661,16 +674,16 @@ export default function AcademicTermsTab({ showMsg }) {
 
       {/* ── Security Password Confirmation Modal ── */}
       {showPasswordModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm p-6 space-y-4 animate-in zoom-in-95">
+        <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-sm p-6 space-y-4 animate-in zoom-in-95">
             {/* Close */}
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600">
+                <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700">
                   <ShieldAlert size={18} />
                 </div>
                 <div>
-                  <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                  <h3 className="modal-title text-xs font-black text-slate-900 uppercase tracking-wider">
                     Password Verification
                   </h3>
                   <p className="text-[11px] text-slate-500 font-medium">Super Admin Authorization</p>
@@ -720,7 +733,7 @@ export default function AcademicTermsTab({ showMsg }) {
                 </div>
                 {pwError && (
                   <p className="text-[11px] text-red-500 font-semibold mt-1.5 flex items-center gap-1">
-                    <span>⚠</span> {pwError}
+                    {pwError}
                   </p>
                 )}
               </div>

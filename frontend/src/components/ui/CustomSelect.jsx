@@ -90,6 +90,7 @@ export default function CustomSelect({
 
     const handleKeyDown = (e) => {
       if (e.key === "Escape" && open) {
+        e.preventDefault();
         setOpen(false);
       }
     };
@@ -205,7 +206,7 @@ export default function CustomSelect({
                     <div className="min-w-0 flex-1 truncate">
                       <span className="block truncate">{opt.label}</span>
                       {opt.description && (
-                        <span className="block text-[10.5px] font-normal text-slate-400 truncate mt-0.5">
+                        <span className="block text-[11px] font-normal text-slate-400 truncate mt-0.5">
                           {opt.description}
                         </span>
                       )}

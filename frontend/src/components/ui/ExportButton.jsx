@@ -50,7 +50,7 @@ export default function ExportButton({
       )}
       <span>{label}</span>
       {count !== null && (
-        <span className="ml-0.5 text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+        <span className="ml-0.5 text-[11px] font-mono font-bold px-1.5 py-0.2 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
           {count}
         </span>
       )}

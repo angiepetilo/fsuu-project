@@ -197,7 +197,7 @@ export default function StaffAnalyticsDashboard({
                     <h3 className="text-[15px] font-extrabold text-foreground group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors tracking-tight">
                       Book Venue
                     </h3>
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/60 dark:border-blue-800/60">
+                    <span className="px-2 py-0.5 rounded-md text-[11px] font-extrabold uppercase tracking-wider bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/60 dark:border-blue-800/60">
                       Walk-in
                     </span>
                   </div>
@@ -228,7 +228,7 @@ export default function StaffAnalyticsDashboard({
                     <h3 className="text-[15px] font-extrabold text-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors tracking-tight">
                       Borrow Equipment
                     </h3>
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60">
+                    <span className="px-2 py-0.5 rounded-md text-[11px] font-extrabold uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60">
                       Requisition
                     </span>
                   </div>
@@ -373,7 +373,7 @@ export default function StaffAnalyticsDashboard({
 
             <div className="flex flex-col items-center justify-center py-4 my-auto text-center">
 
-              <span className="text-xl font-black text-amber-600 dark:text-amber-400">{topLateDepartment}</span>
+              <span className="text-xl font-black text-amber-700 dark:text-amber-400">{topLateDepartment}</span>
 
               <span className="text-[11px] text-muted-foreground font-semibold mt-1">Most frequent late check-ins</span>
 
@@ -491,7 +491,7 @@ export default function StaffAnalyticsDashboard({
 
                       <div key={change.id} className="flex items-start gap-2.5 p-2.5 rounded-xl hover:bg-muted transition-colors">
 
-                        <span className={`mt-0.5 px-2 py-0.5 rounded text-[10px] font-bold border whitespace-nowrap shrink-0 ${style.cls}`}>
+                        <span className={`mt-0.5 px-2 py-0.5 rounded text-[11px] font-bold border whitespace-nowrap shrink-0 ${style.cls}`}>
 
                           {style.label}
 
@@ -509,7 +509,7 @@ export default function StaffAnalyticsDashboard({
 
                             {change.barcode && (
 
-                              <span className="text-[10px] font-mono font-bold text-blue-700 bg-blue-50 border border-blue-200/60 px-1.5 py-0.5 rounded">
+                              <span className="text-[11px] font-mono font-bold text-blue-700 bg-blue-50 border border-blue-200/60 px-1.5 py-0.5 rounded">
 
                                 {change.barcode}
 
@@ -519,7 +519,7 @@ export default function StaffAnalyticsDashboard({
 
                             {change.condition && (
 
-                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                              <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded border ${
 
                                 change.condition.toLowerCase() === "good" ? "bg-emerald-50 text-emerald-700 border-emerald-200/60" :
 
@@ -537,7 +537,7 @@ export default function StaffAnalyticsDashboard({
 
                             {change.status && (
 
-                              <span className="text-[10px] font-bold text-muted-foreground bg-muted px-1.5 py-0.5 rounded capitalize">
+                              <span className="text-[11px] font-bold text-muted-foreground bg-muted px-1.5 py-0.5 rounded capitalize">
 
                                 {change.status}
 
@@ -547,7 +547,7 @@ export default function StaffAnalyticsDashboard({
 
                             {change.count && (
 
-                              <span className="text-[10px] font-bold text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                              <span className="text-[11px] font-bold text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
 
                                 Qty: {change.count}
 
@@ -559,7 +559,7 @@ export default function StaffAnalyticsDashboard({
 
                         </div>
 
-                        <span className="text-[10px] text-muted-foreground font-semibold whitespace-nowrap shrink-0 mt-0.5">{change.created_at}</span>
+                        <span className="text-[11px] text-muted-foreground font-semibold whitespace-nowrap shrink-0 mt-0.5">{change.created_at}</span>
 
                       </div>
 
@@ -595,7 +595,7 @@ export default function StaffAnalyticsDashboard({
 
                 <h3 className="font-extrabold text-foreground text-xs sm:text-sm">Borrowers with late returns</h3>
 
-                <span className="text-[10.5px] font-bold px-2.5 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50">
+                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50">
 
                   {uniqueLateBorrowers.length} {uniqueLateBorrowers.length === 1 ? "Incident" : "Incidents"}
 
@@ -609,7 +609,7 @@ export default function StaffAnalyticsDashboard({
 
                   <thead>
 
-                    <tr className="border-b border-border text-left text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-wider sticky top-0 bg-card z-10">
+                    <tr className="border-b border-border text-left text-[11px] font-mono font-bold text-muted-foreground uppercase tracking-wider sticky top-0 bg-card z-10">
 
                       <th className="pb-2.5 px-3">BORROWER</th>
 
@@ -687,7 +687,7 @@ export default function StaffAnalyticsDashboard({
 
                             <td className="py-2.5 px-3">
 
-                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] font-bold border ${
+                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
 
                                 s.is_late
 

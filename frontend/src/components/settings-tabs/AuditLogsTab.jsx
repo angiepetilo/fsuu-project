@@ -119,7 +119,7 @@ export default function AuditLogsTab() {
     if (act.includes("INSPECT") || act.includes("VIOLATION") || act.includes("DAMAGE") || act.includes("LOST")) {
       return (
         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-          <ShieldAlert size={12} className="text-amber-600" />
+          <ShieldAlert size={12} className="text-amber-700" />
           Inspection
         </span>
       );
@@ -135,7 +135,7 @@ export default function AuditLogsTab() {
     if (act.includes("PASSWORD")) {
       return (
         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-          <Lock size={12} className="text-amber-600" />
+          <Lock size={12} className="text-amber-700" />
           Change Password
         </span>
       );
@@ -215,7 +215,7 @@ export default function AuditLogsTab() {
     if (act.includes("INCOMPLETE")) {
       return (
         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-          <AlertTriangle size={12} className="text-amber-600" />
+          <AlertTriangle size={12} className="text-amber-700" />
           Incomplete
         </span>
       );
@@ -364,41 +364,41 @@ export default function AuditLogsTab() {
 
                   // Status determination
                   let statusBadge = (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10.5px] font-bold bg-slate-100 text-slate-700">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-700">
                       Completed
                     </span>
                   );
                   if (act === "VENUE_UNIT_DAMAGED" || act === "EQUIPMENT_UNIT_DAMAGED") {
                     statusBadge = (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
                         <AlertCircle size={11} className="text-rose-600" />
                         Damaged Unit
                       </span>
                     );
                   } else if (act === "VENUE_UNIT_LOST" || act === "EQUIPMENT_UNIT_LOST") {
                     statusBadge = (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                        <AlertTriangle size={11} className="text-amber-600" />
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                        <AlertTriangle size={11} className="text-amber-700" />
                         Lost Unit
                       </span>
                     );
                   } else if (act === "VENUE_POLICY_VIOLATION" || act === "EQUIPMENT_POLICY_VIOLATION") {
                     statusBadge = (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-bold bg-violet-50 text-violet-700 border border-violet-200">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-violet-50 text-violet-700 border border-violet-200">
                         <ShieldAlert size={11} className="text-violet-600" />
                         Policy Breach
                       </span>
                     );
                   } else if (act.includes("APPROVED") || act.includes("SUCCESS") || act.includes("GRANTED") || act.includes("CREATED")) {
                     statusBadge = (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                         <CheckCircle2 size={11} className="text-emerald-600" />
                         {act.includes("GRANTED") ? "Access Granted" : "Success"}
                       </span>
                     );
                   } else if (act.includes("REJECTED") || act.includes("FAILED") || act.includes("DENIED") || act.includes("TERMINATED")) {
                     statusBadge = (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
                         <XCircle size={11} className="text-rose-600" />
                         {act.includes("DENIED") ? "Access Denied" : act.includes("TERMINATED") ? "Terminated" : "Rejected"}
                       </span>
@@ -413,7 +413,7 @@ export default function AuditLogsTab() {
                           <span className="font-semibold text-slate-900">
                             {createdDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                           </span>
-                          <span className="text-[10.5px] text-slate-500">
+                          <span className="text-[11px] text-slate-500">
                             {createdDate.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
                           </span>
                         </div>
@@ -428,7 +428,7 @@ export default function AuditLogsTab() {
                             </div>
                             <div className="flex flex-col">
                               <span className="font-semibold text-slate-900">{actor.name || actor.email}</span>
-                              <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">
+                              <span className="text-[11px] text-slate-500 uppercase tracking-wider font-bold">
                                 {roleName}
                               </span>
                             </div>
@@ -443,7 +443,7 @@ export default function AuditLogsTab() {
                         <div className="flex flex-col gap-1">
                           {getActionBadge(log.action)}
                           {moduleName && (
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                               Module: <span className="text-slate-600 capitalize">{moduleName}</span>
                             </span>
                           )}
@@ -462,7 +462,7 @@ export default function AuditLogsTab() {
                             )}
                           </p>
                           {meta.reference_code && meta.description && (
-                            <span className="text-[10px] font-mono font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded w-fit inline-block">
+                            <span className="text-[11px] font-mono font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded w-fit inline-block">
                               {meta.reference_code}
                             </span>
                           )}
@@ -476,7 +476,7 @@ export default function AuditLogsTab() {
                             <Globe size={11} className="text-slate-400" />
                             <span className="font-semibold text-slate-800">{log.ip_address || "127.0.0.1"}</span>
                           </div>
-                          <span className="text-[10px] text-slate-400 font-sans">
+                          <span className="text-[11px] text-slate-400 font-sans">
                             {meta.device || "Web Client"}
                           </span>
                         </div>
@@ -539,12 +539,12 @@ export default function AuditLogsTab() {
 
       {/* Details Modal */}
       {selectedLog && (
-        <div className="fixed inset-0 bg-black/40 z-[1600] flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl animate-in zoom-in-95 border border-slate-200 space-y-4 max-h-[85vh] overflow-y-auto">
+        <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 bg-slate-950/50 z-[1600] flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-xl animate-in zoom-in-95 border border-slate-200 space-y-4 max-h-[85vh] overflow-y-auto">
             <div className="flex justify-between items-center pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <FileText size={18} className="text-blue-600" />
-                <h3 className="font-bold text-slate-900 text-sm">
+                <h3 className="modal-title font-bold text-slate-900 text-sm">
                   {selectedLog.action?.includes("INCIDENT") || selectedLog.action?.includes("DAMAGE") || selectedLog.action?.includes("LOST") || selectedLog.action?.includes("VIOLATION")
                     ? "Incident & Damage Record Details"
                     : "Audit Log Event Details"}
@@ -588,13 +588,13 @@ export default function AuditLogsTab() {
                   {/* Reference & Target */}
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div className="bg-white p-2.5 rounded-lg border border-slate-200">
-                      <span className="text-[10px] text-slate-400 uppercase font-bold block">Reference Code</span>
+                      <span className="text-[11px] text-slate-400 uppercase font-bold block">Reference Code</span>
                       <span className="font-mono font-bold text-blue-600 text-xs">
                         {selectedLog.metadata.reference_code || `#${selectedLog.auditable_id}`}
                       </span>
                     </div>
                     <div className="bg-white p-2.5 rounded-lg border border-slate-200">
-                      <span className="text-[10px] text-slate-400 uppercase font-bold block">Facility / Module</span>
+                      <span className="text-[11px] text-slate-400 uppercase font-bold block">Facility / Module</span>
                       <span className="font-semibold text-slate-800 capitalize">
                         {selectedLog.metadata.venue_name || selectedLog.metadata.equipment_name || selectedLog.metadata.module || selectedLog.metadata.target_type?.replace(/_/g, " ") || "Resource"}
                       </span>
@@ -605,7 +605,7 @@ export default function AuditLogsTab() {
                   {selectedLog.metadata.attempt_count && (
                     <div className="bg-white p-2.5 rounded-lg border border-slate-200 flex items-center justify-between text-xs">
                       <div>
-                        <span className="text-[10px] text-slate-400 uppercase font-bold block">Security Verification Attempts</span>
+                        <span className="text-[11px] text-slate-400 uppercase font-bold block">Security Verification Attempts</span>
                         <span className="font-semibold text-slate-800">
                           {selectedLog.metadata.module || "Protected Module"}
                         </span>
@@ -619,7 +619,7 @@ export default function AuditLogsTab() {
                   {/* Responsible Person / Filer */}
                   {selectedLog.metadata.filer_name && (
                     <div className="bg-white p-3 rounded-lg border border-slate-200 space-y-1">
-                      <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                      <span className="text-[11px] text-slate-400 uppercase font-bold block">
                         Responsible Person / Filer
                       </span>
                       <p className="font-bold text-slate-900 text-xs">{selectedLog.metadata.filer_name}</p>
@@ -637,7 +637,7 @@ export default function AuditLogsTab() {
                           </span>
                         )}
                         {selectedLog.metadata.email_address && selectedLog.metadata.email_address !== 'N/A' && (
-                          <span className="flex items-center gap-1 font-mono text-[10.5px]">
+                          <span className="flex items-center gap-1 font-mono text-[11px]">
                             <Mail size={11} className="text-slate-400" />
                             {selectedLog.metadata.email_address}
                           </span>
@@ -649,7 +649,7 @@ export default function AuditLogsTab() {
                   {/* Policy Violation */}
                   {selectedLog.metadata.violation_type && (
                     <div className="bg-violet-50/70 p-3 rounded-lg border border-violet-200/80">
-                      <span className="text-[10px] text-violet-700 uppercase font-bold block mb-0.5">
+                      <span className="text-[11px] text-violet-700 uppercase font-bold block mb-0.5">
                         Recorded Policy Breach
                       </span>
                       <p className="font-semibold text-violet-900 text-xs">
@@ -661,7 +661,7 @@ export default function AuditLogsTab() {
                   {/* Damaged Barcodes */}
                   {Array.isArray(selectedLog.metadata.damaged_units) && selectedLog.metadata.damaged_units.length > 0 && (
                     <div className="bg-rose-50/70 p-3 rounded-lg border border-rose-200/80 space-y-1">
-                      <span className="text-[10px] text-rose-700 uppercase font-bold block">
+                      <span className="text-[11px] text-rose-700 uppercase font-bold block">
                         Damaged Physical Units
                       </span>
                       <div className="flex items-center gap-1.5 flex-wrap">
@@ -677,12 +677,12 @@ export default function AuditLogsTab() {
                   {/* Lost Barcodes */}
                   {Array.isArray(selectedLog.metadata.lost_units) && selectedLog.metadata.lost_units.length > 0 && (
                     <div className="bg-amber-50/70 p-3 rounded-lg border border-amber-200/80 space-y-1">
-                      <span className="text-[10px] text-amber-700 uppercase font-bold block">
+                      <span className="text-[11px] text-amber-700 uppercase font-bold block">
                         Lost / Unreturned Physical Units
                       </span>
                       <div className="flex items-center gap-1.5 flex-wrap">
                         {selectedLog.metadata.lost_units.map((code, idx) => (
-                          <span key={idx} className="px-2 py-0.5 rounded-md font-mono font-bold text-xs bg-white text-amber-700 border border-amber-300 shadow-2xs">
+                          <span key={idx} className="px-2 py-0.5 rounded-md font-mono font-bold text-xs bg-white text-amber-700 border border-amber-200 shadow-2xs">
                             #{code}
                           </span>
                         ))}
@@ -693,7 +693,7 @@ export default function AuditLogsTab() {
                   {/* Inspection Remarks */}
                   {selectedLog.metadata.remarks && (
                     <div className="bg-white p-3 rounded-lg border border-slate-200 space-y-1">
-                      <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                      <span className="text-[11px] text-slate-400 uppercase font-bold block">
                         Inspection Remarks / Notes
                       </span>
                       <p className="text-slate-800 font-medium italic text-xs leading-relaxed">
@@ -723,7 +723,7 @@ export default function AuditLogsTab() {
                               alt={`Evidence photo ${i + 1}`}
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                             />
-                            <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold gap-1">
+                            <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[11px] font-bold gap-1">
                               <ExternalLink size={12} />
                               <span>View Photo</span>
                             </div>
@@ -748,7 +748,7 @@ export default function AuditLogsTab() {
                     <div>
                       <p className="font-bold text-slate-900">{selectedLog.user.name}</p>
                       <p className="text-slate-500 font-mono text-[11px]">{selectedLog.user.email}</p>
-                      <span className="inline-block mt-0.5 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                      <span className="inline-block mt-0.5 px-2 py-0.5 rounded text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
                         {selectedLog.user.role?.name || "Staff"}
                       </span>
                     </div>

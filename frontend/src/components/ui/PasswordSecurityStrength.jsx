@@ -52,7 +52,7 @@ export function checkPasswordSecurity(password = "") {
     barWidth = "75%";
   } else if (score >= 2) {
     label = "Fair";
-    color = "bg-amber-500 text-amber-600";
+    color = "bg-amber-500 text-amber-700";
     barWidth = "50%";
   } else if (pwd.length > 0) {
     label = "Weak";
@@ -162,7 +162,7 @@ export default function PasswordSecurityStrength({
         </div>
 
         {analysis.isDictionaryWord && (
-          <div className="col-span-full text-rose-600 font-bold text-[10.5px] flex items-center gap-1 pt-1 border-t border-rose-100">
+          <div className="col-span-full text-rose-600 font-bold text-[11px] flex items-center gap-1 pt-1 border-t border-rose-100">
             <ShieldAlert size={12} className="shrink-0" />
             <span>Avoid common dictionary words (e.g. "password", "fsuu123").</span>
           </div>
@@ -195,13 +195,13 @@ export default function PasswordSecurityStrength({
                 <span className="font-bold text-blue-800 dark:text-blue-300 block mb-0.5">
                   How to select a strong passphrase:
                 </span>
-                <p className="font-mono text-[10.5px] text-slate-600 dark:text-slate-400">
+                <p className="font-mono text-[11px] text-slate-600 dark:text-slate-400">
                   "I was Born on May 9 nineteen90 #" &rarr;{" "}
                   <strong className="text-blue-600 dark:text-blue-400 font-black">IwBoM9n90#</strong>
                 </p>
               </div>
 
-              <ul className="list-disc list-inside space-y-1 text-[10.5px] text-slate-600 dark:text-slate-400 leading-relaxed">
+              <ul className="list-disc list-inside space-y-1 text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
                 <li>Change passwords frequently and do not share credentials.</li>
                 <li>Never reuse the same password across multiple institutional systems.</li>
                 <li>Avoid writing down passwords on notes or unencrypted files.</li>

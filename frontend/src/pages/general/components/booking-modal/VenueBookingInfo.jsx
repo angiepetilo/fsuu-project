@@ -416,10 +416,10 @@ export default function VenueBookingInfo({
             <button
               type="button"
               onClick={() => handleOpenOverride("venue")}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60 border border-amber-300 dark:border-amber-700/80 text-[10.5px] font-extrabold transition-all cursor-pointer shadow-2xs"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60 border border-amber-200 dark:border-amber-700/80 text-[11px] font-extrabold transition-all cursor-pointer shadow-2xs"
               title="Super Admin Override: Reassign Venue, Date & Time"
             >
-              <Shield size={12} className="text-amber-600 dark:text-amber-400" />
+              <Shield size={12} className="text-amber-700 dark:text-amber-400" />
               <span>Override</span>
             </button>
           </div>
@@ -440,7 +440,7 @@ export default function VenueBookingInfo({
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="font-mono text-slate-800 dark:text-slate-200 break-all">{selected.email_address || selected.email || "—"}</span>
             {(selected.is_email_verified ?? true) && (
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 shrink-0" title="Email address verified via OTP">
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 shrink-0" title="Email address verified via OTP">
                 <CheckCircle2 size={11} className="text-emerald-600 dark:text-emerald-400" />
                 Verified
               </span>
@@ -528,7 +528,7 @@ export default function VenueBookingInfo({
                       <span className={`text-xs font-bold font-mono ${isRestricted ? "line-through text-slate-500 dark:text-slate-400" : "text-slate-800 dark:text-slate-200"}`}>
                         {catName}
                       </span>
-                      <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-md border ${
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md border ${
                         isRestricted
                           ? "bg-slate-200 text-slate-500 border-slate-300 line-through dark:bg-slate-700 dark:text-slate-400 dark:border-slate-600"
                           : "text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700"
@@ -547,7 +547,7 @@ export default function VenueBookingInfo({
                       <button
                         type="button"
                         onClick={() => onToggleRestrictCategory(cat)}
-                        className={`px-2.5 py-1 rounded-lg text-[10.5px] font-black transition-all cursor-pointer flex items-center gap-1 border shadow-2xs shrink-0 ${
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-black transition-all cursor-pointer flex items-center gap-1 border shadow-2xs shrink-0 ${
                           isRestricted
                             ? "bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-600"
                             : "bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border-rose-200 hover:border-rose-600 dark:bg-rose-950/50 dark:hover:bg-rose-600 dark:text-rose-300 dark:hover:text-white dark:border-rose-900/60"
@@ -587,14 +587,14 @@ export default function VenueBookingInfo({
                   <button
                     type="button"
                     onClick={() => setSeqSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))}
-                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
                     title="Sort released units by sequence number"
                   >
                     <ArrowUpDown size={10} />
                     <span>Seq # {seqSortOrder === "asc" ? "↑" : "↓"}</span>
                   </button>
                 )}
-                <span className="text-[10.5px] font-mono font-bold text-slate-500 dark:text-slate-400">
+                <span className="text-[11px] font-mono font-bold text-slate-500 dark:text-slate-400">
                   {assignedUnitsList.length} of {requestedCategories.filter(c => !restrictedCategories.some(r => String(r).toLowerCase().trim() === String(c.name || c.category || c.equipment_types_name).toLowerCase().trim())).reduce((acc, c) => acc + (parseInt(c.quantity || 1, 10) || 1), 0)} unit(s) assigned
                 </span>
               </div>
@@ -611,7 +611,7 @@ export default function VenueBookingInfo({
                     <div className="flex items-center justify-between gap-2 flex-wrap">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         {au.seqNo && (
-                          <span className="font-mono text-[10px] font-black text-amber-800 dark:text-amber-300 bg-amber-100/80 dark:bg-amber-950/70 px-1.5 py-0.5 rounded border border-amber-300 dark:border-amber-700/80 shrink-0">
+                          <span className="font-mono text-[11px] font-black text-amber-800 dark:text-amber-300 bg-amber-100/80 dark:bg-amber-950/70 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-700/80 shrink-0">
                             {au.seqNo}
                           </span>
                         )}
@@ -624,7 +624,7 @@ export default function VenueBookingInfo({
                       </div>
 
                       <div className="flex items-center gap-1.5">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold font-mono uppercase ${
+                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold font-mono uppercase ${
                           isOngoing
                             ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
                             : "bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
@@ -647,11 +647,11 @@ export default function VenueBookingInfo({
 
                     {au.builtIns && au.builtIns.length > 0 && (
                       <div className="flex items-center flex-wrap gap-1 pt-0.5">
-                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Tied Accessories:</span>
+                        <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Tied Accessories:</span>
                         {au.builtIns.map((biName, biIdx) => (
                           <span
                             key={biIdx}
-                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white dark:bg-slate-700/80 text-slate-700 dark:text-slate-200 text-[10px] font-semibold border border-slate-200 dark:border-slate-600"
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white dark:bg-slate-700/80 text-slate-700 dark:text-slate-200 text-[11px] font-semibold border border-slate-200 dark:border-slate-600"
                           >
                             <CheckCircle2 size={10} className="text-emerald-600 dark:text-emerald-400" />
                             <span>{biName}</span>
@@ -677,7 +677,7 @@ export default function VenueBookingInfo({
               <FileText size={14} className="text-blue-600 dark:text-blue-400" />
               Endorsement Document :
             </span>
-            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 font-mono">
+            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 font-mono">
               {docUrl ? (isPdf ? 'PDF Document' : 'Image File') : (hasHardcopySaved ? 'Hardcopy Filed' : 'Pending File')}
             </span>
           </div>
@@ -690,7 +690,7 @@ export default function VenueBookingInfo({
                   key={idx}
                   type="button"
                   onClick={() => setSelectedDocIndex(idx)}
-                  className={`px-2.5 py-1 rounded-md text-[10.5px] font-bold transition-all cursor-pointer shrink-0 ${
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer shrink-0 ${
                     selectedDocIndex === idx
                       ? "bg-blue-600 text-white shadow-xs"
                       : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
@@ -762,11 +762,11 @@ export default function VenueBookingInfo({
                       </span>
                     </div>
 
-                    <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">
                       {isPdf ? "Official PDF Endorsement Letter" : "Scanned Endorsement Image"}
                     </p>
 
-                    <p className="text-[10px] font-mono text-slate-400 dark:text-slate-500 mt-0.5">
+                    <p className="text-[11px] font-mono text-slate-400 dark:text-slate-500 mt-0.5">
                       Filed: {formatDateTimeFiled ? formatDateTimeFiled(selected.created_at) : (selected.created_at || "Recent")}
                     </p>
                   </div>
@@ -791,7 +791,7 @@ export default function VenueBookingInfo({
             <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-950/40 p-3.5 text-center space-y-1">
               <FileText size={24} className="mx-auto text-slate-400 dark:text-slate-500" />
               <p className="text-xs font-bold text-slate-700 dark:text-slate-300">No Electronic Document Attached</p>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
                 Verify physical hardcopy submission below or attach file.
               </p>
             </div>

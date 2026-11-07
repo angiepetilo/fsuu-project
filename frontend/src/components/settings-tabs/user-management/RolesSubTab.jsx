@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import api from "@/lib/axios";
 import { notify } from "@/lib/notify";
+import { confirmDialog } from "@/lib/confirmDialog";
 import {
   PERMISSION_MODULES,
   ALL_ACTION_KEYS,
@@ -152,7 +153,13 @@ export default function RolesSubTab() {
   };
 
   const handleDelete = async (r) => {
-    if (!window.confirm(`Delete ${formatRoleName(r.name)}?`)) return;
+    const ok = await confirmDialog({
+      title: "Delete role?",
+      message: `${formatRoleName(r.name)} will be removed. Users with this role lose its permissions.`,
+      confirmLabel: "Delete",
+      variant: "danger",
+    });
+    if (!ok) return;
     setDeletingId(r.id);
     try {
       await api.delete(`/sysad/roles/${r.id}`);
@@ -172,7 +179,7 @@ export default function RolesSubTab() {
     <div className="space-y-4">
       {/* Header section */}
       <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold text-slate-900 dark:text-white uppercase tracking-wider">
+        <h3 className="card-title text-xs font-semibold text-slate-900 dark:text-white uppercase tracking-wider">
           Roles
         </h3>
         <button
@@ -235,11 +242,11 @@ export default function RolesSubTab() {
                             {displayName}
                           </span>
                           {r.is_protected ? (
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 uppercase">
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 uppercase">
                               System
                             </span>
                           ) : (
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 uppercase">
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 uppercase">
                               Custom
                             </span>
                           )}
@@ -299,11 +306,11 @@ export default function RolesSubTab() {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+        <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-xs">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
             {/* Modal Header */}
             <div className="px-5 py-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shrink-0">
-              <h3 className="text-xs font-semibold text-slate-900 dark:text-white uppercase tracking-wider">
+              <h3 className="modal-title text-xs font-semibold text-slate-900 dark:text-white uppercase tracking-wider">
                 {editRole ? "Edit" : "Create"}
               </h3>
               <button
@@ -410,7 +417,7 @@ export default function RolesSubTab() {
                                 >
                                   {mod.label}
                                 </span>
-                                <span className="text-[10px] text-slate-400 font-medium">
+                                <span className="text-[11px] text-slate-400 font-medium">
                                   {enabledActions.length}/{moduleActionKeys.length}
                                 </span>
                               </div>
@@ -433,7 +440,7 @@ export default function RolesSubTab() {
                                     e.stopPropagation();
                                     toggleAction(actionKey);
                                   }}
-                                  className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider border transition-colors cursor-pointer ${
+                                  className={`px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider border transition-colors cursor-pointer ${
                                     isOn
                                       ? "bg-blue-600 border-blue-600 text-white"
                                       : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-400"

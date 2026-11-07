@@ -82,7 +82,7 @@ export default function DocumentPreviewModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[3500] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-150">
+    <div data-own-escape role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 z-[3500] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-150">
       <div
         className={`bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 transition-all ${
           isFullscreen ? "w-screen h-screen rounded-none" : "w-full max-w-5xl h-[88vh]"
@@ -95,8 +95,8 @@ export default function DocumentPreviewModal({
               {isPdf ? <FileText size={18} /> : <ImageIcon size={18} />}
             </div>
             <div className="min-w-0">
-              <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 truncate">{fileName}</h3>
-              <p className="text-[10px] font-mono text-slate-500 font-semibold uppercase tracking-wider">
+              <h3 className="modal-title font-extrabold text-xs sm:text-sm text-slate-900 truncate">{fileName}</h3>
+              <p className="text-[11px] font-mono text-slate-500 font-semibold uppercase tracking-wider">
                 {isPdf ? "PDF Document" : isImage ? "Image Scan" : "Document File"} • Live In-App Preview
               </p>
             </div>
@@ -114,7 +114,7 @@ export default function DocumentPreviewModal({
                 >
                   <ZoomOut size={14} />
                 </button>
-                <span className="text-[10px] font-mono font-bold px-1 text-slate-700 min-w-[36px] text-center">
+                <span className="text-[11px] font-mono font-bold px-1 text-slate-700 min-w-[36px] text-center">
                   {Math.round(zoom * 100)}%
                 </span>
                 <button

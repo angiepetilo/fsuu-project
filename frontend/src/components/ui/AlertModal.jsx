@@ -1,8 +1,9 @@
+import { useEffect } from "react";
 import { X, AlertCircle, AlertTriangle, Info, CheckCircle2 } from "lucide-react";
 
 const ICONS = {
   error:   { icon: AlertCircle,   bg: "bg-rose-50 dark:bg-rose-500/15",    border: "border-rose-200 dark:border-rose-500/30",    color: "text-rose-600 dark:text-rose-400"    },
-  warning: { icon: AlertTriangle, bg: "bg-amber-50 dark:bg-amber-500/15",  border: "border-amber-200 dark:border-amber-500/30",  color: "text-amber-600 dark:text-amber-400"  },
+  warning: { icon: AlertTriangle, bg: "bg-amber-50 dark:bg-amber-500/15",  border: "border-amber-200 dark:border-amber-500/30",  color: "text-amber-700 dark:text-amber-400"  },
   info:    { icon: Info,          bg: "bg-blue-50 dark:bg-blue-500/15",    border: "border-blue-200 dark:border-blue-500/30",    color: "text-blue-600 dark:text-blue-400"    },
   success: { icon: CheckCircle2,  bg: "bg-emerald-50 dark:bg-emerald-500/15", border: "border-emerald-200 dark:border-emerald-500/30", color: "text-emerald-600 dark:text-emerald-400" },
 };
@@ -21,12 +22,19 @@ export default function AlertModal({
   buttonLabel = "OK",
   buttonClassName,
 }) {
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") onClose?.(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   const { icon: Icon, bg, border, color } = ICONS[variant] || ICONS.error;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+    <div className="modal-overlay fixed inset-0 z-[9999] flex items-center justify-center p-4" role="alertdialog" aria-modal="true" data-own-escape>
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-slate-950/50 backdrop-blur-xs transition-opacity"
@@ -47,16 +55,16 @@ export default function AlertModal({
           <Icon size={20} className={color} />
         </div>
 
-        <h2 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight mb-1.5">{title}</h2>
+        <h2 className="modal-title text-base font-bold text-slate-900 dark:text-white tracking-tight mb-1.5">{title}</h2>
 
         {message && (
-          <p className="text-xs text-slate-600 dark:text-slate-300 font-medium leading-relaxed">{message}</p>
+          <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{message}</p>
         )}
 
         <button
           type="button"
           onClick={onClose}
-          className={buttonClassName || "mt-5 w-full py-2.5 min-h-[42px] bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer shadow-sm"}
+          className={buttonClassName || "mt-5 w-full py-2.5 min-h-[42px] bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors cursor-pointer"}
         >
           {buttonLabel}
         </button>

@@ -375,7 +375,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
       {/* Header Bar */}
       <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
         <div>
-          <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+          <h3 className="card-title font-extrabold text-slate-900 text-sm flex items-center gap-2">
             Equipment Category
           </h3>
           <p className="text-xs text-slate-500 font-medium">
@@ -404,7 +404,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
       {/* Table: [Photo, Category, Public View, Status, Action] */}
       <div className="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-x-auto w-full">
         <table className="w-full text-xs text-left min-w-[650px]">
-          <thead className="bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-bold uppercase text-[10px] tracking-wider">
+          <thead className="bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-500 font-bold uppercase text-[11px] tracking-wider">
             <tr>
               <th className="px-4 py-3.5 w-16">Photo</th>
               <th className="px-4 py-3.5">Category Name</th>
@@ -426,7 +426,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
             ) : paginatedCategories.length === 0 ? (
               <tr>
                 <td colSpan={5} className="text-center py-10 text-slate-400 dark:text-slate-500">
-                  📦 No equipment categories registered yet. Click "Add Category" to get started.
+                  No equipment categories registered yet. Click "Add Category" to get started.
                 </td>
               </tr>
             ) : (
@@ -464,7 +464,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                       </div>
                       {Array.isArray(cat.built_in_units) && cat.built_in_units.length > 0 && (
                         <div className="mt-0.5">
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-800">
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-bold bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-800">
                             {cat.built_in_units.length} Built-in
                           </span>
                         </div>
@@ -508,7 +508,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                       </label>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-[10.5px] font-bold ${
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-bold ${
                         !isItemDisabled
                           ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60"
                           : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700"
@@ -614,7 +614,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                           </ActionPopover>
                         </div>
                       ) : (
-                        <span className="text-[10.5px] font-bold text-slate-400 italic">View Only</span>
+                        <span className="text-[11px] font-bold text-slate-400 italic">View Only</span>
                       )}
                     </td>
                   </tr>
@@ -659,8 +659,8 @@ export default function EquipmentCategoriesTab({ showMsg }) {
 
       {/* Equipment Category Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-[1500] flex items-center justify-center p-3 sm:p-5 overflow-y-auto scrollbar-hover animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-[#111827] rounded-2xl p-5 sm:p-6 max-w-4xl w-full shadow-2xl border border-slate-200 dark:border-slate-800 max-h-[92vh] flex flex-col my-auto space-y-4">
+        <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 bg-slate-950/50 backdrop-blur-xs z-[1500] flex items-center justify-center p-3 sm:p-5 overflow-y-auto scrollbar-hover animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-[#111827] rounded-2xl p-5 sm:p-6 max-w-4xl w-full shadow-xl border border-slate-200 dark:border-slate-800 max-h-[92vh] flex flex-col my-auto space-y-4">
             {/* Header (styled matching Reference Screenshot 3) */}
             <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
               <div className="flex items-center gap-3">
@@ -669,11 +669,11 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-slate-900 dark:text-white text-sm sm:text-base">
+                    <h3 className="modal-title font-bold text-slate-900 dark:text-white text-sm sm:text-base">
                       {editItem ? "Edit Equipment Category" : "Add Equipment Category"}
                     </h3>
                     {editItem && (
-                      <span className="px-2 py-0.5 rounded-md text-[10.5px] font-mono font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                      <span className="px-2 py-0.5 rounded-md text-[11px] font-mono font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                         {editItem.eq_name || editItem.name || "Category"}
                       </span>
                     )}
@@ -740,7 +740,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                         </label>
                       </div>
                       {form.built_in_units?.length > 0 && (
-                        <span className="text-[10px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 px-2 py-0.5 rounded-full">
+                        <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 px-2 py-0.5 rounded-full">
                           {form.built_in_units.length} linked
                         </span>
                       )}
@@ -841,7 +841,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                               setPreviewFit((f) => (f === "contain" ? "cover" : "contain"));
                               setIsFormDirty(true);
                             }}
-                            className="px-1.5 py-0.5 text-[10px] font-semibold rounded text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                            className="px-1.5 py-0.5 text-[11px] font-semibold rounded text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                             title="Toggle Fit (Contain / Cover)"
                           >
                             {previewFit === "contain" ? "Contain" : "Cover"}
@@ -858,7 +858,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                             >
                               -
                             </button>
-                            <span className="text-[10px] font-mono text-slate-600 dark:text-slate-300 w-6 text-center">
+                            <span className="text-[11px] font-mono text-slate-600 dark:text-slate-300 w-6 text-center">
                               {previewScale}%
                             </span>
                             <button
@@ -913,12 +913,12 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                         </p>
                         <div>
                           {form.is_public ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                               Public View Active
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
                               <EyeOff size={10} className="text-slate-400" />
                               Hidden in Public
                             </span>
@@ -971,11 +971,11 @@ export default function EquipmentCategoriesTab({ showMsg }) {
 
       {/* Student Assistant / Staff Category Request Modal */}
       {showRequestModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-sm border border-slate-200 animate-in fade-in zoom-in-95">
             <div className="flex justify-between items-center pb-3 border-b border-slate-100 mb-4">
               <div>
-                <h3 className="font-black text-sm text-slate-900 flex items-center gap-2">
+                <h3 className="modal-title font-black text-sm text-slate-900 flex items-center gap-2">
                   <Send size={15} className="text-blue-600" />
                   Request Equipment Category
                 </h3>

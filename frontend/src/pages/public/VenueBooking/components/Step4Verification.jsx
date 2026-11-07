@@ -1,4 +1,4 @@
-import { UploadCloud, X, FileText, Image, CheckCircle2, ShieldCheck, Download, Loader2, Camera, Plus, RefreshCw, Check, Lock, Shield } from "lucide-react";
+import { UploadCloud, X, FileText, Image, CheckCircle2, ShieldCheck, Download, Loader2, Camera, Plus, RefreshCw, Check, Lock, Shield, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRef, useState, useEffect } from "react";
 import api from "@/lib/axios";
@@ -397,7 +397,7 @@ export default function Step4Verification({
                   <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
                     Attached Documents ({filesList.length})
                   </span>
-                  <span className="text-[10.5px] font-mono text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                  <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
                     <CheckCircle2 size={12} /> Ready to Submit
                   </span>
                 </div>
@@ -432,7 +432,7 @@ export default function Step4Verification({
                             <p className="text-xs font-bold text-slate-900 dark:text-white truncate max-w-[200px]" title={file.name}>
                               {file.name}
                             </p>
-                            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">
+                            <p className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">
                               {file.size ? `${(file.size / 1024).toFixed(1)} KB` : "Attached file"}
                             </p>
                           </div>
@@ -532,13 +532,13 @@ export default function Step4Verification({
                     setPrivacyModalTab("privacy");
                     setShowPrivacyModal(true);
                   }}
-                  className="text-[10.5px] font-bold text-blue-700 dark:text-blue-400 hover:underline cursor-pointer flex items-center gap-1"
+                  className="text-[11px] font-bold text-blue-700 dark:text-blue-400 hover:underline cursor-pointer flex items-center gap-1"
                 >
                   <Lock size={11} />
                   <span>View Details</span>
                 </button>
               </div>
-              <p className="font-medium text-[10.5px] text-blue-900/80 dark:text-blue-300/80">
+              <p className="font-medium text-[11px] text-blue-900/80 dark:text-blue-300/80">
                 FSUU collects your name, email, phone number, and event details strictly for reservation tracking, SMS/Email dispatch, security verification, and accountability in compliance with the Data Privacy Act.
               </p>
             </div>
@@ -552,7 +552,7 @@ export default function Step4Verification({
                     setPrivacyModalTab("terms");
                     setShowPrivacyModal(true);
                   }}
-                  className="text-[10.5px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                  className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
                 >
                   View Full Terms →
                 </button>
@@ -630,15 +630,16 @@ export default function Step4Verification({
           type="button"
           variant="outline"
           onClick={() => onBack && onBack()}
-          className="border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 px-6 py-5 rounded-xl font-bold text-xs cursor-pointer"
+          className="h-11 px-4 rounded-lg text-sm font-semibold gap-2 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
         >
-          ← Back to Details
+          <ArrowLeft size={16} />
+          Back
         </Button>
 
         <Button
           onClick={handleVerifySubmit}
           disabled={isSubmitting || !agreedToPolicy}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-5 rounded-xl font-extrabold text-xs shadow-xl shadow-emerald-600/20 transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-2 cursor-pointer"
+          className="bg-emerald-600 hover:bg-emerald-700 text-white h-11 px-6 rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 flex items-center gap-2 cursor-pointer"
         >
           {isSubmitting ? (
             <Loader2 size={18} className="animate-spin" />
@@ -671,8 +672,8 @@ export default function Step4Verification({
 
       {/* ── Interactive Webcam / Camera Capture Modal ── */}
       {showCameraModal && (
-        <div className="fixed inset-0 z-[200] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-blue-900/60 rounded-3xl max-w-xl w-full overflow-hidden shadow-2xl flex flex-col space-y-0">
+        <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 z-[200] bg-slate-950/50 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-blue-900/60 rounded-2xl max-w-xl w-full overflow-hidden shadow-xl flex flex-col space-y-0">
             {/* Modal Header */}
             <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -717,10 +718,10 @@ export default function Step4Verification({
                   />
                   {/* Framing Guideline */}
                   <div className="absolute inset-4 sm:inset-8 border-2 border-dashed border-white/50 rounded-2xl pointer-events-none flex flex-col justify-between p-3">
-                    <span className="text-[10px] font-mono font-bold text-white/80 bg-black/40 px-2 py-0.5 rounded self-start backdrop-blur-xs">
+                    <span className="text-[11px] font-mono font-bold text-white/80 bg-black/40 px-2 py-0.5 rounded self-start backdrop-blur-xs">
                       Document Frame
                     </span>
-                    <span className="text-[10px] font-medium text-white/70 bg-black/40 px-2 py-0.5 rounded self-center text-center backdrop-blur-xs">
+                    <span className="text-[11px] font-medium text-white/70 bg-black/40 px-2 py-0.5 rounded self-center text-center backdrop-blur-xs">
                       Ensure text and signatures are clearly legible
                     </span>
                   </div>

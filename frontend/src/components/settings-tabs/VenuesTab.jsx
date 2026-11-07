@@ -16,6 +16,7 @@ import { exportVenueList } from "@/pages/general/venueExportHelper";
 import ExportModal from "@/components/ui/ExportModal";
 import ExportButton from "@/components/ui/ExportButton";
 import CategoryChecklistSelector from "@/components/ui/CategoryChecklistSelector";
+import FloatingInput from "@/components/ui/FloatingInput";
 
 export default function VenuesTab({ showMsg }) {
   const { isSuperAdmin, hasPermission } = usePermissions();
@@ -221,6 +222,8 @@ export default function VenuesTab({ showMsg }) {
     const payload = {
       name: (form.name || "").trim(),
       avatar: photoData,
+      photo_fit: previewFit,
+      photo_scale: previewScale,
       status: form.status || "available",
       location: form.location || "",
       min_capacity: minCap,
@@ -314,6 +317,8 @@ export default function VenuesTab({ showMsg }) {
       equipment_max_qtys: v.equipment_max_qtys || {},
       visible_in_venue_booking: v.visible_in_venue_booking !== false && v.visible_in_venue_booking !== 0,
     });
+    setPreviewScale(Number(v.photo_scale) || 100);
+    setPreviewFit(v.photo_fit || "contain");
     setFormError("");
     setIsFormDirty(false);
     setShowModal(true);
@@ -432,7 +437,7 @@ export default function VenuesTab({ showMsg }) {
       {/* Header Bar */}
       <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200/80">
         <div>
-          <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+          <h3 className="card-title font-extrabold text-slate-900 text-sm flex items-center gap-2">
             Venue Creation
           </h3>
           <p className="text-xs text-slate-500 font-medium">
@@ -477,6 +482,8 @@ export default function VenuesTab({ showMsg }) {
                   equipment_max_qtys: {},
                   visible_in_venue_booking: true,
                 });
+                setPreviewScale(100);
+                setPreviewFit("contain");
                 setFormError("");
                 setIsFormDirty(false);
                 setShowModal(true);
@@ -494,11 +501,11 @@ export default function VenuesTab({ showMsg }) {
         <table className="w-full text-sm min-w-[750px]">
           <thead>
             <tr className="bg-slate-50/80 border-b border-slate-100">
-              <th className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider w-12">#</th>
-              <th className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider w-16">Photo</th>
-              <th className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider">Venue</th>
-              <th className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider w-36">Status</th>
-              <th className="px-4 py-3.5 text-right text-[11px] font-bold text-slate-400 uppercase tracking-wider w-24">Action</th>
+              <th className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider w-12">#</th>
+              <th className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider w-16">Photo</th>
+              <th className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Venue</th>
+              <th className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider w-36">Status</th>
+              <th className="px-4 py-3.5 text-right text-[11px] font-bold text-slate-500 uppercase tracking-wider w-24">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 text-xs font-semibold">
@@ -541,7 +548,7 @@ export default function VenuesTab({ showMsg }) {
                       <div className="flex items-center gap-2">
                         <span className="font-extrabold text-slate-900">{v.name}</span>
                         {v.visible_in_venue_booking === false && (
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800" title="Hidden from venue reservations, available in equipment borrowing only">
+                          <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800" title="Hidden from venue reservations, available in equipment borrowing only">
                             Place of Use Only
                           </span>
                         )}
@@ -550,7 +557,7 @@ export default function VenuesTab({ showMsg }) {
                     </td>
 
                     <td className="px-4 py-3 w-36">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10.5px] font-extrabold border ${
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-extrabold border ${
                         !isItemDisabled
                           ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800"
                           : "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800"
@@ -657,7 +664,7 @@ export default function VenuesTab({ showMsg }) {
                           </ActionPopover>
                         </div>
                       ) : (
-                        <span className="text-[10.5px] font-bold text-slate-400 italic">View Only</span>
+                        <span className="text-[11px] font-bold text-slate-400 italic">View Only</span>
                       )}
                     </td>
                   </tr>
@@ -704,8 +711,8 @@ export default function VenuesTab({ showMsg }) {
 
       {/* Modal: Create Venue / Edit Venue */}
       {showModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-[1500] flex items-center justify-center p-3 sm:p-5 overflow-y-auto scrollbar-hover animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-[#111827] rounded-2xl p-5 sm:p-6 max-w-4xl w-full shadow-2xl border border-slate-200 dark:border-slate-800 max-h-[92vh] flex flex-col my-auto space-y-4">
+        <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 bg-slate-950/50 backdrop-blur-xs z-[1500] flex items-center justify-center p-3 sm:p-5 overflow-y-auto scrollbar-hover animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-[#111827] rounded-2xl p-5 sm:p-6 max-w-4xl w-full shadow-xl border border-slate-200 dark:border-slate-800 max-h-[92vh] flex flex-col my-auto space-y-4">
             {/* Header (styled matching Reference Screenshot 3) */}
             <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
               <div className="flex items-center gap-3">
@@ -714,11 +721,11 @@ export default function VenuesTab({ showMsg }) {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-slate-900 dark:text-white text-sm sm:text-base">
+                    <h3 className="modal-title font-bold text-slate-900 dark:text-white text-sm sm:text-base">
                       {editItem ? "Edit Venue" : "Create Venue"}
                     </h3>
                     {editItem && (
-                      <span className="px-2 py-0.5 rounded-md text-[10.5px] font-mono font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                      <span className="px-2 py-0.5 rounded-md text-[11px] font-mono font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                         {editItem.name || "Venue"}
                       </span>
                     )}
@@ -746,59 +753,46 @@ export default function VenuesTab({ showMsg }) {
                 </div>
               )}
 
-              {/* Top Row: Venue Specifications (Left) & Venue Photo (Right) */}
-              <div className="grid grid-cols-1 md:grid-cols-[1.05fr_1fr] gap-5 items-stretch">
-                {/* Left: Basic Venue Form */}
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Venue Name *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. AVR 1, Main Auditorium"
-                      value={form.name || ""}
-                      onChange={(e) => updateForm({ name: e.target.value })}
-                      className="w-full p-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg font-normal text-slate-900 dark:text-white focus:outline-none focus:border-blue-600 text-xs shadow-2xs"
-                    />
-                  </div>
+              {/* Single Cohesive 2-Column Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-[1.1fr_1fr] gap-5 items-start">
+                {/* Left Column: Basic Venue Form & Allowed Equipment */}
+                <div className="space-y-3 pt-1">
+                  <FloatingInput
+                    label="Venue Name"
+                    required
+                    placeholder="e.g. AVR 1, Main Auditorium"
+                    value={form.name || ""}
+                    onChange={(e) => updateForm({ name: e.target.value })}
+                  />
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Location <span className="text-slate-400 font-normal">(Optional)</span></label>
-                      <input
-                        type="text"
-                        placeholder="e.g. 2nd Floor, Main Building"
-                        value={form.location || ""}
-                        onChange={(e) => updateForm({ location: e.target.value })}
-                        className="w-full p-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg font-normal text-slate-900 dark:text-white focus:outline-none focus:border-blue-600 text-xs shadow-2xs"
-                      />
-                    </div>
+                  <div className="grid grid-cols-2 gap-2 pt-0.5">
+                    <FloatingInput
+                      label="Location"
+                      optional
+                      placeholder="e.g. 2nd Floor, Main Building"
+                      value={form.location || ""}
+                      onChange={(e) => updateForm({ location: e.target.value })}
+                    />
 
                     <div className="grid grid-cols-2 gap-1.5">
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Min. *</label>
-                        <input
-                          type="number"
-                          min="1"
-                          required
-                          placeholder="Min"
-                          value={form.min_capacity ?? ""}
-                          onChange={(e) => updateForm({ min_capacity: e.target.value })}
-                          className="w-full p-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg font-normal text-slate-900 dark:text-white focus:outline-none focus:border-blue-600 text-xs shadow-2xs"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Max. *</label>
-                        <input
-                          type="number"
-                          min="1"
-                          required
-                          placeholder="Max"
-                          value={form.max_capacity ?? form.capacity ?? ""}
-                          onChange={(e) => updateForm({ max_capacity: e.target.value, capacity: e.target.value })}
-                          className="w-full p-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg font-normal text-slate-900 dark:text-white focus:outline-none focus:border-blue-600 text-xs shadow-2xs"
-                        />
-                      </div>
+                      <FloatingInput
+                        label="Min."
+                        type="number"
+                        min="1"
+                        required
+                        placeholder="1"
+                        value={form.min_capacity ?? ""}
+                        onChange={(e) => updateForm({ min_capacity: e.target.value })}
+                      />
+                      <FloatingInput
+                        label="Max."
+                        type="number"
+                        min="1"
+                        required
+                        placeholder="100"
+                        value={form.max_capacity ?? form.capacity ?? ""}
+                        onChange={(e) => updateForm({ max_capacity: e.target.value, capacity: e.target.value })}
+                      />
                     </div>
                   </div>
 
@@ -813,12 +807,12 @@ export default function VenuesTab({ showMsg }) {
                               Venue &amp; Equipment
                             </span>
                           ) : (
-                            <span className="text-[9.5px] font-extrabold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                            <span className="text-[9.5px] font-extrabold px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
                               Place of Use Only
                             </span>
                           )}
                         </div>
-                        <span className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
                           {form.visible_in_venue_booking !== false
                             ? "Enabled — Appears in public venue booking catalog & equipment borrowing."
                             : "Disabled — Hidden from venue reservations; only used as an equipment Place of Use."}
@@ -835,153 +829,152 @@ export default function VenuesTab({ showMsg }) {
                       </div>
                     </label>
                   </div>
+
+                  {/* Allowed Equipment & Max Qty */}
+                  <div className="space-y-1.5 pt-1.5 border-t border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 leading-tight">
+                          Allowed Equipment &amp; Max Qty
+                        </label>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 font-normal leading-snug">
+                          Select categories allowed for this venue and set max requested quantity.
+                        </p>
+                      </div>
+                      {form.allowed_equipment?.length > 0 && (
+                        <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 px-2 py-0.5 rounded-full shrink-0">
+                          {form.allowed_equipment.length} selected
+                        </span>
+                      )}
+                    </div>
+
+                    <CategoryChecklistSelector
+                      items={equipmentCatalog}
+                      selectedIds={form.allowed_equipment || []}
+                      withMaxQty={true}
+                      maxQtys={form.equipment_max_qtys || {}}
+                      onToggle={toggleEquipment}
+                      onMaxQtyChange={handleMaxQtyChange}
+                      getStock={getAvailableStock}
+                      emptyMessage="No equipment categories found."
+                      maxHeight="max-h-[200px]"
+                      className="flex-1"
+                    />
+                  </div>
                 </div>
 
-                {/* Right: Venue Photo Upload (Level with form inputs on the left) */}
-                <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center gap-3">
-                  <div className="w-14 h-14 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 overflow-hidden flex items-center justify-center shrink-0 shadow-2xs">
-                    {(form.photo || form.avatar) ? (
-                      <img src={form.photo || form.avatar} alt="Preview" className="w-full h-full object-contain p-1" />
-                    ) : (
-                      <Building size={20} className="text-slate-400" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <label className="block font-bold text-slate-800 dark:text-slate-200 text-xs mb-1">Venue Photo</label>
-                    <div className="flex flex-wrap items-center gap-1.5">
+                {/* Right Column: Public View Card Preview & Integrated Photo Controls */}
+                <div className="space-y-2 flex flex-col h-full">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200 leading-tight block">
+                        Public View Card Preview
+                      </span>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 font-normal leading-snug">
+                        How this venue appears to applicants on the booking page
+                      </p>
+                    </div>
+
+                    {/* Integrated Photo Upload, Remove, Fit & Zoom Controls */}
+                    <div className="flex items-center gap-1.5 shrink-0">
                       <label className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-[11px] cursor-pointer transition-all shadow-2xs">
                         <Camera size={11} />
                         <span>{(form.photo || form.avatar) ? "Change Photo" : "Upload Photo"}</span>
                         <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
                       </label>
                       {(form.photo || form.avatar) && (
-                        <button
-                          type="button"
-                          onClick={() => setForm({ ...form, photo: "", avatar: "" })}
-                          className="inline-flex items-center gap-0.5 px-2 py-1 rounded-lg border border-red-200 dark:border-red-900/60 bg-white dark:bg-slate-800 hover:bg-red-50 text-red-600 dark:text-red-400 font-medium text-[11px] cursor-pointer transition-all"
-                        >
-                          <X size={11} />
-                          <span>Remove</span>
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => updateForm({ photo: "", avatar: "" })}
+                            className="inline-flex items-center gap-0.5 px-2 py-1 rounded-lg border border-red-200 dark:border-red-900/60 bg-white dark:bg-slate-800 hover:bg-red-50 text-red-600 dark:text-red-400 font-medium text-[11px] cursor-pointer transition-all"
+                            title="Remove Photo"
+                          >
+                            <X size={11} />
+                            <span>Remove</span>
+                          </button>
+
+                          {/* Contain / Cover & Scale */}
+                          <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 shadow-2xs">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPreviewFit((f) => (f === "contain" ? "cover" : "contain"));
+                                setIsFormDirty(true);
+                              }}
+                              className="px-1.5 py-0.5 text-[11px] font-medium rounded text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                              title="Toggle Fit (Contain / Cover)"
+                            >
+                              {previewFit === "contain" ? "Contain" : "Cover"}
+                            </button>
+                            <div className="flex items-center gap-1 border-l border-slate-200 dark:border-slate-700 pl-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPreviewScale((s) => Math.max(50, s - 10));
+                                  setIsFormDirty(true);
+                                }}
+                                className="w-4 h-4 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded cursor-pointer"
+                                title="Zoom out"
+                              >
+                                -
+                              </button>
+                              <span className="text-[11px] font-mono text-slate-600 dark:text-slate-300 w-6 text-center">
+                                {previewScale}%
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPreviewScale((s) => Math.min(150, s + 10));
+                                  setIsFormDirty(true);
+                                }}
+                                className="w-4 h-4 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded cursor-pointer"
+                                title="Zoom in"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+                        </>
                       )}
                     </div>
                   </div>
-                </div>
-              </div>
-
-              {/* Bottom Row: Allowed Equipment (Left) Perfectly Aligned with Public View Card Preview (Right) */}
-              <div className="grid grid-cols-1 md:grid-cols-[1.05fr_1fr] gap-5 items-start pt-1">
-                {/* Left: Allowed Equipment & Max Qty */}
-                <div className="space-y-1.5 flex flex-col h-full">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 leading-tight">
-                        Allowed Equipment &amp; Max Qty
-                      </label>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400 font-normal leading-snug">
-                        Select categories allowed for this venue and set max requested quantity.
-                      </p>
-                    </div>
-                    {form.allowed_equipment?.length > 0 && (
-                      <span className="text-[10px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 px-2 py-0.5 rounded-full shrink-0">
-                        {form.allowed_equipment.length} selected
-                      </span>
-                    )}
-                  </div>
-
-                  <CategoryChecklistSelector
-                    items={equipmentCatalog}
-                    selectedIds={form.allowed_equipment || []}
-                    withMaxQty={true}
-                    maxQtys={form.equipment_max_qtys || {}}
-                    onToggle={toggleEquipment}
-                    onMaxQtyChange={handleMaxQtyChange}
-                    getStock={getAvailableStock}
-                    emptyMessage="No equipment categories found."
-                    maxHeight="max-h-[295px]"
-                    className="flex-1"
-                  />
-                </div>
-
-                {/* Right: Public View Card Preview */}
-                <div className="space-y-1.5 flex flex-col h-full">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200 leading-tight block">
-                        Public View Card Preview
-                      </span>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400 font-normal leading-snug">
-                        How this venue appears to applicants on the booking page
-                      </p>
-                    </div>
-
-                    {/* Photo Resize & Fit Controls */}
-                    {(form.photo || form.avatar) && (
-                      <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 shadow-2xs shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => setPreviewFit((f) => (f === "contain" ? "cover" : "contain"))}
-                          className="px-1.5 py-0.5 text-[10px] font-medium rounded text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-                          title="Toggle Fit (Contain / Cover)"
-                        >
-                          {previewFit === "contain" ? "Contain" : "Cover"}
-                        </button>
-                        <div className="flex items-center gap-1 border-l border-slate-200 dark:border-slate-700 pl-1">
-                          <button
-                            type="button"
-                            onClick={() => setPreviewScale((s) => Math.max(50, s - 10))}
-                            className="w-4 h-4 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded cursor-pointer"
-                            title="Zoom out"
-                          >
-                            -
-                          </button>
-                          <span className="text-[10px] font-mono text-slate-600 dark:text-slate-300 w-6 text-center">
-                            {previewScale}%
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => setPreviewScale((s) => Math.min(150, s + 10))}
-                            className="w-4 h-4 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded cursor-pointer"
-                            title="Zoom in"
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
 
                   {/* Cohesive Public View Card Container */}
-                  <div className="w-full border border-slate-200 dark:border-slate-700 rounded-xl p-3 bg-white dark:bg-slate-900 shadow-xs flex flex-col justify-between flex-1">
-                    <div>
-                      {/* Image Container */}
-                      <div className="w-full aspect-[16/9] bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-lg overflow-hidden flex flex-col items-center justify-center text-center relative group p-1">
-                        {(form.photo || form.avatar) ? (
-                          <div className="w-full h-full overflow-hidden flex items-center justify-center">
-                            <img
-                              src={form.photo || form.avatar}
-                              alt="Public Preview"
-                              className={`w-full h-full transition-transform duration-200 ${previewFit === "cover" ? "object-cover" : "object-contain"}`}
-                              style={{ transform: `scale(${previewScale / 100})` }}
-                            />
-                          </div>
-                        ) : (
-                          <div className="p-4 flex flex-col items-center justify-center h-full w-full bg-slate-50 dark:bg-slate-800/40">
-                            <Building size={28} className="text-slate-300 dark:text-slate-600 mb-1" />
-                            <span className="text-slate-700 dark:text-slate-300 font-extrabold text-xs sm:text-sm leading-snug line-clamp-2 uppercase tracking-wide">
-                              {form.name || "VENUE NAME"}
-                            </span>
-                          </div>
-                        )}
-                      </div>
+                  <div className="w-full border border-slate-200 dark:border-slate-700 rounded-xl p-3.5 bg-white dark:bg-slate-900 shadow-xs flex flex-col justify-between flex-1 min-h-[350px]">
+                    {/* Image Container expanding to use all vertical whitespace */}
+                    <div className="w-full flex-1 min-h-[220px] bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-lg overflow-hidden flex flex-col items-center justify-center text-center relative group p-1 mb-2">
+                      {(form.photo || form.avatar) ? (
+                        <div className="w-full h-full overflow-hidden flex items-center justify-center">
+                          <img
+                            src={form.photo || form.avatar}
+                            alt="Public Preview"
+                            className={`w-full h-full transition-transform duration-200 ${previewFit === "cover" ? "object-cover" : "object-contain"}`}
+                            style={{ transform: `scale(${previewScale / 100})` }}
+                          />
+                        </div>
+                      ) : (
+                        <label className="p-4 flex flex-col items-center justify-center h-full w-full bg-slate-50 dark:bg-slate-800/40 cursor-pointer hover:bg-slate-100/60 dark:hover:bg-slate-800/70 transition-colors">
+                          <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
+                          <Building size={36} className="text-slate-300 dark:text-slate-600 mb-2" />
+                          <span className="text-slate-700 dark:text-slate-300 font-extrabold text-xs sm:text-sm leading-snug line-clamp-2 uppercase tracking-wide">
+                            {form.name || "VENUE NAME"}
+                          </span>
+                          <span className="text-[11px] text-blue-600 dark:text-blue-400 font-semibold mt-1.5 flex items-center gap-1">
+                            <Camera size={12} /> Click to upload venue photo
+                          </span>
+                        </label>
+                      )}
+                    </div>
 
-                      {/* Metadata */}
-                      <div className="mt-2.5 space-y-1">
+                    {/* Metadata & Select Venue Button */}
+                    <div className="space-y-2 shrink-0">
+                      <div className="space-y-1">
                         <div className="flex items-center justify-between gap-2">
                           <h4 className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm leading-tight line-clamp-1">
                             {form.name || "Venue Name"}
                           </h4>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 shrink-0">
+                          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 shrink-0">
                             Available
                           </span>
                         </div>
@@ -994,22 +987,22 @@ export default function VenuesTab({ showMsg }) {
                           <span>Min {form.min_capacity || 1} • Max {form.max_capacity || form.capacity || 100} guests</span>
                         </p>
                         {form.visible_in_venue_booking === false && (
-                          <div className="mt-2 p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-[10.5px] font-bold text-amber-800 dark:text-amber-300">
-                            ⚠️ Place of Use Only (Hidden from venue catalog)
+                          <div className="mt-1.5 p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-[11px] font-bold text-amber-800 dark:text-amber-300">
+                            Place of Use Only (Hidden from venue catalog)
                           </div>
                         )}
                       </div>
-                    </div>
 
-                    {/* Interactive Public Action Button (Preview) */}
-                    <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-                      <button
-                        type="button"
-                        disabled
-                        className="w-full h-8 rounded-lg bg-blue-600 text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-xs opacity-95 cursor-default"
-                      >
-                        <span>Select Venue</span>
-                      </button>
+                      {/* Interactive Public Action Button (Preview) */}
+                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                        <button
+                          type="button"
+                          disabled
+                          className="w-full h-8 rounded-lg bg-blue-600 text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-xs opacity-95 cursor-default"
+                        >
+                          <span>Select Venue</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

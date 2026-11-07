@@ -104,7 +104,7 @@ export default function VenueModalFooter({
           {/* Informational banner acknowledging when approval is restricted for current role */}
           {!canApprove ? (
             <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/70 px-3 py-1.5 rounded-xl text-xs text-amber-900 dark:text-amber-200 shadow-2xs">
-              <ShieldAlert size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
+              <ShieldAlert size={14} className="text-amber-700 dark:text-amber-400 shrink-0" />
               <span className="text-[11px] leading-tight">
                 <strong>Awaiting Custodian Approval:</strong> Your account does not have approval permissions. Only authorized Staff or Super Admin can approve.
               </span>
@@ -120,10 +120,10 @@ export default function VenueModalFooter({
                   if (setShowRejectForm) setShowRejectForm(false);
                 }}
                 disabled={!!actionLoading}
-                className="px-4 py-2.5 bg-amber-50 hover:bg-amber-100 active:bg-amber-200 dark:bg-amber-950/60 dark:hover:bg-amber-900/80 dark:text-amber-200 dark:border-amber-800/80 text-amber-900 border border-amber-300 font-extrabold text-xs rounded-xl shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                className="px-4 py-2.5 bg-amber-50 hover:bg-amber-100 active:bg-amber-200 dark:bg-amber-950/60 dark:hover:bg-amber-900/80 dark:text-amber-200 dark:border-amber-800/80 text-amber-900 border border-amber-200 font-extrabold text-xs rounded-xl shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
                 title="Mark booking incomplete and set 24-48h grace period"
               >
-                <AlertTriangle size={14} className="text-amber-600 dark:text-amber-400" />
+                <AlertTriangle size={14} className="text-amber-700 dark:text-amber-400" />
                 <span>Mark Incomplete</span>
               </button>
             )}
@@ -133,7 +133,7 @@ export default function VenueModalFooter({
                 type="button"
                 onClick={handleNotifyUrgent}
                 disabled={notifyingUrgent}
-                className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 dark:bg-amber-600 dark:hover:bg-amber-500 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                className="px-4 py-2.5 bg-amber-700 hover:bg-amber-800 active:bg-amber-900 dark:bg-amber-600 dark:hover:bg-amber-500 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
                 title="Dispatch urgent approval alert to Staff and Super Admin"
               >
                 {notifyingUrgent ? <Loader2 size={14} className="animate-spin" /> : <BellRing size={14} />}
@@ -179,7 +179,7 @@ export default function VenueModalFooter({
               <>
                 {isBeforeStartDate && (
                   <span className="text-[11px] font-bold text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-2xs">
-                    <Clock size={13} className="shrink-0 text-amber-600 dark:text-amber-400" />
+                    <Clock size={13} className="shrink-0 text-amber-700 dark:text-amber-400" />
                     <span>Event scheduled for {scheduledStartDate} (Cannot start early)</span>
                   </span>
                 )}
@@ -264,7 +264,7 @@ export default function VenueModalFooter({
             onClick={() => handleAction(selected.id, "post-inspection", adminEarlyOverride ? { force: true } : {})}
             disabled={!isInspectionReady || !!actionLoading}
             title={!isInspectionReady ? inspectionEligibility.reason : "End Event & Inspect"}
-            className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 dark:bg-amber-600 dark:hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all duration-150 cursor-pointer"
+            className="px-5 py-2.5 bg-amber-700 hover:bg-amber-800 active:bg-amber-900 dark:bg-amber-600 dark:hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all duration-150 cursor-pointer"
           >
             {actionLoading === `${selected.id}-post-inspection` ? (
               <>

@@ -1,6 +1,9 @@
-import { useState, useEffect } from "react";
-import { Sparkles, Package, PackageOpen, CheckCircle2, AlertCircle, Loader2, KeyRound, Check, Edit3, Phone, Mail } from "lucide-react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { Sparkles, Package, PackageOpen, CheckCircle2, AlertCircle, Loader2, KeyRound, Check, Edit3, Phone, Mail, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { FloatingInput } from "@/components/ui/FloatingInput";
+import { FloatingTextarea } from "@/components/ui/FloatingTextarea";
+import { FloatingSelect } from "@/components/ui/FloatingSelect";
 import api from "@/lib/axios";
 import { validatePhilippineMobile } from "@/lib/phoneValidation";
 
@@ -77,7 +80,7 @@ export default function Step3Details({
           setPlacesList(data);
           try {
             localStorage.setItem("fsuu_places_of_use", JSON.stringify(data));
-          } catch {}
+          } catch { }
         }
       } catch {
         try {
@@ -94,6 +97,63 @@ export default function Step3Details({
     return () => {
       window.removeEventListener("venues_updated", fetchPlaces);
     };
+  }, []);
+
+  // Distinct venue names (Only show venue names in dropdown)
+  const venueNames = useMemo(() => {
+    if (placesList && placesList.length > 0) {
+      const names = placesList
+        .map((p) => (p.name || p.venue_name || "").trim())
+        .filter(Boolean);
+      return Array.from(new Set(names));
+    }
+    return [
+      "Main Gymnasium",
+      "CB Lobby",
+      "CBE Function Hall",
+      "Haggemburg Hall",
+      "Audio-Visual Room #1",
+      "Audio-Visual Room #2",
+      "Viewing Room",
+    ];
+  }, [placesList]);
+
+  const [placeDropdownOpen, setPlaceDropdownOpen] = useState(false);
+  const [placeSearchInput, setPlaceSearchInput] = useState(() => {
+    if (typeof placeOfUse === "string" && !placeOfUse.startsWith("Outside: ") && placeOfUse !== "__other_campus__") {
+      return placeOfUse;
+    }
+    return "";
+  });
+  const placeDropdownRef = useRef(null);
+
+  // Synchronize search input if placeOfUse changes externally
+  useEffect(() => {
+    if (typeof placeOfUse === "string" && !placeOfUse.startsWith("Outside: ") && placeOfUse !== "__other_campus__") {
+      setPlaceSearchInput(placeOfUse);
+    } else if (!placeOfUse || placeOfUse === "__other_campus__") {
+      setPlaceSearchInput("");
+    }
+  }, [placeOfUse]);
+
+  // Filter venue names when user types (by first letter or substring)
+  const filteredVenues = useMemo(() => {
+    if (!placeSearchInput || !placeSearchInput.trim()) {
+      return venueNames;
+    }
+    const q = placeSearchInput.trim().toLowerCase();
+    return venueNames.filter((name) => name.toLowerCase().includes(q));
+  }, [venueNames, placeSearchInput]);
+
+  // Click outside to close dropdown
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (placeDropdownRef.current && !placeDropdownRef.current.contains(e.target)) {
+        setPlaceDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, []);
 
   const [isOtpRequested, setIsOtpRequested] = useState(false);
@@ -526,10 +586,9 @@ export default function Step3Details({
       <form onSubmit={handleDetailsSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         {/* COMMON REQUIRED FIELDS: Structured Name Inputs (First Name, Middle Name, Last Name, Suffix) */}
         <div className="col-span-1 sm:col-span-2 grid grid-cols-1 sm:grid-cols-4 gap-3">
-          <div className="flex flex-col gap-1.5 sm:col-span-1">
-            <label className="text-xs font-bold text-slate-900">First Name <span className="text-red-500">*</span></label>
-            <input
-              type="text"
+          <div className="sm:col-span-1">
+            <FloatingInput
+              label="First Name"
               required
               value={firstName}
               onChange={e => {
@@ -541,14 +600,13 @@ export default function Step3Details({
                 }
               }}
               placeholder="Juan"
-              className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all"
             />
           </div>
 
-          <div className="flex flex-col gap-1.5 sm:col-span-1">
-            <label className="text-xs font-bold text-slate-900">Middle Name <span className="text-slate-400 font-normal">(Optional)</span></label>
-            <input
-              type="text"
+          <div className="sm:col-span-1">
+            <FloatingInput
+              label="Middle Name"
+              optional
               value={middleName}
               onChange={e => {
                 const val = e.target.value;
@@ -559,14 +617,12 @@ export default function Step3Details({
                 }
               }}
               placeholder="Santos"
-              className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all"
             />
           </div>
 
-          <div className="flex flex-col gap-1.5 sm:col-span-1">
-            <label className="text-xs font-bold text-slate-900">Last Name <span className="text-red-500">*</span></label>
-            <input
-              type="text"
+          <div className="sm:col-span-1">
+            <FloatingInput
+              label="Last Name"
               required
               value={lastName}
               onChange={e => {
@@ -578,14 +634,13 @@ export default function Step3Details({
                 }
               }}
               placeholder="Dela Cruz"
-              className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all"
             />
           </div>
 
-          <div className="flex flex-col gap-1.5 sm:col-span-1">
-            <label className="text-xs font-bold text-slate-900">Suffix <span className="text-slate-400 font-normal">(Optional)</span></label>
-            <input
-              type="text"
+          <div className="sm:col-span-1">
+            <FloatingInput
+              label="Suffix"
+              optional
               value={suffix}
               onChange={e => {
                 const val = e.target.value;
@@ -596,7 +651,6 @@ export default function Step3Details({
                 }
               }}
               placeholder="Jr., III"
-              className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all"
             />
           </div>
         </div>
@@ -627,8 +681,8 @@ export default function Step3Details({
                   }
                 }}
                 className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${otpChannel === "email"
-                    ? "bg-blue-600 text-white shadow-xs"
-                    : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/60 dark:hover:bg-slate-800"
+                  ? "bg-blue-600 text-white shadow-xs"
+                  : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/60 dark:hover:bg-slate-800"
                   } ${isEmailVerified ? "opacity-60 cursor-not-allowed" : ""}`}
               >
                 <Mail size={13} />
@@ -647,8 +701,8 @@ export default function Step3Details({
                   }
                 }}
                 className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${otpChannel === "sms"
-                    ? "bg-blue-600 text-white shadow-xs"
-                    : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/60 dark:hover:bg-slate-800"
+                  ? "bg-blue-600 text-white shadow-xs"
+                  : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/60 dark:hover:bg-slate-800"
                   } ${isEmailVerified ? "opacity-60 cursor-not-allowed" : ""}`}
               >
                 <Phone size={13} />
@@ -660,102 +714,81 @@ export default function Step3Details({
 
         {/* EMAIL FIELD WITH INLINE DOMAIN CHECK & ATTACHED OTP VERIFY BUTTON */}
         <div className="flex flex-col gap-1.5 sm:col-span-1">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-slate-900 dark:text-white">
-              Email Address <span className="text-red-500">*</span>
-            </label>
-            {requireVerification && isEmailVerified && otpChannel === "email" ? (
-              <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-md">
-                <Check size={12} className="stroke-[3]" />
-                Verified via Email
-              </span>
-            ) : requireVerification && isEmailVerified ? (
-              <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-md">
-                <Check size={12} className="stroke-[3]" />
-                Verified
-              </span>
-            ) : requireVerification && otpChannel === "email" && emailCheckStatus === "valid" ? (
-              <span className="text-[10.5px] font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1">
-                <Check size={12} />
-                Domain Active
-              </span>
-            ) : null}
-          </div>
-
-          <div className="relative flex items-center">
-            <input
-              type="email"
-              required
-              readOnly={requireVerification && isEmailVerified && otpChannel === "email"}
-              value={email}
-              onChange={handleEmailChange}
-              onBlur={handleEmailBlur}
-              placeholder="email address"
-              className={`w-full p-3 ${requireVerification && otpChannel === "email" ? 'pr-24' : ''} border rounded-xl text-sm transition-all focus:outline-none ${(requireVerification && isEmailVerified && otpChannel === "email")
-                  ? "bg-emerald-50/40 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-700 text-slate-800 dark:text-emerald-300 font-semibold cursor-not-allowed"
-                  : (requireVerification && otpChannel === "email" && emailCheckStatus === "invalid")
-                    ? "bg-white dark:bg-slate-900/80 border-rose-300 dark:border-rose-700 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                    : (requireVerification && otpChannel === "email" && emailCheckStatus === "valid")
-                      ? "bg-white dark:bg-slate-900/80 border-blue-400 dark:border-blue-700 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                      : "bg-white dark:bg-slate-900/80 border-slate-200 dark:border-slate-700 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                }`}
-            />
-
-            {/* Attached Action Button inside field (Only when channel is email) */}
-            {requireVerification && otpChannel === "email" && (
-              <div className="absolute right-1.5 flex items-center gap-1">
-                {isEmailVerified ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (setIsEmailVerified) setIsEmailVerified(false);
-                      setIsOtpRequested(false);
-                      setOtpCode("");
-                      setEmailCheckStatus("idle");
-                      setEmailCheckMessage("");
-                    }}
-                    className="px-2.5 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-[11px] font-bold text-slate-600 transition-colors shadow-2xs cursor-pointer flex items-center gap-1"
-                    title="Unlock and change email address"
-                  >
-                    <Edit3 size={11} />
-                    Change
-                  </button>
-                ) : (
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled={
-                      isSendingOtp ||
-                      !email ||
-                      !email.trim() ||
-                      emailCheckStatus !== "valid" ||
-                      (isOtpRequested && (otpCooldown > 0 || otpResendsLeft <= 0))
-                    }
-                    onClick={() => handleRequestOtp("email")}
-                    className={`h-8 px-3 rounded-lg text-xs font-black shadow-xs transition-all ${!email || !email.trim() || emailCheckStatus !== "valid" || (isOtpRequested && (otpCooldown > 0 || otpResendsLeft <= 0))
+          <FloatingInput
+            label="Email Address"
+            required
+            type="email"
+            value={email}
+            onChange={handleEmailChange}
+            onBlur={handleEmailBlur}
+            readOnly={requireVerification && isEmailVerified && otpChannel === "email"}
+            leftIcon={<Mail size={16} />}
+            placeholder="email address"
+            error={emailCheckStatus === "invalid" ? emailCheckMessage : undefined}
+            containerClassName={
+              requireVerification && isEmailVerified && otpChannel === "email"
+                ? "bg-emerald-50/40 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-700"
+                : undefined
+            }
+            rightAction={
+              requireVerification && otpChannel === "email" ? (
+                <div className="flex items-center gap-1">
+                  {isEmailVerified ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (setIsEmailVerified) setIsEmailVerified(false);
+                        setIsOtpRequested(false);
+                        setOtpCode("");
+                        setEmailCheckStatus("idle");
+                        setEmailCheckMessage("");
+                      }}
+                      className="px-2.5 py-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-bold text-slate-600 dark:text-slate-300 transition-colors shadow-2xs cursor-pointer flex items-center gap-1"
+                      title="Unlock and change email address"
+                    >
+                      <Edit3 size={11} />
+                      Change
+                    </button>
+                  ) : (
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={
+                        isSendingOtp ||
+                        !email ||
+                        !email.trim() ||
+                        emailCheckStatus !== "valid" ||
+                        (isOtpRequested && (otpCooldown > 0 || otpResendsLeft <= 0))
+                      }
+                      onClick={() => handleRequestOtp("email")}
+                      className={`h-8 px-3 rounded-lg text-xs font-black shadow-xs transition-all ${!email ||
+                        !email.trim() ||
+                        emailCheckStatus !== "valid" ||
+                        (isOtpRequested && (otpCooldown > 0 || otpResendsLeft <= 0))
                         ? "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 cursor-not-allowed opacity-60"
                         : "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/20 active:scale-95 cursor-pointer"
-                      }`}
-                  >
-                    {isSendingOtp ? (
-                      <span className="flex items-center gap-1">
-                        <Loader2 size={12} className="animate-spin" />
-                        Sending...
-                      </span>
-                    ) : isOtpRequested ? (
-                      otpCooldown > 0
-                        ? `Wait ${otpCooldown}s`
-                        : otpResendsLeft <= 0
-                        ? "Limit Reached"
-                        : `Resend (${otpResendsLeft})`
-                    ) : (
-                      "Verify"
-                    )}
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
+                        }`}
+                    >
+                      {isSendingOtp ? (
+                        <span className="flex items-center gap-1">
+                          <Loader2 size={12} className="animate-spin" />
+                          Sending...
+                        </span>
+                      ) : isOtpRequested ? (
+                        otpCooldown > 0
+                          ? `Wait ${otpCooldown}s`
+                          : otpResendsLeft <= 0
+                            ? "Limit Reached"
+                            : `Resend (${otpResendsLeft})`
+                      ) : (
+                        "Verify"
+                      )}
+                    </Button>
+                  )}
+                </div>
+              ) : null
+            }
+          />
 
           {/* Inline Domain & Deliverability Feedback below placeholder */}
           {!isEmailVerified && (emailCheckStatus !== "idle" || (requireVerification && otpChannel === "email")) && (
@@ -915,93 +948,77 @@ export default function Step3Details({
 
         {/* CONTACT NUMBER FIELD WITH OPTIONAL SMS OTP VERIFICATION */}
         <div className="flex flex-col gap-1.5 sm:col-span-1">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-slate-900 dark:text-white">
-              Contact Number <span className="text-red-500">*</span>
-            </label>
-            <div className="flex items-center gap-1.5">
-              {requireVerification && isEmailVerified && otpChannel === "sms" ? (
-                <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-md">
-                  <Check size={12} className="stroke-[3]" />
-                  Verified via SMS
-                </span>
-              ) : contactNumber && contactNumber.length >= 4 && !phoneInfo.isValid ? (
-                <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">
-                  {phoneInfo.message}
-                </span>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="relative flex items-center">
-            <input
-              type="tel"
-              required
-              readOnly={requireVerification && isEmailVerified && otpChannel === "sms"}
-              value={contactNumber}
-              onChange={handleContactChange}
-              pattern="[0-9]{11}"
-              title="Please enter an active 11-digit Philippine mobile number"
-              placeholder="0917 123 4567"
-              className={`w-full p-3 ${requireVerification && otpChannel === "sms" ? 'pr-24' : ''} border rounded-xl text-sm font-mono transition-all focus:outline-none ${(requireVerification && isEmailVerified && otpChannel === "sms")
-                  ? "bg-emerald-50/40 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-700 text-slate-800 dark:text-emerald-300 font-semibold cursor-not-allowed"
-                  : "bg-white dark:bg-slate-900/80 border-slate-200 dark:border-slate-700 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                }`}
-            />
-
-            {/* Attached Action Button for SMS verification */}
-            {requireVerification && otpChannel === "sms" && (
-              <div className="absolute right-1.5 flex items-center gap-1">
-                {isEmailVerified ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (setIsEmailVerified) setIsEmailVerified(false);
-                      setIsOtpRequested(false);
-                      setOtpCode("");
-                      setOtpError("");
-                      setOtpSuccess("");
-                    }}
-                    className="px-2.5 py-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-bold text-slate-600 dark:text-slate-300 transition-colors shadow-2xs cursor-pointer flex items-center gap-1"
-                    title="Unlock and change mobile number"
-                  >
-                    <Edit3 size={11} />
-                    Change
-                  </button>
-                ) : (
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled={
-                      !phoneInfo.isValid ||
-                      isSendingOtp ||
-                      (isOtpRequested && (otpCooldown > 0 || otpResendsLeft <= 0))
-                    }
-                    onClick={() => handleRequestOtp("sms")}
-                    className={`h-8 px-3 rounded-lg text-xs font-black shadow-xs transition-all cursor-pointer ${phoneInfo.isValid && (!isOtpRequested || (otpCooldown === 0 && otpResendsLeft > 0))
+          <FloatingInput
+            label="Contact Number"
+            required
+            type="tel"
+            value={contactNumber}
+            onChange={handleContactChange}
+            pattern="[0-9]{11}"
+            title="Please enter an active 11-digit Philippine mobile number"
+            placeholder="0917 123 4567"
+            leftIcon={<Phone size={16} />}
+            readOnly={requireVerification && isEmailVerified && otpChannel === "sms"}
+            error={contactNumber && contactNumber.length >= 4 && !phoneInfo.isValid ? phoneInfo.message : undefined}
+            containerClassName={
+              requireVerification && isEmailVerified && otpChannel === "sms"
+                ? "bg-emerald-50/40 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-700"
+                : undefined
+            }
+            rightAction={
+              requireVerification && otpChannel === "sms" ? (
+                <div className="flex items-center gap-1">
+                  {isEmailVerified ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (setIsEmailVerified) setIsEmailVerified(false);
+                        setIsOtpRequested(false);
+                        setOtpCode("");
+                        setOtpError("");
+                        setOtpSuccess("");
+                      }}
+                      className="px-2.5 py-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-bold text-slate-600 dark:text-slate-300 transition-colors shadow-2xs cursor-pointer flex items-center gap-1"
+                      title="Unlock and change mobile number"
+                    >
+                      <Edit3 size={11} />
+                      Change
+                    </button>
+                  ) : (
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={
+                        !phoneInfo.isValid ||
+                        isSendingOtp ||
+                        (isOtpRequested && (otpCooldown > 0 || otpResendsLeft <= 0))
+                      }
+                      onClick={() => handleRequestOtp("sms")}
+                      className={`h-8 px-3 rounded-lg text-xs font-black shadow-xs transition-all cursor-pointer ${phoneInfo.isValid && (!isOtpRequested || (otpCooldown === 0 && otpResendsLeft > 0))
                         ? "bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white shadow-blue-600/20"
                         : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 cursor-not-allowed shadow-none"
-                      }`}
-                  >
-                    {isSendingOtp ? (
-                      <span className="flex items-center gap-1">
-                        <Loader2 size={12} className="animate-spin" />
-                        Sending...
-                      </span>
-                    ) : isOtpRequested ? (
-                      otpCooldown > 0
-                        ? `Wait ${otpCooldown}s`
-                        : otpResendsLeft <= 0
-                        ? "Limit Reached"
-                        : `Resend (${otpResendsLeft})`
-                    ) : (
-                      "Verify SMS"
-                    )}
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
+                        }`}
+                    >
+                      {isSendingOtp ? (
+                        <span className="flex items-center gap-1">
+                          <Loader2 size={12} className="animate-spin" />
+                          Sending...
+                        </span>
+                      ) : isOtpRequested ? (
+                        otpCooldown > 0
+                          ? `Wait ${otpCooldown}s`
+                          : otpResendsLeft <= 0
+                            ? "Limit Reached"
+                            : `Resend (${otpResendsLeft})`
+                      ) : (
+                        "Verify SMS"
+                      )}
+                    </Button>
+                  )}
+                </div>
+              ) : null
+            }
+          />
 
           {/* SMS Duplicate / Error Banner */}
           {requireVerification && otpChannel === "sms" && otpError && !isOtpRequested && (
@@ -1115,21 +1132,22 @@ export default function Step3Details({
         </div>
 
         <div className="flex flex-col gap-1.5 sm:col-span-1">
-          <label className="text-xs font-bold text-slate-900">
-            {isExternal ? "Office / Organization" : "Department"} <span className="text-red-500">*</span>
-          </label>
           {isExternal ? (
-            <input
-              type="text"
+            <FloatingInput
+              label="Office / Organization"
               required
               value={department}
               onChange={e => setDepartment(e.target.value)}
               placeholder="e.g. DepEd / LGU Butuan / Partner Company"
-              className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all font-semibold"
             />
           ) : (
-            <select required value={department} onChange={e => setDepartment(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all font-semibold">
-              <option value="">Select Department...</option>
+            <FloatingSelect
+              label="Department"
+              required
+              value={department}
+              onChange={e => setDepartment(e.target.value)}
+              placeholder="Select Department..."
+            >
               {(() => {
                 const defaultDepts = [
                   { code: "CITE", name: "College of Information Tech Education (CITE)" },
@@ -1149,21 +1167,21 @@ export default function Step3Details({
                   const code = dept.code || dept.name;
                   const label = dept.name ? (dept.code && !dept.name.includes(dept.code) ? `${dept.code} - ${dept.name}` : dept.name) : code;
                   return (
-                    <option key={`dept-${dept.id || code}-${idx}`} value={code}>
+                    <option key={`dept-${dept.id || code}-${idx}`} value={code} className="dark:bg-slate-900">
                       {label}
                     </option>
                   );
                 });
               })()}
-            </select>
+            </FloatingSelect>
           )}
         </div>
 
         <div className="flex flex-col gap-1.5 sm:col-span-1">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-slate-900 dark:text-white">
-              Place of Use <span className="text-red-500">*</span>
-            </label>
+            <span className="text-xs font-bold text-slate-900 dark:text-white">
+              Place of Use Location
+            </span>
             <div className="inline-flex p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-[11px] font-bold">
               <button
                 type="button"
@@ -1173,11 +1191,10 @@ export default function Step3Details({
                     setPlaceOfUse("");
                   }
                 }}
-                className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer ${
-                  !isOutside
-                    ? "bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-2xs font-extrabold"
-                    : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-                }`}
+                className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer ${!isOutside
+                  ? "bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-2xs font-extrabold"
+                  : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+                  }`}
               >
                 Inside Campus
               </button>
@@ -1189,11 +1206,10 @@ export default function Step3Details({
                     setPlaceOfUse("");
                   }
                 }}
-                className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer ${
-                  isOutside
-                    ? "bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-2xs font-extrabold"
-                    : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-                }`}
+                className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer ${isOutside
+                  ? "bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-2xs font-extrabold"
+                  : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+                  }`}
               >
                 Outside Campus
               </button>
@@ -1201,90 +1217,146 @@ export default function Step3Details({
           </div>
 
           {!isOutside ? (
-            <div className="space-y-1.5">
-              <select
-                required
+            <div ref={placeDropdownRef} className="relative space-y-1.5">
+              <FloatingInput
+                label="Place of Use"
+                required={!isOutside && placeOfUse !== "__other_campus__"}
+                placeholder="Type or select Place of Use..."
                 value={
-                  placeOfUse === "__other_campus__" || (typeof placeOfUse === "string" && placeOfUse.startsWith("Campus: "))
-                    ? "__other_campus__"
-                    : (placeOfUse && !placeOfUse.startsWith("Outside: ") ? placeOfUse : "")
+                  placeOfUse === "__other_campus__"
+                    ? "Other Location / Area on Campus..."
+                    : placeSearchInput
                 }
+                onFocus={() => setPlaceDropdownOpen(true)}
+                onClick={() => setPlaceDropdownOpen(true)}
                 onChange={(e) => {
                   const val = e.target.value;
-                  if (val === "__other_campus__") {
-                    setPlaceOfUse("__other_campus__");
-                  } else {
-                    setPlaceOfUse(val);
-                  }
+                  setPlaceSearchInput(val);
+                  setPlaceOfUse(val);
+                  setPlaceDropdownOpen(true);
                 }}
-                className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-900 dark:text-white focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all cursor-pointer"
-              >
-                <option value="">Select Place of Use (Campus Venue / Room)...</option>
-                {placesList && placesList.length > 0 ? (
-                  placesList.map((p) => {
-                    const placeName = p.name || p.venue_name || "Facility";
-                    const locDetail = p.location && p.location !== placeName ? ` — ${p.location}` : "";
-                    return (
-                      <option key={`place-${p.id || placeName}`} value={placeName}>
-                        {placeName}{locDetail}
-                      </option>
-                    );
-                  })
-                ) : (
-                  <>
-                    <option value="Main Gymnasium">Main Gymnasium</option>
-                    <option value="CB Lobby">CB Lobby</option>
-                    <option value="CBE Function Hall">CBE Function Hall</option>
-                    <option value="Haggemburg Hall">Haggemburg Hall</option>
-                    <option value="Audio-Visual Room #1">Audio-Visual Room #1</option>
-                    <option value="Audio-Visual Room #2">Audio-Visual Room #2</option>
-                    <option value="Viewing Room">Viewing Room</option>
-                  </>
-                )}
-                <option value="__other_campus__">Other Room / Area on Campus...</option>
-              </select>
+                rightAction={
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPlaceDropdownOpen((prev) => !prev);
+                    }}
+                    className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                  >
+                    <ChevronDown
+                      size={16}
+                      className={`transition-transform duration-200 ${placeDropdownOpen ? "rotate-180" : ""}`}
+                    />
+                  </button>
+                }
+                autoComplete="off"
+              />
+
+              {/* Automatic Dropdown when typing or focused */}
+              {placeDropdownOpen && (
+                <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl max-h-60 overflow-y-auto scrollbar-hover p-1 text-sm animate-in fade-in zoom-in-95 duration-150">
+                  {filteredVenues.length > 0 ? (
+                    filteredVenues.map((vName) => {
+                      const isSelected = placeOfUse === vName;
+                      return (
+                        <button
+                          key={vName}
+                          type="button"
+                          onClick={() => {
+                            setPlaceOfUse(vName);
+                            setPlaceSearchInput(vName);
+                            setPlaceDropdownOpen(false);
+                          }}
+                          className={`w-full px-3 py-2.5 rounded-lg text-left text-xs font-semibold flex items-center justify-between cursor-pointer transition-colors ${isSelected
+                            ? "bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 font-bold"
+                            : "text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                            }`}
+                        >
+                          <span>{vName}</span>
+                          {isSelected && <Check size={14} className="text-blue-600 dark:text-blue-400 shrink-0" />}
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <div className="px-3 py-2 text-xs text-slate-400 dark:text-slate-500 italic">
+                      No matching venues found
+                    </div>
+                  )}
+
+                  {/* Other Location Option */}
+                  <div className="border-t border-slate-100 dark:border-slate-800 mt-1 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPlaceOfUse("__other_campus__");
+                        setPlaceSearchInput("");
+                        setPlaceDropdownOpen(false);
+                      }}
+                      className={`w-full px-3 py-2 rounded-lg text-left text-xs font-semibold flex items-center justify-between cursor-pointer transition-colors ${placeOfUse === "__other_campus__" || (typeof placeOfUse === "string" && placeOfUse.startsWith("Campus: "))
+                        ? "bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 font-bold"
+                        : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                        }`}
+                    >
+                      <span>Other Location / Area on Campus...</span>
+                      {(placeOfUse === "__other_campus__" || (typeof placeOfUse === "string" && placeOfUse.startsWith("Campus: "))) && (
+                        <Check size={14} className="text-blue-600 dark:text-blue-400 shrink-0" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {(placeOfUse === "__other_campus__" || (typeof placeOfUse === "string" && placeOfUse.startsWith("Campus: "))) && (
-                <input
-                  type="text"
+                <FloatingInput
+                  label="Specify Campus Location"
                   required
                   autoFocus
-                  placeholder="Specify campus room, office, or lab (e.g. Science Lab 301)..."
+                  placeholder="e.g. Science Lab 301, 2nd Floor"
                   value={typeof placeOfUse === "string" && placeOfUse.startsWith("Campus: ") ? placeOfUse.replace(/^Campus:\s*/, "") : ""}
                   onChange={(e) => {
                     setPlaceOfUse(e.target.value ? `Campus: ${e.target.value}` : "__other_campus__");
                   }}
-                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-blue-600 animate-in fade-in duration-150"
+                  className="mt-1"
                 />
               )}
             </div>
           ) : (
             <div className="space-y-1">
-              <input
-                type="text"
+              <FloatingInput
+                label="Outside Campus Address / Venue"
                 required
                 value={typeof placeOfUse === "string" && placeOfUse.startsWith("Outside: ") ? placeOfUse.replace(/^Outside:\s*/, "") : (placeOfUse || "")}
                 onChange={(e) => setPlaceOfUse(e.target.value ? `Outside: ${e.target.value}` : "")}
-                placeholder="e.g. St. Joseph Cathedral, Butuan City / External Event Venue"
-                className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all"
+                placeholder="e.g. St. Joseph Cathedral, Butuan City"
+                helperText="* Specify outside destination or institution. Off-campus use is subject to gate clearance & approval."
               />
-              <p className="text-[10.5px] text-slate-400 dark:text-slate-500 font-medium">
-                * Specify outside destination or institution. Off-campus use is subject to gate clearance &amp; approval.
-              </p>
             </div>
           )}
         </div>
 
         {primaryDept === "sco" && (
-          <div className="flex flex-col gap-1.5 sm:col-span-2">
-            <label className="text-xs font-bold text-slate-900">Designated Technical Operator / Handler <span className="text-red-500">*</span></label>
-            <input type="text" required value={handlerName} onChange={e => setHandlerName(e.target.value)} placeholder="Name of trained technical student/staff operating the camera or mixer..." className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-purple-600" />
+          <div className="sm:col-span-2">
+            <FloatingInput
+              label="Designated Technical Operator / Handler"
+              required
+              value={handlerName}
+              onChange={e => setHandlerName(e.target.value)}
+              placeholder="Name of trained technical student/staff operating the camera or mixer..."
+            />
           </div>
         )}
 
-        <div className="sm:col-span-2 flex flex-col gap-1.5">
-          <label className="text-xs font-bold text-slate-900">Detailed Purpose of Usage <span className="text-red-500">*</span></label>
-          <textarea rows="3" required value={purpose} onChange={e => setPurpose(e.target.value)} placeholder="Describe event activity, project name, or class requirement..." className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600"></textarea>
+        <div className="sm:col-span-2">
+          <FloatingTextarea
+            label="Detailed Purpose of Usage"
+            required
+            rows={3}
+            value={purpose}
+            onChange={e => setPurpose(e.target.value)}
+            placeholder="Describe event activity, project name, or class requirement..."
+          />
         </div>
 
         <div className="sm:col-span-2 flex items-center justify-between mt-6 pt-4 border-t border-slate-100">
@@ -1308,10 +1380,10 @@ export default function Step3Details({
               type="submit"
               disabled={requireVerification && !isEmailVerified}
               className={`px-8 py-5 rounded-xl font-extrabold text-white text-xs shadow-lg transition-all ${(!requireVerification || isEmailVerified)
-                  ? primaryDept === "sco"
-                    ? 'bg-purple-600 hover:bg-purple-700 shadow-purple-600/20 cursor-pointer'
-                    : 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/20 cursor-pointer'
-                  : "bg-slate-300 text-slate-500 cursor-not-allowed shadow-none"
+                ? primaryDept === "sco"
+                  ? 'bg-purple-600 hover:bg-purple-700 shadow-purple-600/20 cursor-pointer'
+                  : 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/20 cursor-pointer'
+                : "bg-slate-300 text-slate-500 cursor-not-allowed shadow-none"
                 }`}
             >
               Next: Review →

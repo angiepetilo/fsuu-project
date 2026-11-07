@@ -2,58 +2,57 @@ import React from "react";
 import { cn } from "@/lib/utils";
 import { formatOverdueDuration } from "@/lib/dateTimeUtils";
 
-const STATUS_CONFIGS = {
-  approved:          "bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30",
-  completed:         "bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800/50 dark:text-slate-300 dark:border-slate-700/60",
-  available:         "bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30",
-  active:            "bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30",
-  "built-in":        "bg-violet-50 text-violet-700 border-violet-300 dark:bg-violet-500/15 dark:text-violet-400 dark:border-violet-500/30",
-  built_in:          "bg-violet-50 text-violet-700 border-violet-300 dark:bg-violet-500/15 dark:text-violet-400 dark:border-violet-500/30",
-  
-  pending:           "bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/30",
-  incomplete:        "bg-amber-100 text-amber-900 border-amber-400 font-bold dark:bg-amber-500/25 dark:text-amber-300 dark:border-amber-500/40",
-  reserved:          "bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/30",
-  ongoing:           "bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-500/15 dark:text-blue-400 dark:border-blue-500/30",
-  "on-going":        "bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-500/15 dark:text-blue-400 dark:border-blue-500/30",
-  borrowed:          "bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-500/15 dark:text-blue-400 dark:border-blue-500/30",
-  released:          "bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-500/15 dark:text-blue-400 dark:border-blue-500/30",
-  "release / in - use": "bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-500/15 dark:text-blue-400 dark:border-blue-500/30",
-  ready_to_claim:    "bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-500/30",
-  inspection:              "bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-500/30",
-  "post-inspection":       "bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-500/30",
-  "post-event inspection": "bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-500/30",
-  "post_inspection":       "bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-500/30",
-  
-  under_maintenance: "bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-500/30",
-  maintenance:       "bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-500/30",
-  under_repair:      "bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/30",
-  
-  rejected:          "bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-500/15 dark:text-rose-400 dark:border-rose-500/30",
-  cancelled:         "bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-500/15 dark:text-rose-400 dark:border-rose-500/30",
-  damaged:           "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-500/20 dark:text-rose-400 dark:border-rose-500/35",
-  unavailable:       "bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-700/60",
-  lost:              "bg-rose-900 text-white border-rose-950 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-500/40",
-  solved:            "bg-emerald-600 text-white border-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/40",
-  retired:           "bg-slate-100 text-slate-600 border-slate-300 dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-700/60",
+// One tone per meaning. Soft fill + light border + dark text, so the text always
+// reads louder than the color around it (same color families as before).
+const TONES = {
+  success: "bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/20",
+  warning: "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20",
+  info:    "bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-500/10 dark:text-blue-300 dark:border-blue-500/20",
+  purple:  "bg-purple-50 text-purple-800 border-purple-200 dark:bg-purple-500/10 dark:text-purple-300 dark:border-purple-500/20",
+  violet:  "bg-violet-50 text-violet-800 border-violet-200 dark:bg-violet-500/10 dark:text-violet-300 dark:border-violet-500/20",
+  danger:  "bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/20",
+  neutral: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-700/60",
 };
+
+const STATUS_TONE = {
+  approved: "success", available: "success", active: "success",
+  completed: "neutral", unavailable: "neutral", retired: "neutral",
+  "built-in": "violet", built_in: "violet",
+
+  pending: "warning", incomplete: "warning", reserved: "warning", under_repair: "warning",
+
+  ongoing: "info", "on-going": "info", borrowed: "info", released: "info", "release / in - use": "info",
+
+  ready_to_claim: "purple", inspection: "purple", "post-inspection": "purple",
+  "post-event inspection": "purple", post_inspection: "purple",
+  under_maintenance: "purple", maintenance: "purple",
+
+  rejected: "danger", cancelled: "danger", damaged: "danger",
+};
+
+// Strong, solid badges kept on purpose for final states.
+const SOLID = {
+  lost:   "bg-rose-900 text-white border-rose-950 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-500/40",
+  solved: "bg-emerald-600 text-white border-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/40",
+};
+
+const INSPECTION_KEYS = ["post-inspection", "post-event inspection", "post_inspection", "inspection"];
 
 export function StatusBadge({ status, className, children }) {
   const normalized = status ? String(status).toLowerCase().trim() : "pending";
-  const colorClass = STATUS_CONFIGS[normalized] || "bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800/50 dark:text-slate-300 dark:border-slate-700/60";
+  const colorClass = SOLID[normalized] || TONES[STATUS_TONE[normalized]] || TONES.neutral;
 
   let displayLabel = children;
   if (!displayLabel) {
-    if (["post-inspection", "post-event inspection", "post_inspection", "inspection"].includes(normalized)) {
-      displayLabel = "INSPECTION";
-    } else {
-      displayLabel = status ? String(status).replace(/_/g, " ").toUpperCase() : "UNKNOWN";
-    }
+    displayLabel = INSPECTION_KEYS.includes(normalized)
+      ? "INSPECTION"
+      : status ? String(status).replace(/_/g, " ").toUpperCase() : "UNKNOWN";
   }
 
   return (
     <span
       className={cn(
-        "inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border transition-colors tracking-wide uppercase shadow-2xs whitespace-nowrap shrink-0",
+        "inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border tracking-wide uppercase whitespace-nowrap shrink-0",
         colorClass,
         className
       )}
@@ -64,7 +63,7 @@ export function StatusBadge({ status, className, children }) {
 }
 
 /**
- * Clean, institutional live overdue badge.
+ * Live overdue badge.
  */
 export function OverdueBadge({ minutesOverdue, className }) {
   const text = formatOverdueDuration(minutesOverdue);
@@ -73,7 +72,8 @@ export function OverdueBadge({ minutesOverdue, className }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200 shadow-2xs whitespace-nowrap dark:bg-rose-500/15 dark:text-rose-400 dark:border-rose-500/30",
+        "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap border",
+        TONES.danger,
         className
       )}
       title={`${minutesOverdue} minutes overdue`}

@@ -5,8 +5,10 @@ import api from "@/lib/axios";
 import { cleanupLocalStorage } from "@/lib/cleanupLocalStorage";
 import { PageLoader } from "@/components/ui/page-loader";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import { ConfirmDialogHost } from "@/lib/confirmDialog";
 import { ThemeProvider, useTheme } from "@/context/ThemeContext";
 import { useKioskGuard } from "@/hooks/useKioskGuard";
+import { useModalEscape } from "@/hooks/useModalEscape";
 
 // Public — landing page loads eagerly (it's the first paint)
 import LandingPage from "./pages/public/LandingPage/LandingPage";
@@ -67,6 +69,9 @@ function AppContent() {
 
   // Lock down public kiosk / walk-in booking pages from inspect & dev shortcuts
   useKioskGuard();
+
+  // Escape closes the top-most open modal anywhere in the app
+  useModalEscape();
 
   const [showHomeLogoutConfirm, setShowHomeLogoutConfirm] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -209,7 +214,7 @@ function AppContent() {
                   <span className="font-extrabold text-xs sm:text-base tracking-tight text-foreground leading-tight truncate">
                     {publicSettings.header_brand_text || "Father Saturnino Urios University"}
                   </span>
-                  <span className="text-[10px] sm:text-xs text-muted-foreground font-semibold truncate">
+                  <span className="text-[11px] sm:text-xs text-muted-foreground font-semibold truncate">
                     {publicSettings.system_name || "FSUU Booking System"}
                   </span>
                 </div>
@@ -435,7 +440,7 @@ function AppContent() {
             </div>
 
             {/* Center: Clean Navigation Links */}
-            <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-semibold text-muted-foreground">
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs font-semibold text-muted-foreground">
               <button
                 type="button"
                 onClick={() => setShowContactModal(true)}
@@ -443,7 +448,7 @@ function AppContent() {
               >
                 Contact Us
               </button>
-              <span className="text-muted-foreground/40">•</span>
+              <span className="hidden sm:inline text-muted-foreground/40" aria-hidden="true">•</span>
               <button
                 type="button"
                 onClick={() => {
@@ -454,7 +459,7 @@ function AppContent() {
               >
                 Privacy Policy
               </button>
-              <span className="text-muted-foreground/40">•</span>
+              <span className="hidden sm:inline text-muted-foreground/40" aria-hidden="true">•</span>
               <button
                 type="button"
                 onClick={() => {
@@ -474,7 +479,7 @@ function AppContent() {
                 <button
                   type="button"
                   onClick={() => setShowDevelopersModal(true)}
-                  className="text-[10.5px] text-muted-foreground/75 hover:text-primary transition-colors cursor-pointer mt-0.5 font-medium underline underline-offset-2 decoration-muted-foreground/30 hover:decoration-primary"
+                  className="text-[11px] text-muted-foreground/75 hover:text-primary transition-colors cursor-pointer mt-0.5 font-medium underline underline-offset-2 decoration-muted-foreground/30 hover:decoration-primary"
                   title="Click to view Capstone Development Team credits"
                 >
                   Developed by FSUU Capstone Team • BSIT
@@ -518,6 +523,7 @@ function AppContent() {
         loading={isLoggingOut}
       />
 
+      <ConfirmDialogHost />
       <Toaster position="top-right" expand={false} />
     </>
   );

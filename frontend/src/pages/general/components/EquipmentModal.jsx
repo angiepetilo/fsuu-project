@@ -64,6 +64,7 @@ function BuiltInUnitItemSelector({
     };
     const handleKeyDown = (e) => {
       if (e.key === "Escape") {
+        e.preventDefault();
         setIsOpen(false);
       }
     };
@@ -129,7 +130,7 @@ function BuiltInUnitItemSelector({
           <Layers size={13} className="text-blue-600 dark:text-blue-400 shrink-0" />
           <span className="truncate">{cat.name}</span>
         </span>
-        <span className="text-[10.5px] font-mono text-slate-400 dark:text-slate-500">
+        <span className="text-[11px] font-mono text-slate-400 dark:text-slate-500">
           {availableUnits.length} {availableUnits.length === 1 ? "unit available" : "units available"}
         </span>
       </div>
@@ -148,7 +149,7 @@ function BuiltInUnitItemSelector({
           {selectedUnit ? (
             <div className="flex items-center gap-1.5 min-w-0 truncate">
               {selectedInfo.seqNo && (
-                <span className="font-mono text-[10px] font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800/80 shrink-0">
+                <span className="font-mono text-[11px] font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800/80 shrink-0">
                   {selectedInfo.seqNo}
                 </span>
               )}
@@ -258,7 +259,7 @@ function BuiltInUnitItemSelector({
                     >
                       <div className="flex items-center gap-1.5 min-w-0 truncate">
                         {uInfo.seqNo && (
-                          <span className="font-mono text-[10px] font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800/80 shrink-0">
+                          <span className="font-mono text-[11px] font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800/80 shrink-0">
                             {uInfo.seqNo}
                           </span>
                         )}
@@ -280,7 +281,7 @@ function BuiltInUnitItemSelector({
         {isCurrentUnitDegraded && currentUnitObj && (
           <div className="mt-1.5 flex items-start gap-1.5 text-[11px] font-semibold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 p-2 rounded-lg leading-tight">
             <span>
-              ⚠️ Previously linked unit <strong>{currentUnitObj.seq_no ? (String(currentUnitObj.seq_no).startsWith('#') ? currentUnitObj.seq_no : `#${currentUnitObj.seq_no}`) + ' ' : ''}{[currentUnitObj.brand, currentUnitObj.model].filter(Boolean).join(' • ') || currentUnitObj.name}</strong> is marked as <strong>{currentUnitObj.condition || currentUnitObj.status || 'Damaged/Lost'}</strong> and excluded. Please choose another unit in Good condition.
+              Previously linked unit <strong>{currentUnitObj.seq_no ? (String(currentUnitObj.seq_no).startsWith('#') ? currentUnitObj.seq_no : `#${currentUnitObj.seq_no}`) + ' ' : ''}{[currentUnitObj.brand, currentUnitObj.model].filter(Boolean).join(' • ') || currentUnitObj.name}</strong> is marked as <strong>{currentUnitObj.condition || currentUnitObj.status || 'Damaged/Lost'}</strong> and excluded. Please choose another unit in Good condition.
             </span>
           </div>
         )}
@@ -399,7 +400,7 @@ function CategoryBuiltInUnitSelector({
           Linked Built-in Equipment
         </label>
         {linkedCategories.length > 0 && (
-          <span className="text-[10.5px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 px-2 py-0.5 rounded-lg shadow-2xs">
+          <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 px-2 py-0.5 rounded-lg shadow-2xs">
             {linkedCategories.length} {linkedCategories.length === 1 ? "Component Linked" : "Components Linked"}
           </span>
         )}
@@ -909,8 +910,8 @@ export default function EquipmentModal({
     <>
       {/* ── Edit Equipment Physical Unit Modal ── */}
       {editingItem && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto scrollbar-hover animate-in fade-in duration-150">
-          <div className={`bg-white dark:bg-[#111827] rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full ${editCatHasBuiltIns ? 'max-w-5xl' : 'max-w-3xl'} overflow-hidden flex flex-col my-auto max-h-[92vh]`}>
+        <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto scrollbar-hover animate-in fade-in duration-150">
+          <div className={`bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl w-full ${editCatHasBuiltIns ? 'max-w-5xl' : 'max-w-3xl'} overflow-hidden flex flex-col my-auto max-h-[92vh]`}>
             {/* ── Modal Header (Matching EquipmentDetailModal) ── */}
             <div className="px-6 py-4 bg-white dark:bg-[#111827] border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
@@ -918,7 +919,7 @@ export default function EquipmentModal({
                   <Laptop size={20} />
                 </div>
                 <div>
-                  <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+                  <h3 className="modal-title text-sm sm:text-base font-bold text-slate-900 dark:text-white">
                     Edit Physical Unit
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 font-normal">
@@ -942,7 +943,7 @@ export default function EquipmentModal({
                 {/* Top Info Strip: Clean plain text summary matching View modal */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
                   <div className="min-w-0">
-                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                    <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
                       Equipment Model &amp; Name
                     </span>
                     <div className="flex items-center gap-2.5 mt-0.5 flex-wrap">
@@ -957,7 +958,7 @@ export default function EquipmentModal({
                   </div>
 
                   <div className="sm:text-right shrink-0">
-                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                    <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
                       Serial Number
                     </span>
                     <div className="flex items-center sm:justify-end gap-2 mt-0.5 flex-wrap">
@@ -965,7 +966,7 @@ export default function EquipmentModal({
                         {editFormData.serial_number || editFormData.barcode || "—"}
                       </span>
                       <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10.5px] font-bold ${
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
                           editFormData.status === "available"
                             ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60"
                             : editFormData.status === "built-in"
@@ -1053,7 +1054,7 @@ export default function EquipmentModal({
                         />
                         {editSerialDuplicate && (
                           <p className="mt-1 text-[11px] font-medium text-rose-600 leading-tight">
-                            ⚠️ Assigned to {editSerialDuplicate.name || editSerialDuplicate.model || 'another unit'}.
+                            Assigned to {editSerialDuplicate.name || editSerialDuplicate.model || 'another unit'}.
                           </p>
                         )}
                       </div>
@@ -1136,7 +1137,7 @@ export default function EquipmentModal({
                         />
                         {editSeqDuplicate && (
                           <div className="mt-1 flex items-center justify-between gap-1 text-[11px] font-medium text-rose-600">
-                            <span>⚠️ #{editFormData.seq_no} is already taken in this category.</span>
+                            <span>#{editFormData.seq_no} is already taken in this category.</span>
                             <button
                               type="button"
                               onClick={() => {
@@ -1207,8 +1208,8 @@ export default function EquipmentModal({
                           placeholder="Select Status..."
                         />
                         {isEditingUnitChild && (
-                          <p className="mt-1 text-[10.5px] font-semibold text-violet-600 dark:text-violet-400">
-                            ⚡ Set to Built-in (linked to parent kit)
+                          <p className="mt-1 text-[11px] font-semibold text-violet-600 dark:text-violet-400">
+                            Set to Built-in (linked to parent kit)
                           </p>
                         )}
                       </div>
@@ -1244,7 +1245,7 @@ export default function EquipmentModal({
                         onChange={e => setEditFormData({ ...editFormData, reason: e.target.value })}
                         className={inputClasses}
                       />
-                      <p className="mt-1 text-[10.5px] text-slate-400 dark:text-slate-500 font-medium">
+                      <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500 font-medium">
                         Audit note for inventory activity log.
                       </p>
                     </div>
@@ -1297,8 +1298,8 @@ export default function EquipmentModal({
 
       {/* ── Add Equipment Physical Unit Modal ── */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto scrollbar-hover animate-in fade-in duration-150">
-          <div className={`bg-white dark:bg-[#111827] rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full ${addCatHasBuiltIns ? 'max-w-5xl' : 'max-w-3xl'} overflow-hidden flex flex-col my-auto max-h-[92vh]`}>
+        <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto scrollbar-hover animate-in fade-in duration-150">
+          <div className={`bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl w-full ${addCatHasBuiltIns ? 'max-w-5xl' : 'max-w-3xl'} overflow-hidden flex flex-col my-auto max-h-[92vh]`}>
             {/* ── Modal Header (Matching EquipmentDetailModal & Edit Modal) ── */}
             <div className="px-6 py-4 bg-white dark:bg-[#111827] border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
@@ -1306,7 +1307,7 @@ export default function EquipmentModal({
                   <Laptop size={20} />
                 </div>
                 <div>
-                  <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+                  <h3 className="modal-title text-sm sm:text-base font-bold text-slate-900 dark:text-white">
                     Add Physical Equipment Unit
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 font-normal">
@@ -1396,7 +1397,7 @@ export default function EquipmentModal({
                         />
                         {addSerialDuplicate && (
                           <p className="mt-1 text-[11px] font-medium text-rose-600 leading-tight">
-                            ⚠️ Assigned to {addSerialDuplicate.name || addSerialDuplicate.model || 'another unit'}.
+                            Assigned to {addSerialDuplicate.name || addSerialDuplicate.model || 'another unit'}.
                           </p>
                         )}
                       </div>
@@ -1479,7 +1480,7 @@ export default function EquipmentModal({
                         />
                         {addSeqDuplicate && (
                           <div className="mt-1 flex items-center justify-between gap-1 text-[11px] font-medium text-rose-600">
-                            <span>⚠️ #{formData.seq_no} is already taken in this category.</span>
+                            <span>#{formData.seq_no} is already taken in this category.</span>
                             <button
                               type="button"
                               onClick={() => {
@@ -1609,8 +1610,8 @@ export default function EquipmentModal({
 
       {/* ── Quick Add Brand Modal ── */}
       {showQuickAddBrand && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[3000] flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-sm w-full shadow-2xl border border-slate-200 dark:border-slate-800 p-6 space-y-4 animate-in zoom-in-95 duration-150">
+        <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 bg-slate-950/50 backdrop-blur-xs z-[3000] flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-sm w-full shadow-xl border border-slate-200 dark:border-slate-800 p-6 space-y-4 animate-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
@@ -1674,7 +1675,7 @@ export default function EquipmentModal({
 
               {quickBrandError && (
                 <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 p-2.5 rounded-xl border border-rose-200 dark:border-rose-900/60">
-                  ⚠️ {quickBrandError}
+                  {quickBrandError}
                 </p>
               )}
             </div>
@@ -1706,8 +1707,8 @@ export default function EquipmentModal({
 
       {/* ── Quick Add Category Modal ── */}
       {showQuickAddCategory && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[3000] flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-sm w-full shadow-2xl border border-slate-200 dark:border-slate-800 p-6 space-y-4 animate-in zoom-in-95 duration-150">
+        <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 bg-slate-950/50 backdrop-blur-xs z-[3000] flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-sm w-full shadow-xl border border-slate-200 dark:border-slate-800 p-6 space-y-4 animate-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
@@ -1765,7 +1766,7 @@ export default function EquipmentModal({
 
               {quickCategoryError && (
                 <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 p-2.5 rounded-xl border border-rose-200 dark:border-rose-900/60">
-                  ⚠️ {quickCategoryError}
+                  {quickCategoryError}
                 </p>
               )}
             </div>

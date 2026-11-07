@@ -1,9 +1,6 @@
 import { useState, useEffect } from "react";
 import {
-  ShieldAlert, ShieldCheck, AlertTriangle, AlertCircle, Lock, 
-  Search, X, Clock, CheckCircle2, Eye, 
-  Terminal, ShieldX, Globe, Laptop, Activity, AlertOctagon,
-  Filter, Calendar, ChevronLeft, ChevronRight, Loader2
+  ShieldCheck, AlertTriangle, Search, X, CheckCircle2, AlertOctagon, Filter, ChevronLeft, ChevronRight, Loader2,
 } from "lucide-react";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
@@ -104,21 +101,21 @@ export default function SecurityAlertsTab() {
     switch (sev) {
       case "critical":
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-rose-100 text-rose-800 border border-rose-200">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold uppercase tracking-wider bg-rose-100 text-rose-800 border border-rose-200">
             <AlertOctagon size={11} className="text-rose-600" />
             Critical
           </span>
         );
       case "high":
         return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+          <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
             Warning
           </span>
         );
       case "medium":
       default:
         return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+          <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
             Notice
           </span>
         );
@@ -232,8 +229,8 @@ export default function SecurityAlertsTab() {
               >
                 <div className="flex items-start gap-3 min-w-0">
                   {/* Subtle Alert Icon */}
-                  <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 mt-0.5">
-                    <AlertCircle size={16} />
+                  <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
+                    <AlertTriangle size={16} />
                   </div>
 
                   {/* Simple text details */}
@@ -246,11 +243,11 @@ export default function SecurityAlertsTab() {
                         • {formattedDate}
                       </span>
                       {al.status === "resolved" ? (
-                        <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <span className="px-1.5 py-0.2 rounded text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
                           Resolved
                         </span>
                       ) : (
-                        <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                        <span className="px-1.5 py-0.2 rounded text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
                           Needs Review
                         </span>
                       )}
@@ -313,16 +310,16 @@ export default function SecurityAlertsTab() {
 
       {/* Simple, Non-Tech Friendly Alert Details Modal */}
       {selectedAlert && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+        <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-xs">
           <div className="bg-white rounded-xl border border-slate-200 shadow-xl max-w-md w-full p-5 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
-                  <AlertCircle size={16} />
+                <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center">
+                  <AlertTriangle size={16} />
                 </div>
                 <div>
-                  <h3 className="text-xs font-semibold text-slate-900">Security Alert Details</h3>
-                  <p className="text-[10px] text-slate-400">Record #{selectedAlert.id}</p>
+                  <h3 className="modal-title text-xs font-semibold text-slate-900">Security Alert Details</h3>
+                  <p className="text-[11px] text-slate-400">Record #{selectedAlert.id}</p>
                 </div>
               </div>
               <button
@@ -372,7 +369,7 @@ export default function SecurityAlertsTab() {
                     </div>
                     <div className="flex justify-between py-1">
                       <span className="text-slate-500">Status:</span>
-                      <span className={`font-semibold ${selectedAlert.status === "resolved" ? "text-emerald-600" : "text-amber-600"}`}>
+                      <span className={`font-semibold ${selectedAlert.status === "resolved" ? "text-emerald-600" : "text-amber-700"}`}>
                         {selectedAlert.status === "resolved" ? "Resolved" : "Needs Review"}
                       </span>
                     </div>

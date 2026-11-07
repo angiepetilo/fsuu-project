@@ -4,8 +4,7 @@ import api from "@/lib/axios";
 import notify from "@/lib/notify";
 import AlertModal from "@/components/ui/AlertModal";
 import {
-  Loader2, AlertCircle, Eye, PackageOpen, ChevronLeft, ChevronRight,
-  Search, Calendar, X, Clock, Filter
+  AlertCircle, Eye, ChevronLeft, ChevronRight, Search, X, Filter, AlertTriangle,
 } from "lucide-react";
 import { PageLoader } from "@/components/ui/page-loader";
 import { StatusBadge, OverdueBadge } from "@/components/ui/status-badge";
@@ -510,7 +509,7 @@ export default function EquipmentBorrowings() {
 
   const handleSendNotification = (item) => {
     if (!notifyReason.trim()) {
-      alert("Please enter a notification reason.");
+      notify.warning("Please enter a notification reason.");
       return;
     }
     showMsg(`Notification sent to admin: ${notifyReason}`);
@@ -526,8 +525,8 @@ export default function EquipmentBorrowings() {
   if (!hasPermission("equipment_borrowing")) {
     return (
       <div className="p-8 max-w-md mx-auto text-center space-y-3 mt-12 bg-white rounded-3xl border border-slate-200 shadow-xs">
-        <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto">
-          <AlertCircle size={24} />
+        <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center mx-auto">
+          <AlertTriangle size={24} />
         </div>
         <h3 className="text-sm font-extrabold text-slate-900">Access Restricted</h3>
         <p className="text-xs text-slate-500 font-medium">
@@ -623,7 +622,7 @@ export default function EquipmentBorrowings() {
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-100">
                 {["#", "Track Number", "Requestor", "Department", "Equipment Types", "Date", "Time", "Status", "Action"].map(h => (
-                  <th key={h} className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                  <th key={h} className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>

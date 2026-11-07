@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import {
-  Users, GraduationCap, X, Loader2, Mail, CheckCircle2,
-  AlertCircle, Lock, Eye, EyeOff, ShieldCheck, KeyRound
+  Users, GraduationCap, X, Loader2, Mail, CheckCircle2, AlertCircle, Eye, EyeOff, ShieldCheck, KeyRound, AlertTriangle,
 } from "lucide-react";
 import api from "@/lib/axios";
 import PasswordSecurityStrength, { checkPasswordSecurity } from "@/components/ui/PasswordSecurityStrength";
@@ -196,11 +195,11 @@ export default function UserFormModal({
   return (
     <>
       {/* ── Main Create / Edit Modal ── */}
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-[1500] flex items-center justify-center p-4 sm:p-6">
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-md max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95">
+      <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 bg-slate-950/50 backdrop-blur-xs z-[1500] flex items-center justify-center p-4 sm:p-6">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-md max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95">
           <div className="flex items-center justify-between p-5 pb-4 border-b border-slate-100 shrink-0">
             <div>
-              <h3 className="text-sm font-black text-slate-900 tracking-tight">
+              <h3 className="modal-title text-sm font-black text-slate-900 tracking-tight">
                 {editUser ? "Edit Account" : "Create Account"}
               </h3>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
@@ -233,7 +232,7 @@ export default function UserFormModal({
                 </div>
               ) : availableRoles.length === 0 ? (
                 <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs flex items-center gap-2">
-                  <AlertCircle size={14} className="shrink-0 text-amber-600" />
+                  <AlertTriangle size={14} className="shrink-0 text-amber-700" />
                   <span>No roles found. Please configure a role in the <strong>Roles</strong> tab first.</span>
                 </div>
               ) : (
@@ -269,13 +268,13 @@ export default function UserFormModal({
                   Email Address
                 </label>
                 {emailChecking && (
-                  <span className="text-[10px] text-slate-400 flex items-center gap-1 font-semibold">
+                  <span className="text-[11px] text-slate-400 flex items-center gap-1 font-semibold">
                     <Loader2 size={10} className="animate-spin" /> Checking mail server...
                   </span>
                 )}
                 {!emailChecking && emailStatus && (
                   <span
-                    className={`text-[10px] font-bold flex items-center gap-1 ${emailStatus.valid ? "text-emerald-600" : "text-rose-600"
+                    className={`text-[11px] font-bold flex items-center gap-1 ${emailStatus.valid ? "text-emerald-600" : "text-rose-600"
                       }`}
                   >
                     {emailStatus.valid ? (
@@ -324,7 +323,7 @@ export default function UserFormModal({
                   <span className="text-xs font-extrabold text-slate-900">
                     Change Password
                   </span>
-                  <span className="text-[10px] text-slate-400 font-medium ml-auto">
+                  <span className="text-[11px] text-slate-400 font-medium ml-auto">
                     (Leave blank to keep existing)
                   </span>
                 </div>
@@ -394,7 +393,7 @@ export default function UserFormModal({
 
                   {newPassword.length > 0 && confirmPassword.length > 0 && (
                     <div className={`p-2 rounded-xl text-[11px] font-semibold border ${newPassword === confirmPassword ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"}`}>
-                      {newPassword === confirmPassword ? "✓ Passwords match" : "✕ Passwords do not match yet"}
+                      {newPassword === confirmPassword ? "Passwords match" : "Passwords do not match yet"}
                     </div>
                   )}
                 </div>
@@ -458,8 +457,8 @@ export default function UserFormModal({
 
       {/* ── Super Admin Password Confirmation Pop-up Modal ── */}
       {showAdminPwModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[1600] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-sm max-h-[90vh] overflow-y-auto p-6 space-y-4 animate-in fade-in zoom-in-95">
+        <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 bg-slate-950/50 backdrop-blur-sm z-[1600] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-sm max-h-[90vh] overflow-y-auto p-6 space-y-4 animate-in fade-in zoom-in-95">
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center shrink-0">
                 <ShieldCheck size={20} />

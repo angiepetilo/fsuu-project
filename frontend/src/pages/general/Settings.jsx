@@ -4,9 +4,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import notify from "@/lib/notify";
 import api from "@/lib/axios";
 import {
-  Users, Building2, Package, BookOpen, Clock,
-  DollarSign, Key, User, Sliders, Building, GraduationCap,
-  Lock, Eye, EyeOff, ShieldAlert, Loader2, X, Tag, Laptop, Activity
+  Users, Building2, Package, BookOpen, Clock, Key, User, Sliders, Building, GraduationCap, Lock, Eye, EyeOff, ShieldAlert, Loader2, X, Tag, Laptop, Activity, MessageSquareText, PhilippinePeso,
 } from "lucide-react";
 
 const EquipmentCategoriesTab = lazy(() => import("@/components/settings-tabs/EquipmentCategoriesTab"));
@@ -42,21 +40,21 @@ export const SETTINGS_CATEGORIES = [
       {
         id: "users",
         label: "User Management",
-        desc: "Staff accounts & RBAC permissions",
+        desc: "Staff accounts and what each role can do",
         icon: Users,
         permissionKey: "settings.users",
       },
       {
         id: "active_sessions",
         label: "Active Sessions",
-        desc: "Monitor and remotely terminate terminals",
+        desc: "Who is signed in; sign out a device",
         icon: Laptop,
         permissionKey: "settings.active_sessions",
       },
       {
         id: "pin",
         label: "Verification PIN",
-        desc: "Master security authorization & override rules",
+        desc: "PIN for approvals and after-hours requests",
         icon: Key,
         permissionKey: "settings.pin",
         protected: true,
@@ -71,7 +69,7 @@ export const SETTINGS_CATEGORIES = [
       {
         id: "security_alerts",
         label: "Security Alerts",
-        desc: "Rate limits, lockouts & terminations",
+        desc: "Failed logins, lockouts, and forced sign-outs",
         icon: ShieldAlert,
         permissionKey: "settings.security_alerts",
       },
@@ -85,8 +83,8 @@ export const SETTINGS_CATEGORIES = [
       {
         id: "communication_logs",
         label: "SMS and Email Log",
-        desc: "Brevo & iProg SMS dispatch log",
-        icon: Building2,
+        desc: "Emails and text messages sent to requesters",
+        icon: MessageSquareText,
         permissionKey: "settings.communication_logs",
       },
     ]
@@ -135,7 +133,7 @@ export const SETTINGS_CATEGORIES = [
         id: "fee_matrix",
         label: "Fee Matrix",
         desc: "Facility rental rates & policy",
-        icon: DollarSign,
+        icon: PhilippinePeso,
         permissionKey: "settings.fee_matrix",
       },
       {
@@ -170,7 +168,7 @@ export const SETTINGS_CATEGORIES = [
       {
         id: "system_settings",
         label: "System Settings",
-        desc: "Brevo SMTP & portal branding",
+        desc: "Email sending, school name, and logo",
         icon: Sliders,
         permissionKey: "settings.system_settings",
         protected: true,
@@ -392,7 +390,7 @@ export default function Settings() {
           {currentCategory && (
             <>
               <div className="px-2.5 pb-2 mb-1.5 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                   {currentCategory.label}
                 </span>
               </div>
@@ -515,7 +513,7 @@ export default function Settings() {
 
       {/* Password Verification Modal */}
       {showPwModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+        <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-xs p-4">
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 w-full max-w-md p-6 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-start justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2.5">
@@ -523,7 +521,7 @@ export default function Settings() {
                   <Lock size={18} />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-slate-900 dark:text-white text-sm">Security Verification</h3>
+                  <h3 className="modal-title font-extrabold text-slate-900 dark:text-white text-sm">Security Verification</h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                     Accessing {PROTECTED_TAB_NAMES[pendingTab] || "Protected Section"}
                   </p>
@@ -569,7 +567,7 @@ export default function Settings() {
                 </div>
                 {pwError && (
                   <p className="text-[11px] text-red-500 font-semibold mt-1.5 flex items-center gap-1">
-                    <span>⚠</span> {pwError}
+                    {pwError}
                   </p>
                 )}
               </div>

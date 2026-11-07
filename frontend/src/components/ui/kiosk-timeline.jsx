@@ -50,7 +50,7 @@ export function KioskTimeline({
                 <div className="mt-1.5 sm:mt-2.5 text-center">
                   <p
                     className={cn(
-                      "text-[9px] sm:text-[11px] font-black uppercase tracking-tight sm:tracking-wider transition-colors max-w-[70px] sm:max-w-[130px] leading-tight break-words",
+                      "text-[10px] sm:text-[11px] font-black uppercase tracking-tight sm:tracking-wider transition-colors max-w-[70px] sm:max-w-[130px] leading-tight break-words",
                       isActive
                         ? "text-blue-600 sm:text-slate-900 font-extrabold"
                         : isCompleted

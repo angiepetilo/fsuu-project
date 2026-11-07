@@ -37,9 +37,9 @@ export default function IncidentDetailModal({ incident, onClose }) {
     if (isLost) {
       return {
         badge: "Lost Physical Unit",
-        badgeStyle: "bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border-amber-200/80 dark:border-amber-900/60",
+        badgeStyle: "bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border-amber-200/80 dark:border-amber-900/60",
         icon: AlertTriangle,
-        iconStyle: "bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/40",
+        iconStyle: "bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-100 dark:border-amber-900/40",
         title: "Lost Equipment Incident Report",
       };
     }
@@ -122,8 +122,8 @@ export default function IncidentDetailModal({ incident, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-[1600] flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-150">
-      <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-200/90 dark:border-slate-800 overflow-hidden animate-in zoom-in-95 duration-150">
+    <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 bg-slate-950/50 backdrop-blur-xs z-[1600] flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-150">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full shadow-xl border border-slate-200/90 dark:border-slate-800 overflow-hidden animate-in zoom-in-95 duration-150">
         {/* Header */}
         <div className="p-6 pb-5 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-start justify-between gap-3">
@@ -133,7 +133,7 @@ export default function IncidentDetailModal({ incident, onClose }) {
               </div>
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="font-extrabold text-slate-900 dark:text-white text-base tracking-tight">{config.title}</h3>
+                  <h3 className="modal-title font-extrabold text-slate-900 dark:text-white text-base tracking-tight">{config.title}</h3>
                   <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${config.badgeStyle}`}>
                     {config.badge}
                   </span>
@@ -167,7 +167,7 @@ export default function IncidentDetailModal({ incident, onClose }) {
                   Updated Record Placement
                 </span>
               </div>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                 Archived in History Log
               </span>
             </div>

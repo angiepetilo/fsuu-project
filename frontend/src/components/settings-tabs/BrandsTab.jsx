@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { 
-  Tag, Plus, Search, Edit2, Ban, CheckCircle2,
-  AlertCircle, X, Loader2, ChevronLeft, ChevronRight,
-  MoreVertical, Trash2, Pencil, Layers
+import {
+  Tag, Plus, Search, Ban, CheckCircle2, AlertCircle, X, Loader2, ChevronLeft, ChevronRight, MoreVertical, Trash2, Pencil, Layers,
 } from "lucide-react";
 import api, { clearApiCache } from "@/lib/axios";
 import { invalidateCache } from "@/lib/apiCache";
@@ -409,7 +407,7 @@ export default function BrandsTab({ isActive = true }) {
                           </div>
                           <div>
                             <p className="font-bold text-slate-900">{brand.name}</p>
-                            <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+                            <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
                               <span>ID #{brand.id}</span>
                               {resolvedCatName && (
                                 <span className="font-medium text-slate-500">• {resolvedCatName}</span>
@@ -560,14 +558,14 @@ export default function BrandsTab({ isActive = true }) {
 
       {/* Add Brand Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+        <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-xs">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
                   <Tag size={18} />
                 </div>
-                <h3 className="text-sm font-bold text-slate-900">Add Equipment Brand</h3>
+                <h3 className="modal-title text-sm font-bold text-slate-900">Add Equipment Brand</h3>
               </div>
               <button
                 type="button"
@@ -592,7 +590,7 @@ export default function BrandsTab({ isActive = true }) {
                     Equipment Category <span className="text-rose-500">*</span>
                   </label>
                   {loadingCategories && (
-                    <span className="text-[10px] text-blue-600 flex items-center gap-1 font-semibold animate-pulse">
+                    <span className="text-[11px] text-blue-600 flex items-center gap-1 font-semibold animate-pulse">
                       <Loader2 size={10} className="animate-spin" /> Syncing categories...
                     </span>
                   )}
@@ -667,14 +665,14 @@ export default function BrandsTab({ isActive = true }) {
 
       {/* Edit Brand Modal */}
       {showEditModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+        <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-xs">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                  <Edit2 size={16} />
+                  <Pencil size={16} />
                 </div>
-                <h3 className="text-sm font-bold text-slate-900">Edit Equipment Brand</h3>
+                <h3 className="modal-title text-sm font-bold text-slate-900">Edit Equipment Brand</h3>
               </div>
               <button
                 type="button"
@@ -699,7 +697,7 @@ export default function BrandsTab({ isActive = true }) {
                     Equipment Category <span className="text-rose-500">*</span>
                   </label>
                   {loadingCategories && (
-                    <span className="text-[10px] text-blue-600 flex items-center gap-1 font-semibold animate-pulse">
+                    <span className="text-[11px] text-blue-600 flex items-center gap-1 font-semibold animate-pulse">
                       <Loader2 size={10} className="animate-spin" /> Syncing categories...
                     </span>
                   )}

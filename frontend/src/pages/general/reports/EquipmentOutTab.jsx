@@ -397,12 +397,12 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUni
                               </span>
                             )}
                           </div>
-                          <p className="font-mono text-[10px] text-slate-400 font-bold">{refCode}</p>
+                          <p className="font-mono text-[11px] text-slate-400 font-bold">{refCode}</p>
                         </td>
                         <td className="py-3.5 px-4">
                           <p className="font-bold text-slate-700 dark:text-slate-300 text-xs">{dept}</p>
                           {b.is_venue_booking && b.venue?.name && (
-                            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+                            <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
                               Room: {b.venue.name}
                             </p>
                           )}
@@ -419,11 +419,11 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUni
                                     className="p-2 rounded-xl bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 flex flex-col gap-1.5 shadow-2xs"
                                   >
                                     <div className="flex items-center gap-1.5 flex-wrap">
-                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-600 shadow-2xs">
+                                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-600 shadow-2xs">
                                         {catName}
                                       </span>
                                       {u.seqNo && (
-                                        <span className="text-[10.5px] font-mono font-extrabold px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                                        <span className="text-[11px] font-mono font-extrabold px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                                           {u.seqNo}
                                         </span>
                                       )}
@@ -435,7 +435,7 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUni
                                     </div>
                                     {u.serialNo && (
                                       <div className="flex items-center gap-1.5 text-[11px] font-mono text-slate-500 dark:text-slate-400">
-                                        <span className="text-[10px] uppercase font-sans text-slate-400 font-semibold tracking-wider">Barcode:</span>
+                                        <span className="text-[11px] uppercase font-sans text-slate-400 font-semibold tracking-wider">Barcode:</span>
                                         <span className="font-bold text-blue-700 dark:text-blue-400 select-all">{u.serialNo}</span>
                                       </div>
                                     )}
@@ -446,7 +446,7 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUni
                           ) : (
                             <div className="flex flex-col gap-1">
                               <p className="font-bold text-slate-800 dark:text-slate-200 text-xs">{equip}</p>
-                              <span className="text-[10.5px] text-amber-600 dark:text-amber-400 font-semibold">
+                              <span className="text-[11px] text-amber-700 dark:text-amber-400 font-semibold">
                                 Pending physical unit assignment
                               </span>
                             </div>
@@ -462,7 +462,7 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUni
                           {isReturned ? (
                             <div className="flex flex-col gap-0.5">
                               <span className="font-bold text-slate-700 dark:text-slate-200">{returnTime}</span>
-                              <span className="text-[10.5px] text-slate-400 dark:text-slate-500 font-medium">Returned {actualReturnTime || returnTime}{b.returned_at ? ` (${formatDate(b.returned_at)})` : ""}<span className="hidden">
+                              <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">Returned {actualReturnTime || returnTime}{b.returned_at ? ` (${formatDate(b.returned_at)})` : ""}<span className="hidden">
 
                               </span>
                               </span><span className="hidden">
@@ -471,7 +471,7 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUni
                             </div>
                           ) : (
                             <div className="flex flex-col gap-0.5">
-                              <span className="font-bold text-slate-800 dark:text-slate-200">{returnTime}<span className="text-[10.5px] text-slate-400 dark:text-slate-500 font-medium block">Scheduled return time
+                              <span className="font-bold text-slate-800 dark:text-slate-200">{returnTime}<span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium block">Scheduled return time
 
 
                               </span>
@@ -491,7 +491,7 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUni
                               Overdue ({overdueMins}m)
                             </span>
                           ) : (
-                            <span className="text-xs font-semibold text-amber-600">
+                            <span className="text-xs font-semibold text-amber-700">
                               {b.is_venue_booking ? "In Use at Venue" : "Out on Loan"}
                             </span>
                           )}

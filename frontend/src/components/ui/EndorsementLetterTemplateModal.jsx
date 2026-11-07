@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { X, Download, Edit3, Save, RotateCcw, Loader2, Plus, Trash2, Check, AlertCircle } from "lucide-react";
+import { X, Download, Save, Loader2, Plus, Trash2, Pencil } from "lucide-react";
 import notify from "@/lib/notify";
+import { confirmDialog } from "@/lib/confirmDialog";
 import { FSUU_LOGO_BASE64 } from "@/lib/fsuuLogoBase64";
 import IosToggle from "@/components/ui/ios-toggle";
 
@@ -364,8 +365,14 @@ export default function EndorsementLetterTemplateModal({
     }
   };
 
-  const handleResetDefault = () => {
-    if (!confirm("Reset this template back to official default format?")) return;
+  const handleResetDefault = async () => {
+    const ok = await confirmDialog({
+      title: "Reset template?",
+      message: "This template goes back to the official default format. Click 'Save Changes' afterwards to apply it.",
+      confirmLabel: "Reset",
+      variant: "warning",
+    });
+    if (!ok) return;
     const def = resolveTemplateConfig({ classification: activeType }, activeType);
     setEditConfig(def);
     notify.success("Template Reset", "Template restored to official default format. Click 'Save Changes' to apply.");
@@ -792,14 +799,14 @@ export default function EndorsementLetterTemplateModal({
   const previewConfig = isEditing ? editConfig : currentConfig;
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-[2000] flex items-center justify-center p-3 sm:p-4 animate-in fade-in">
+    <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 bg-slate-950/50 backdrop-blur-xs z-[2000] flex items-center justify-center p-3 sm:p-4 animate-in fade-in">
       <div className="bg-white rounded-2xl p-5 sm:p-6 max-w-4xl w-full shadow-xl border border-slate-200 space-y-4 max-h-[92vh] flex flex-col animate-in zoom-in-95">
         
         {/* Header */}
         <div className="flex justify-between items-center pb-3 border-b border-slate-100">
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="font-bold text-slate-900 text-sm sm:text-base">
+              <h3 className="modal-title font-bold text-slate-900 text-sm sm:text-base">
                 {requirement?.label ? (requirement.label.replace(/^Format:\s*/i, "")) : "Endorsement Letter Format"}
               </h3>
               {requirement?.classification && (
@@ -886,7 +893,7 @@ export default function EndorsementLetterTemplateModal({
                 onClick={handleStartEdit}
                 className="px-3 py-1.5 rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 text-xs font-semibold transition-all cursor-pointer shadow-2xs flex items-center gap-1.5"
               >
-                <Edit3 size={13} />
+                <Pencil size={13} />
                 <span>Edit Template</span>
               </button>
             )}

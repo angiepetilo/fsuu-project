@@ -50,7 +50,7 @@ function PhilippineTimeSelect({ label, value, onChange }) {
         <label className="text-[11px] font-medium text-slate-600 dark:text-slate-400">
           {label}
         </label>
-        <span className="text-[10px] font-bold text-slate-500 font-mono">
+        <span className="text-[11px] font-bold text-slate-500 font-mono">
           {hour}:{minute} {period}
         </span>
       </div>
@@ -237,14 +237,14 @@ export default function OperatingHoursTab({ showMsg }) {
       {/* Hours Section */}
       <div className="bg-white dark:bg-slate-900 p-5 rounded-lg border border-slate-200 dark:border-slate-800 space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
+          <h3 className="card-title font-semibold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
             Hours
           </h3>
           {(dirtyFields.venue_open ||
             dirtyFields.venue_close ||
             dirtyFields.equipment_open ||
             dirtyFields.equipment_close) && (
-            <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800">
+            <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800">
               Unsaved
             </span>
           )}
@@ -302,13 +302,13 @@ export default function OperatingHoursTab({ showMsg }) {
       {/* Rules Section */}
       <div className="bg-white dark:bg-slate-900 p-5 rounded-lg border border-slate-200 dark:border-slate-800 space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
+          <h3 className="card-title font-semibold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
             Rules
           </h3>
           {(dirtyFields.arrival_grace_mins ||
             dirtyFields.auto_cancel_mins ||
             dirtyFields.requirement_grace_hours) && (
-            <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800">
+            <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800">
               Unsaved
             </span>
           )}
@@ -320,7 +320,7 @@ export default function OperatingHoursTab({ showMsg }) {
               <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300">
                 Grace
               </label>
-              <span className="text-[10px] font-bold text-slate-500 font-mono">
+              <span className="text-[11px] font-bold text-slate-500 font-mono">
                 {operatingHours.arrival_grace_mins} mins
               </span>
             </div>
@@ -349,7 +349,7 @@ export default function OperatingHoursTab({ showMsg }) {
               <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300">
                 Cancel
               </label>
-              <span className="text-[10px] font-bold text-slate-500 font-mono">
+              <span className="text-[11px] font-bold text-slate-500 font-mono">
                 {operatingHours.auto_cancel_mins} mins
               </span>
             </div>
@@ -421,7 +421,7 @@ export default function OperatingHoursTab({ showMsg }) {
       {isDirty && (
         <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-lg border border-slate-200 dark:border-slate-700/60 animate-in fade-in duration-150">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">
+            <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">
               Unsaved
             </span>
           </div>
@@ -448,10 +448,10 @@ export default function OperatingHoursTab({ showMsg }) {
 
       {/* Discard Confirmation Modal */}
       {showDiscardModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/70 backdrop-blur-xs animate-in fade-in duration-150">
+        <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 dark:bg-black/70 backdrop-blur-xs animate-in fade-in duration-150">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm w-full max-w-sm p-5 space-y-4">
             <div className="space-y-1">
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+              <h3 className="modal-title text-sm font-bold text-slate-900 dark:text-white">
                 Discard
               </h3>
               <p className="text-xs text-slate-600 dark:text-slate-400">

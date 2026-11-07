@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Printer, Download, X, Loader2, Edit3 } from "lucide-react";
+import { Printer, Download, X, Loader2, Pencil } from "lucide-react";
 import { formatTimeLate } from "@/lib/dateTimeUtils";
 
 export default function PdfPreviewModal({
@@ -47,8 +47,8 @@ export default function PdfPreviewModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[2000] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden">
+    <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 z-[2000] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden">
         {/* Modal Header Toolbar */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100 shrink-0 bg-slate-50/90">
           <div className="flex items-center gap-2.5">
@@ -60,7 +60,7 @@ export default function PdfPreviewModal({
                 {tabLabels[activeTab] || "Official Report Preview"}
               </p>
               <div className="flex items-center gap-1.5 text-[10px] text-blue-600 font-semibold mt-0.5">
-                <Edit3 size={11} />
+                <Pencil size={11} />
                 <span>Editable Preview — Click any title or remarks below to customize before export</span>
               </div>
             </div>
@@ -143,7 +143,7 @@ export default function PdfPreviewModal({
                     </span>
                   </div>
 
-                  <table className="w-full text-xs border border-slate-300 border-collapse">
+                  <table className="doc-table w-full text-xs border border-slate-300 border-collapse">
                     <thead>
                       <tr className="bg-slate-100/90 text-slate-700 text-[11px] font-extrabold uppercase tracking-wider">
                         <th className="border border-slate-300 p-2.5 text-center w-10">#</th>
@@ -216,7 +216,7 @@ export default function PdfPreviewModal({
                     </span>
                   </div>
 
-                  <table className="w-full text-xs border border-slate-300 border-collapse">
+                  <table className="doc-table w-full text-xs border border-slate-300 border-collapse">
                     <thead>
                       <tr className="bg-slate-100/90 text-slate-700 text-[11px] font-extrabold uppercase tracking-wider">
                         <th className="border border-slate-300 p-2.5 text-center w-10">#</th>
@@ -329,7 +329,7 @@ export default function PdfPreviewModal({
                     </span>
                   </div>
 
-                  <table className="w-full text-xs border border-slate-300 border-collapse">
+                  <table className="doc-table w-full text-xs border border-slate-300 border-collapse">
                     <thead>
                       <tr className="bg-slate-100/90 text-slate-700 text-[11px] font-extrabold uppercase tracking-wider">
                         <th className="border border-slate-300 p-2.5 text-center w-10">#</th>
@@ -395,7 +395,7 @@ export default function PdfPreviewModal({
                     </span>
                   </div>
 
-                  <table className="w-full text-xs border border-slate-300 border-collapse">
+                  <table className="doc-table w-full text-xs border border-slate-300 border-collapse">
                     <thead>
                       <tr className="bg-slate-100/90 text-slate-700 text-[11px] font-extrabold uppercase tracking-wider">
                         <th className="border border-slate-300 p-2 text-center w-14">Code</th>
@@ -450,7 +450,7 @@ export default function PdfPreviewModal({
                     </span>
                   </div>
 
-                  <table className="w-full text-xs border border-slate-300 border-collapse">
+                  <table className="doc-table w-full text-xs border border-slate-300 border-collapse">
                     <thead>
                       <tr className="bg-slate-100/90 text-slate-700 text-[11px] font-extrabold uppercase tracking-wider">
                         <th className="border border-slate-300 p-2.5 text-center w-10">#</th>
@@ -549,7 +549,7 @@ export default function PdfPreviewModal({
                       </span>
                     </div>
 
-                    <table className="w-full text-xs border border-slate-300 border-collapse">
+                    <table className="doc-table w-full text-xs border border-slate-300 border-collapse">
                       <thead>
                         <tr className="bg-slate-100/90 text-slate-700 text-[11px] font-extrabold uppercase tracking-wider">
                           <th className="border border-slate-300 p-2.5 text-center w-10">#</th>

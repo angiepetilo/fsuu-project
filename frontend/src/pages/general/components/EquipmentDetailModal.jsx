@@ -260,8 +260,8 @@ export default function EquipmentDetailModal({
   const isBuiltIn = parentUnit || rawStatus === "built-in";
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto scrollbar-hover animate-in fade-in duration-150">
-      <div className="bg-white dark:bg-[#111827] rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col my-auto overflow-hidden">
+    <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto scrollbar-hover animate-in fade-in duration-150">
+      <div className="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl w-full max-w-5xl max-h-[92vh] flex flex-col my-auto overflow-hidden">
         
         {/* ── Modal Header (Reference styled) ── */}
         <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0 bg-white dark:bg-[#111827]">
@@ -270,7 +270,7 @@ export default function EquipmentDetailModal({
               <Laptop size={20} />
             </div>
             <div>
-              <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+              <h3 className="modal-title text-sm sm:text-base font-bold text-slate-900 dark:text-white">
                 Equipment Specification &amp; Details
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 font-normal">
@@ -294,7 +294,7 @@ export default function EquipmentDetailModal({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
             {/* Left: Equipment Model & Name + Category Badge */}
             <div className="min-w-0">
-              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
                 Equipment Model &amp; Name
               </span>
               <div className="flex items-center gap-2.5 mt-0.5 flex-wrap">
@@ -310,7 +310,7 @@ export default function EquipmentDetailModal({
 
             {/* Right: Serial Number + Copy Button + Status Badge */}
             <div className="sm:text-right shrink-0">
-              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
                 Serial Number
               </span>
               <div className="flex items-center sm:justify-end gap-2 mt-0.5 flex-wrap">
@@ -330,7 +330,7 @@ export default function EquipmentDetailModal({
                   )}
                 </button>
                 <span
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10.5px] font-bold ${
+                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
                     isAvailable
                       ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60"
                       : isBuiltIn
@@ -359,7 +359,7 @@ export default function EquipmentDetailModal({
               {/* Grid 1: Sequence Number & Equipment Barcode */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
-                  <span className="text-[10px] font-bold text-slate-400 block mb-1">
+                  <span className="text-[11px] font-bold text-slate-400 block mb-1">
                     Sequence Number *
                   </span>
                   <span className="font-mono font-bold text-xs text-slate-900 dark:text-white">
@@ -369,7 +369,7 @@ export default function EquipmentDetailModal({
 
                 <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex items-center justify-between">
                   <div>
-                    <span className="text-[10px] font-bold text-slate-400 block mb-1">
+                    <span className="text-[11px] font-bold text-slate-400 block mb-1">
                       Equipment Barcode
                     </span>
                     <span className="font-mono font-bold text-xs text-slate-900 dark:text-white">
@@ -395,7 +395,7 @@ export default function EquipmentDetailModal({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex items-center justify-between">
                   <div>
-                    <span className="text-[10px] font-bold text-slate-400 block mb-1">
+                    <span className="text-[11px] font-bold text-slate-400 block mb-1">
                       Date Purchased
                     </span>
                     <span className="font-mono font-bold text-xs text-slate-900 dark:text-white">
@@ -407,7 +407,7 @@ export default function EquipmentDetailModal({
 
                 <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 rounded-xl flex items-center justify-between">
                   <div>
-                    <span className="text-[10px] font-bold text-slate-400 block mb-1">
+                    <span className="text-[11px] font-bold text-slate-400 block mb-1">
                       Operating Status
                     </span>
                     <div className="flex items-center gap-1.5">
@@ -436,7 +436,7 @@ export default function EquipmentDetailModal({
                   <div className="flex items-center gap-2">
                     <Clock size={14} className="text-slate-400 shrink-0" />
                     <div>
-                      <span className="text-[10px] font-bold text-slate-400 block leading-tight">
+                      <span className="text-[11px] font-bold text-slate-400 block leading-tight">
                         Lifespan (Years)
                       </span>
                       <span className="font-mono font-bold text-xs text-slate-900 dark:text-white">
@@ -444,7 +444,7 @@ export default function EquipmentDetailModal({
                       </span>
                     </div>
                   </div>
-                  <span className="text-[10px] font-medium text-slate-400">years</span>
+                  <span className="text-[11px] font-medium text-slate-400">years</span>
                 </div>
 
                 {/* Condition */}
@@ -452,7 +452,7 @@ export default function EquipmentDetailModal({
                   <div className="flex items-center gap-2">
                     <ShieldCheck size={14} className="text-slate-400 shrink-0" />
                     <div>
-                      <span className="text-[10px] font-bold text-slate-400 block leading-tight">
+                      <span className="text-[11px] font-bold text-slate-400 block leading-tight">
                         Condition
                       </span>
                       <span className="font-bold text-xs text-slate-900 dark:text-white capitalize">
@@ -468,7 +468,7 @@ export default function EquipmentDetailModal({
                   <div className="flex items-center gap-2">
                     <Package size={14} className="text-slate-400 shrink-0" />
                     <div>
-                      <span className="text-[10px] font-bold text-slate-400 block leading-tight">
+                      <span className="text-[11px] font-bold text-slate-400 block leading-tight">
                         Max Quantity
                       </span>
                       <span className="font-mono font-bold text-xs text-slate-900 dark:text-white">
@@ -476,7 +476,7 @@ export default function EquipmentDetailModal({
                       </span>
                     </div>
                   </div>
-                  <span className="text-[10px] font-medium text-slate-400">units</span>
+                  <span className="text-[11px] font-medium text-slate-400">units</span>
                 </div>
               </div>
 
@@ -491,7 +491,7 @@ export default function EquipmentDetailModal({
                     selectedItem.trigger_note ||
                     "Routine inspection, unit functional and available for university borrowing."}
                 </div>
-                <div className="flex justify-end text-[10px] font-mono text-slate-400">
+                <div className="flex justify-end text-[11px] font-mono text-slate-400">
                   {selectedItem.description?.length || 0}/500
                 </div>
               </div>
@@ -500,11 +500,11 @@ export default function EquipmentDetailModal({
               {parentUnit && (
                 <div className="p-3.5 bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 rounded-xl flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <span className="p-1.5 rounded-lg bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300">
+                    <span className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300">
                       <Layers size={14} />
                     </span>
                     <div>
-                      <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider block">
+                      <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider block">
                         Packaged in Parent Bundle
                       </span>
                       <span className="font-bold text-slate-900 dark:text-white text-xs">
@@ -515,7 +515,7 @@ export default function EquipmentDetailModal({
                       </span>
                     </div>
                   </div>
-                  <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-bold rounded-lg border border-amber-300">
+                  <span className="px-2 py-0.5 bg-amber-50 text-amber-800 text-[11px] font-bold rounded-lg border border-amber-200">
                     Bundled
                   </span>
                 </div>
@@ -534,12 +534,12 @@ export default function EquipmentDetailModal({
                     <h4 className="font-bold text-slate-900 dark:text-white text-xs leading-tight">
                       Linked Built-in Components
                     </h4>
-                    <p className="text-[10px] text-slate-400 font-normal leading-snug">
+                    <p className="text-[11px] text-slate-400 font-normal leading-snug">
                       Select the physical unit for each required component.
                     </p>
                   </div>
                 </div>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shrink-0">
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shrink-0">
                   {resolvedBuiltInUnits.length} linked
                 </span>
               </div>
@@ -585,7 +585,7 @@ export default function EquipmentDetailModal({
                               <h5 className="font-bold text-slate-900 dark:text-white text-xs leading-tight">
                                 {componentName}
                               </h5>
-                              <span className="text-[10px] text-slate-400 font-medium">
+                              <span className="text-[11px] text-slate-400 font-medium">
                                 Status: <strong className="text-violet-600 dark:text-violet-400 font-bold">{comp.status || "Built-in"}</strong>
                               </span>
                             </div>
@@ -601,13 +601,13 @@ export default function EquipmentDetailModal({
                         {/* Collapsible Card Details */}
                         {isExpanded && (
                           <div className="space-y-2 pt-1 border-t border-slate-100 dark:border-slate-800">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight block">
+                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-tight block">
                               Selected Unit
                             </span>
                             <div className="p-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg flex items-center justify-between">
                               <div className="flex items-center gap-2">
                                 {comp.seq_no && (
-                                  <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                                  <span className="font-mono text-[11px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
                                     {comp.seq_no}
                                   </span>
                                 )}
@@ -620,7 +620,7 @@ export default function EquipmentDetailModal({
                               </span>
                             </div>
 
-                            <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 px-0.5">
+                            <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 px-0.5">
                               <span>
                                 Model: <strong className="text-slate-600 dark:text-slate-300">{componentModel}</strong>
                               </span>

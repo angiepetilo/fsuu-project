@@ -17,10 +17,10 @@ export default function HistoryEditModal({
   if (!editingRecord) return null;
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[1500] flex items-center justify-center p-4 animate-in fade-in">
+    <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 bg-slate-950/50 backdrop-blur-xs z-[1500] flex items-center justify-center p-4 animate-in fade-in">
       <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-sm border border-slate-200 space-y-4">
         <div className="flex justify-between items-center pb-3 border-b border-slate-200">
-          <h3 className="font-extrabold text-slate-900 text-sm">
+          <h3 className="modal-title font-extrabold text-slate-900 text-sm">
             Edit Record Status ({editingRecord.reference_code || editingRecord.tracking_number?.reference_code || (typeof editingRecord.tracking_number === 'string' ? editingRecord.tracking_number : '') || editingRecord.id})
           </h3>
           <button

@@ -9,14 +9,14 @@ import { cn } from "@/lib/utils";
 const COLOR_MAP = {
   blue:    { icon: "border border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/15 dark:text-blue-400", value: "text-foreground" },
   purple:  { icon: "border border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-500/30 dark:bg-purple-500/15 dark:text-purple-300", value: "text-foreground" },
-  amber:   { icon: "border border-amber-200 bg-amber-50 text-amber-600 dark:border-amber-500/30 dark:bg-amber-500/15 dark:text-amber-400", value: "text-amber-600 dark:text-amber-400" },
+  amber:   { icon: "border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/15 dark:text-amber-400", value: "text-amber-700 dark:text-amber-400" },
   rose:    { icon: "border border-rose-200 bg-rose-50 text-rose-600 dark:border-rose-500/30 dark:bg-rose-500/15 dark:text-rose-400", value: "text-rose-600 dark:text-rose-400" },
   emerald: { icon: "border border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-400", value: "text-emerald-600 dark:text-emerald-400" },
 };
 
 const PLAIN_TEXT_STATUS_MAP = {
   success: "text-emerald-600 dark:text-emerald-400 font-medium",
-  warning: "text-amber-600 dark:text-amber-400 font-medium",
+  warning: "text-amber-700 dark:text-amber-400 font-medium",
   danger:  "text-rose-600 dark:text-rose-400 font-medium",
 };
 

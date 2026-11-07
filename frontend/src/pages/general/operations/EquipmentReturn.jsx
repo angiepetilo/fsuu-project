@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { 
-  RotateCcw, Search, AlertCircle, CheckCircle2, ShieldAlert,
-  Clock, Calendar, User, FileText, AlertTriangle, Loader2
+import {
+  RotateCcw, Search, AlertCircle, CheckCircle2, Clock, FileText, Loader2,
 } from "lucide-react";
 import api from "@/lib/axios";
 import { notify } from "@/lib/notify";
@@ -180,22 +179,6 @@ export default function EquipmentReturn() {
 
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto pb-12">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-5">
-        <div>
-          <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-wider mb-1">
-            <RotateCcw size={16} />
-            <span>Student Assistant Operational Desk</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
-            Equipment Return &amp; Inspection
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Inspect physical condition of returned units, flag damages/missing items, and reconcile inventory.
-          </p>
-        </div>
-      </div>
-
       {/* Search & Scan Bar */}
       <div className="bg-card border border-border rounded-2xl p-5 shadow-xs">
         <form onSubmit={handleSearchVerify} className="flex flex-col sm:flex-row gap-3">
@@ -369,7 +352,7 @@ export default function EquipmentReturn() {
                   </label>
                   {hasIrregularity && !returnNotes.trim() && (
                     <span className="text-[11px] text-rose-400 font-semibold flex items-center gap-1">
-                      <AlertTriangle size={12} /> Notes required before confirming
+                      <AlertCircle size={12} /> Notes required before confirming
                     </span>
                   )}
                 </div>

@@ -51,7 +51,7 @@ export default function BookingBorrowingReportTab({
   const getStatusBadge = (statusStr) => {
     const s = String(statusStr || "PENDING").toUpperCase();
     if (s === "PENDING" || s === "PENDING APPROVAL") {
-      return <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">Pending</span>;
+      return <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">Pending</span>;
     }
     if (s === "APPROVED" || s === "SCHEDULED" || s === "CONFIRMED") {
       return <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">Approved</span>;
@@ -67,7 +67,7 @@ export default function BookingBorrowingReportTab({
       );
     }
     if (s === "CANCELLED") {
-      return <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">Cancelled</span>;
+      return <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">Cancelled</span>;
     }
     if (s === "REJECTED" || s === "POLICY VIOLATION" || s === "DAMAGED" || s === "LOST" || s === "DAMAGE") {
       const label =
@@ -155,7 +155,7 @@ export default function BookingBorrowingReportTab({
         <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-mono font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider bg-slate-50/50 dark:bg-slate-800/40">
+              <tr className="border-b border-slate-100 dark:border-slate-800 text-[11px] font-mono font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider bg-slate-50/50 dark:bg-slate-800/40">
                 <th className="py-3 px-4 w-10">#</th>
                 <th className="py-3 px-4">TRACK NO.</th>
                 <th className="py-3 px-4">REQUESTOR</th>
@@ -265,7 +265,7 @@ export default function BookingBorrowingReportTab({
         <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-mono font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider bg-slate-50/50 dark:bg-slate-800/40">
+              <tr className="border-b border-slate-100 dark:border-slate-800 text-[11px] font-mono font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider bg-slate-50/50 dark:bg-slate-800/40">
                 <th className="py-3 px-4 w-10">#</th>
                 <th className="py-3 px-4">TRACK NO.</th>
                 <th className="py-3 px-4">REQUESTOR</th>
@@ -381,11 +381,11 @@ export default function BookingBorrowingReportTab({
 
       {/* Record Quick View Details Modal */}
       {selectedRecord && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[1500] flex items-center justify-center p-4 animate-in fade-in">
+        <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 bg-slate-950/50 backdrop-blur-xs z-[1500] flex items-center justify-center p-4 animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-lg w-full shadow-sm border border-slate-200 dark:border-slate-800 space-y-4">
             <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800">
               <div>
-                <h3 className="font-black text-slate-900 dark:text-white text-sm">
+                <h3 className="modal-title font-black text-slate-900 dark:text-white text-sm">
                   {selectedRecord.type === "venue" ? "Venue Booking Details" : "Equipment Borrowing Details"}
                 </h3>
                 <p className="text-xs text-blue-600 dark:text-blue-400 font-mono font-bold mt-0.5">

@@ -24,19 +24,19 @@ export function Tooltip({ text, content, box, children, position = "top" }) {
           {box ? (
             <div className="space-y-2">
               <div className="flex items-center justify-between border-b border-slate-700/80 pb-1.5 gap-2">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Status</span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide ${box.badgeClass || 'bg-blue-600 text-white'}`}>
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Status</span>
+                <span className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold uppercase tracking-wide ${box.badgeClass || 'bg-blue-600 text-white'}`}>
                   {box.status}
                 </span>
               </div>
               <div className="space-y-1">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">Time</span>
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 block">Time</span>
                 <p className="font-mono text-[11px] font-bold text-slate-100 bg-slate-800/90 px-2 py-1 rounded-lg border border-slate-700">
                   {box.time}
                 </p>
               </div>
               {box.details && (
-                <div className="pt-1 text-[10px] text-slate-300 font-medium">
+                <div className="pt-1 text-[11px] text-slate-300 font-medium">
                   {box.details}
                 </div>
               )}

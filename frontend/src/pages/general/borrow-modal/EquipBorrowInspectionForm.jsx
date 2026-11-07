@@ -257,13 +257,13 @@ export default function EquipBorrowInspectionForm({
             {isPreRelease ? "Equipment Inspection Record (Before)" : "Equipment Inspection Record (After)"}
           </h4>
           {readOnly && (
-            <span className="text-[10px] text-slate-400 dark:text-slate-300 font-mono bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">
+            <span className="text-[11px] text-slate-400 dark:text-slate-300 font-mono bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">
               Read-Only Log
             </span>
           )}
         </div>
         {inspectionSuccessMsg && (
-          <span className="text-[10.5px] font-mono font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+          <span className="text-[11px] font-mono font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
             <CheckCircle2 size={13} />
             {inspectionSuccessMsg}
           </span>
@@ -282,7 +282,7 @@ export default function EquipBorrowInspectionForm({
             </div>
           )}
 
-          <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+          <label className="block text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
             Overall Return Outcome
           </label>
           <div className="grid grid-cols-2 gap-2">
@@ -324,13 +324,13 @@ export default function EquipBorrowInspectionForm({
       {/* Itemized Physical Units Checklist */}
       <div className="space-y-2.5">
         <div className="flex items-center justify-between">
-          <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+          <label className="block text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
             Physical Unit Checklist &amp; Component Verification
           </label>
           <button
             type="button"
             onClick={() => setSeqSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
             title="Sort released units by sequence number"
           >
             <ArrowUpDown size={10} />
@@ -350,7 +350,7 @@ export default function EquipBorrowInspectionForm({
                   <span className="flex items-center gap-1.5">
                     <span>{reqCat.category}</span>
                   </span>
-                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700 shadow-2xs">
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700 shadow-2xs">
                     Qty: {reqCat.quantity}
                   </span>
                 </div>
@@ -414,7 +414,7 @@ export default function EquipBorrowInspectionForm({
                           <div className="flex items-center gap-1.5 flex-wrap truncate">
                             <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 shrink-0">Unit #{uIdx + 1}</span>
                             {seqNo && (
-                              <span className="font-mono text-[10px] font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800/80 shrink-0">
+                              <span className="font-mono text-[11px] font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800/80 shrink-0">
                                 {seqNo}
                               </span>
                             )}
@@ -424,7 +424,7 @@ export default function EquipBorrowInspectionForm({
                               </span>
                             )}
                             {(matched?.barcode || val) && (
-                              <span className="font-mono text-[10.5px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800 shrink-0">
+                              <span className="font-mono text-[11px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800 shrink-0">
                                 {matched?.barcode || val}
                               </span>
                             )}
@@ -447,13 +447,13 @@ export default function EquipBorrowInspectionForm({
                                 // has its own individual condition that must be set independently.
                                 setUnitReturnedConditions(updated);
                               }}
-                              className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition-all ${
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-black uppercase transition-all ${
                                 isComplete
                                   ? "bg-emerald-600 text-white border border-emerald-700 shadow-2xs"
                                   : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700"
                               } ${readOnly ? "cursor-default" : "cursor-pointer"}`}
                             >
-                              ✓ Complete
+                              Complete
                             </button>
 
                             {!isPreRelease && (
@@ -472,7 +472,7 @@ export default function EquipBorrowInspectionForm({
                                     setUnitReturnedConditions(updated);
                                     setInspectionStatus && setInspectionStatus("violation");
                                   }}
-                                  className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition-all ${
+                                  className={`px-2.5 py-1 rounded-lg text-[11px] font-black uppercase transition-all ${
                                     isDamaged
                                       ? "bg-rose-600 text-white border border-rose-700 shadow-2xs"
                                       : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700"
@@ -495,7 +495,7 @@ export default function EquipBorrowInspectionForm({
                                     setUnitReturnedConditions(updated);
                                     setInspectionStatus && setInspectionStatus("lost");
                                   }}
-                                  className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition-all ${
+                                  className={`px-2.5 py-1 rounded-lg text-[11px] font-black uppercase transition-all ${
                                     isLost
                                       ? "bg-slate-900 dark:bg-slate-700 text-white border border-slate-950 dark:border-slate-600 shadow-2xs"
                                       : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700"
@@ -515,7 +515,7 @@ export default function EquipBorrowInspectionForm({
 
                           return (
                             <div className="mt-2 pt-2 border-t border-slate-200/80 dark:border-slate-800 pl-1 sm:pl-2 space-y-1.5 animate-in fade-in">
-                              <div className="flex items-center justify-between text-[10.5px] font-extrabold text-blue-950 dark:text-white">
+                              <div className="flex items-center justify-between text-[11px] font-extrabold text-blue-950 dark:text-white">
                                 <span className="flex items-center gap-1.5">
                                   <span className="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400"></span>
                                   Built-in Physical Units ({linkedBuiltIns.length} Linked):
@@ -548,13 +548,13 @@ export default function EquipBorrowInspectionForm({
                                             {biUnit.seq_no}
                                           </span>
                                         )}
-                                        <span className="font-mono text-[10.5px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800 shrink-0">
+                                        <span className="font-mono text-[11px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800 shrink-0">
                                           {biUnit.barcode}
                                         </span>
                                         <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate" title={biLabel}>
                                           {biUnit.name}
                                           {biUnit.category && (
-                                            <span className="text-slate-500 dark:text-slate-400 font-medium text-[10.5px] ml-1">
+                                            <span className="text-slate-500 dark:text-slate-400 font-medium text-[11px] ml-1">
                                               ({biUnit.category})
                                             </span>
                                           )}
@@ -579,7 +579,7 @@ export default function EquipBorrowInspectionForm({
                                               : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700"
                                           } ${readOnly ? "cursor-default" : "cursor-pointer"}`}
                                         >
-                                          ✓ Complete
+                                          Complete
                                         </button>
 
                                         {!isPreRelease && (
@@ -647,7 +647,7 @@ export default function EquipBorrowInspectionForm({
 
       {/* Remarks */}
       <div className="space-y-1 pt-1">
-        <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+        <label className="block text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
           Remarks
         </label>
         <textarea

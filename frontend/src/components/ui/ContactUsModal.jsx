@@ -23,7 +23,7 @@ export default function ContactUsModal({ isOpen, onClose, contactSettings = {} }
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5">
+    <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-slate-950/75 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
@@ -31,7 +31,7 @@ export default function ContactUsModal({ isOpen, onClose, contactSettings = {} }
       />
 
       {/* Modal Card */}
-      <div className="relative bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 w-full max-w-lg flex flex-col z-10 animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+      <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200/80 dark:border-slate-800 w-full max-w-lg flex flex-col z-10 animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
         
         {/* Plain Clean Header */}
         <div className="px-6 py-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shrink-0 flex items-center justify-between">
@@ -40,7 +40,7 @@ export default function ContactUsModal({ isOpen, onClose, contactSettings = {} }
               <Phone size={18} />
             </div>
             <div>
-              <h2 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight">
+              <h2 className="modal-title text-base font-extrabold text-slate-900 dark:text-white tracking-tight">
                 Contact Us
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
@@ -102,7 +102,7 @@ export default function ContactUsModal({ isOpen, onClose, contactSettings = {} }
                     <Phone size={14} />
                   </div>
                   <div className="min-w-0">
-                    <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Telephone / Trunkline</span>
+                    <span className="text-[11px] font-bold text-slate-400 block uppercase tracking-wider">Telephone / Trunkline</span>
                     <a href={`tel:${phone}`} className="text-xs font-bold text-slate-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                       {phone}
                     </a>
@@ -125,7 +125,7 @@ export default function ContactUsModal({ isOpen, onClose, contactSettings = {} }
                     <Mail size={14} />
                   </div>
                   <div className="min-w-0">
-                    <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Official Email</span>
+                    <span className="text-[11px] font-bold text-slate-400 block uppercase tracking-wider">Official Email</span>
                     <a href={`mailto:${email}`} className="text-xs font-bold text-slate-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors truncate block max-w-[210px] sm:max-w-[260px]">
                       {email}
                     </a>
@@ -150,7 +150,7 @@ export default function ContactUsModal({ isOpen, onClose, contactSettings = {} }
                     </svg>
                   </div>
                   <div className="min-w-0">
-                    <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Facebook Page</span>
+                    <span className="text-[11px] font-bold text-slate-400 block uppercase tracking-wider">Facebook Page</span>
                     <a
                       href={facebookUrl}
                       target="_blank"
@@ -165,7 +165,7 @@ export default function ContactUsModal({ isOpen, onClose, contactSettings = {} }
                   href={facebookUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[10.5px] font-bold text-blue-600 dark:text-blue-400 hover:underline px-1 cursor-pointer"
+                  className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline px-1 cursor-pointer"
                 >
                   Visit →
                 </a>
@@ -182,7 +182,7 @@ export default function ContactUsModal({ isOpen, onClose, contactSettings = {} }
               </h3>
             </div>
             <div className="flex items-start gap-3 pl-3.5 pt-1">
-              <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5 border border-amber-200/60 dark:border-amber-900/40">
+              <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5 border border-amber-200/60 dark:border-amber-900/40">
                 <Clock size={16} />
               </div>
               <div className="text-xs space-y-1 font-medium text-slate-600 dark:text-slate-300 whitespace-pre-line leading-relaxed">

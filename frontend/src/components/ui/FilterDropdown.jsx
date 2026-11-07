@@ -51,6 +51,7 @@ export default function FilterDropdown({
 
     const handleKeyDown = (e) => {
       if (e.key === "Escape" && open) {
+        e.preventDefault();
         setOpen(false);
       }
     };
@@ -150,7 +151,7 @@ export default function FilterDropdown({
                     )}
                     <span className="truncate">{opt.label}</span>
                     {opt.badge && (
-                      <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 shrink-0">
+                      <span className="text-[11px] font-mono px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 shrink-0">
                         {opt.badge}
                       </span>
                     )}

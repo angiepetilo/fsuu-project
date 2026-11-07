@@ -157,7 +157,7 @@ export default function TimeSlotMatrix({
                         {item.name}
                       </span>
                       {(item.subtitle || item.code) && (
-                        <span className="text-[10.5px] font-mono text-slate-500 dark:text-slate-400 font-semibold mt-0.5">
+                        <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 font-semibold mt-0.5">
                           {item.code ? `[${item.code}] ` : ""}
                           {item.subtitle}
                         </span>
@@ -218,7 +218,7 @@ export default function TimeSlotMatrix({
                           statusBadgeLabel = "Closed";
                           statusBadgeBg = "bg-rose-700 text-white";
                         } else if (isMaintenance) {
-                          blockStyle = "bg-amber-100 dark:bg-amber-950/80 border-2 border-amber-500 text-amber-950 dark:text-amber-100 shadow-xs";
+                          blockStyle = "bg-amber-50 dark:bg-amber-950/80 border-2 border-amber-500 text-amber-950 dark:text-amber-100 shadow-xs";
                           statusBadgeLabel = "Maintenance";
                           statusBadgeBg = "bg-amber-600 text-white";
                         } else if (isOngoing) {
@@ -258,7 +258,7 @@ export default function TimeSlotMatrix({
                               <span className={`text-[8.5px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md shrink-0 shadow-2xs ${statusBadgeBg}`}>
                                 {statusBadgeLabel}
                               </span>
-                              <span className="font-extrabold text-[10.5px] font-mono truncate">
+                              <span className="font-extrabold text-[11px] font-mono truncate">
                                 {formattedTimeRange}
                               </span>
                             </div>
@@ -267,7 +267,7 @@ export default function TimeSlotMatrix({
                             <div className="font-extrabold text-[11px] truncate leading-tight mt-0.5">
                               <span>{sched.filerName || "Scheduled"}</span>
                               {sched.title && sched.title !== "Venue Reservation" && (
-                                <span className="font-medium opacity-80 ml-1 text-[10px]">
+                                <span className="font-medium opacity-80 ml-1 text-[11px]">
                                   • {sched.title}
                                 </span>
                               )}
@@ -286,7 +286,7 @@ export default function TimeSlotMatrix({
                                 </span>
                               )}
                               {sched.refCode && !sched.department && !sched.classification && (
-                                <span className="font-mono text-[9px]">
+                                <span className="font-mono text-[10px]">
                                   {sched.refCode}
                                 </span>
                               )}

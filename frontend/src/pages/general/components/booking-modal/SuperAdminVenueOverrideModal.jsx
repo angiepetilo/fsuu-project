@@ -220,7 +220,7 @@ export default function SuperAdminVenueOverrideModal({
   const filerName = booking.filer_name || booking.requestor_name || booking.borrower_name;
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in">
+    <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 z-[9999] bg-slate-950/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in">
       <div className="relative max-w-lg w-full bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[92vh] text-slate-800 dark:text-slate-200">
         
         {/* Clean, Flat Modal Header (No dark or heavy gradient header) */}
@@ -231,10 +231,10 @@ export default function SuperAdminVenueOverrideModal({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white tracking-tight">
+                <h3 className="modal-title text-sm sm:text-base font-extrabold text-slate-900 dark:text-white tracking-tight">
                   Super Admin Override
                 </h3>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                   {isEquipment ? "Schedule & Location" : "Venue & Schedule"}
                 </span>
               </div>
@@ -278,11 +278,11 @@ export default function SuperAdminVenueOverrideModal({
                 </label>
                 {selectedVenue && (
                   conflict ? (
-                    <span className="text-[10px] font-bold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 px-2 py-0.5 rounded-full">
-                      ⚠️ Conflict Detected
+                    <span className="text-[11px] font-bold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 px-2 py-0.5 rounded-full">
+                      Conflict Detected
                     </span>
                   ) : (
-                    <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full flex items-center gap-1">
                       <CheckCircle2 size={10} /> Available
                     </span>
                   )
@@ -295,7 +295,7 @@ export default function SuperAdminVenueOverrideModal({
                 options={venues.map((v) => {
                   const conf = venueConflicts[v.id];
                   const confRef = conf ? (conf.tracking_number?.reference_code || conf.reference_code || `TRK-${conf.id}`) : "";
-                  const prefix = conf ? `⚠️ [OCCUPIED: ${confRef}] ` : `✓ [AVAILABLE] `;
+                  const prefix = conf ? `[OCCUPIED: ${confRef}] ` : `[AVAILABLE] `;
                   const details = [
                     v.capacity ? `Cap: ${v.capacity_min ? `${v.capacity_min}-${v.capacity_max}` : v.capacity}` : "",
                     v.location,

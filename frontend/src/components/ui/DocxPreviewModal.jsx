@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import { X, Download, FileText, Loader2, AlertCircle, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
-import { renderAsync } from "docx-preview";
 
 export default function DocxPreviewModal({
   isOpen,
@@ -46,6 +45,8 @@ export default function DocxPreviewModal({
 
         if (containerRef.current) {
           containerRef.current.innerHTML = "";
+          // Loaded only when a DOCX preview is opened (keeps it out of the first page load)
+          const { renderAsync } = await import("docx-preview");
           await renderAsync(blob, containerRef.current, null, {
             inWrapper: true,
             ignoreWidth: false,
@@ -143,8 +144,8 @@ export default function DocxPreviewModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[3500] bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-150">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 dark:border-slate-800 w-full max-w-5xl h-[94vh] sm:h-[90vh]">
+    <div data-own-escape role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 z-[3500] bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-150">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl flex flex-col overflow-hidden border border-slate-200 dark:border-slate-800 w-full max-w-5xl h-[94vh] sm:h-[90vh]">
         {/* Scoped CSS for DocxPreview to eliminate grey wrapper clutter and fix mobile layout */}
         <style>{`
           .docx-preview-container {
@@ -179,10 +180,10 @@ export default function DocxPreviewModal({
               <FileText size={18} />
             </div>
             <div className="min-w-0">
-              <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
+              <h3 className="modal-title font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
                 {title || fileName}
               </h3>
-              <p className="text-[10px] sm:text-[11px] font-mono text-slate-500 dark:text-slate-400 flex items-center gap-1.5 truncate">
+              <p className="text-[11px] sm:text-[11px] font-mono text-slate-500 dark:text-slate-400 flex items-center gap-1.5 truncate">
                 <span className="font-bold text-blue-600 dark:text-blue-400 uppercase">.DOCX Format</span>
                 <span>•</span>
                 <span className="truncate">{fileName}</span>
@@ -202,7 +203,7 @@ export default function DocxPreviewModal({
                 >
                   <ZoomOut size={13} />
                 </button>
-                <span className="text-[10px] sm:text-[10.5px] font-mono font-bold px-1 text-slate-600 dark:text-slate-300 min-w-[34px] text-center select-none">
+                <span className="text-[11px] sm:text-[11px] font-mono font-bold px-1 text-slate-600 dark:text-slate-300 min-w-[34px] text-center select-none">
                   {Math.round(zoom * 100)}%
                 </span>
                 <button

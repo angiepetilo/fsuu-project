@@ -158,7 +158,7 @@ export default function CategoryChecklistSelector({
                 {/* Middle (Whitespace utilization): Stock Available Badge */}
                 <div className="shrink-0 flex items-center">
                   <span
-                    className={`text-[10.5px] font-mono font-medium px-2 py-0.5 rounded-full border ${
+                    className={`text-[11px] font-mono font-medium px-2 py-0.5 rounded-full border ${
                       checked
                         ? "bg-blue-100/60 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 border-blue-200/80 dark:border-blue-800/60"
                         : "bg-slate-100 dark:bg-slate-700/60 text-slate-500 dark:text-slate-400 border-slate-200/70 dark:border-slate-700/70"
@@ -176,7 +176,7 @@ export default function CategoryChecklistSelector({
                   >
                     {checked ? (
                       <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-0.5 rounded-lg border border-blue-200 dark:border-blue-800 shadow-2xs">
-                        <span className="text-[10px] font-bold text-slate-400 pl-1 uppercase tracking-tight">
+                        <span className="text-[11px] font-bold text-slate-400 pl-1 uppercase tracking-tight">
                           Max:
                         </span>
                         <button
@@ -206,7 +206,7 @@ export default function CategoryChecklistSelector({
                         </button>
                       </div>
                     ) : (
-                      <span className="text-[10.5px] font-medium text-slate-400 dark:text-slate-500 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800/80">
+                      <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800/80">
                         Excluded
                       </span>
                     )}
@@ -214,12 +214,12 @@ export default function CategoryChecklistSelector({
                 ) : (
                   <div className="shrink-0 flex items-center">
                     {checked ? (
-                      <span className="inline-flex items-center gap-1 text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                         <Check size={11} className="shrink-0" />
                         <span>Linked</span>
                       </span>
                     ) : (
-                      <span className="text-[10.5px] font-medium text-slate-400 dark:text-slate-500 px-2 py-0.5 rounded-md">
+                      <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 px-2 py-0.5 rounded-md">
                         Unlinked
                       </span>
                     )}

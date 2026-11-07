@@ -192,7 +192,7 @@ export default function VenueScheduleForm({
               {isAllVenues ? (
                 <div className="p-2.5 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-xl text-blue-900 dark:text-blue-200 font-bold flex items-center justify-between">
                   <span>Applies to All Venues ({VENUES.length} total)</span>
-                  <span className="text-[10px] font-black uppercase tracking-wider bg-blue-600 text-white px-2 py-0.5 rounded">
+                  <span className="text-[11px] font-black uppercase tracking-wider bg-blue-600 text-white px-2 py-0.5 rounded">
                     All
                   </span>
                 </div>
@@ -232,7 +232,7 @@ export default function VenueScheduleForm({
                 <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                   Multi-Day
                   {Boolean(setupForm.isMultiDay) && (
-                    <span className="bg-blue-600 text-white text-[9px] font-black px-1.5 py-0.2 rounded uppercase">
+                    <span className="bg-blue-600 text-white text-[10px] font-black px-1.5 py-0.2 rounded uppercase">
                       Active
                     </span>
                   )}
@@ -261,7 +261,7 @@ export default function VenueScheduleForm({
                   Select Day
                 </span>
                 {setupForm.dayOfWeek !== undefined && setupForm.dayOfWeek !== "" && (
-                  <span className="bg-amber-600 text-white text-[9px] font-black px-1.5 py-0.2 rounded uppercase">
+                  <span className="bg-amber-600 text-white text-[10px] font-black px-1.5 py-0.2 rounded uppercase">
                     All
                   </span>
                 )}
@@ -295,9 +295,9 @@ export default function VenueScheduleForm({
             <div className="p-3 bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-xl text-xs space-y-1">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
-                  📅 Recurring Day: Every {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][Number(setupForm.dayOfWeek)]}
+                  Recurring Day: Every {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][Number(setupForm.dayOfWeek)]}
                 </span>
-                <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-200">
+                <span className="text-[11px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-200">
                   Batch Month
                 </span>
               </div>
@@ -418,7 +418,7 @@ export default function VenueScheduleForm({
                 {
                   id: "Maintenance",
                   label: "Maintenance",
-                  activeClass: "bg-amber-500 border-amber-500 text-white font-black",
+                  activeClass: "bg-amber-700 border-amber-700 text-white font-black",
                   inactiveClass:
                     "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-amber-950/40 hover:text-amber-800 dark:hover:text-amber-300 font-bold",
                 },

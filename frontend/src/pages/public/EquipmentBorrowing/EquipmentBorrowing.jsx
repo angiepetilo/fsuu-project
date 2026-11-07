@@ -797,8 +797,8 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
 
       {/* Enhanced Confirmation Success Modal */}
       {showSuccess && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[2000] flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <div className="bg-white dark:bg-slate-900/80 rounded-3xl p-8 sm:p-10 max-w-lg w-full text-center shadow-2xl animate-in zoom-in-95 duration-300 relative border border-slate-100 dark:border-blue-900/50 space-y-5">
+        <div role="dialog" aria-modal="true" className="modal-overlay fixed inset-0 bg-slate-950/50 backdrop-blur-md z-[2000] flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-slate-900/80 rounded-2xl p-8 sm:p-10 max-w-lg w-full text-center shadow-xl animate-in zoom-in-95 duration-300 relative border border-slate-100 dark:border-blue-900/50 space-y-5">
             <div className="w-18 h-18 bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto border-4 border-emerald-500/20 shadow-inner">
               <ShieldCheck size={38} />
             </div>
@@ -812,7 +812,7 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
 
             {/* Prominent Tracking Code Box */}
             <div className="p-4 bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-blue-900/50 rounded-2xl space-y-2">
-              <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-400 block">
+              <span className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-400 block">
                 Official Requisition Tracking Number
               </span>
               <div className="flex items-center justify-center gap-2">
@@ -829,14 +829,14 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
                 </button>
               </div>
               {copiedTrack && (
-                <span className="text-[10.5px] font-bold text-emerald-600 dark:text-emerald-400 block">Copied to clipboard!</span>
+                <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 block">Copied to clipboard!</span>
               )}
             </div>
 
             {/* Claiming Instructions Box */}
             <div className="p-3.5 bg-blue-50/80 dark:bg-slate-900/80 border border-blue-200/80 dark:border-blue-900/50 rounded-2xl text-left space-y-1.5 text-xs text-blue-950 dark:text-white">
               <p className="font-bold flex items-center gap-1.5 text-blue-950 dark:text-white">
-                <span>📦 Instructions for Claiming Physical Units:</span>
+                <span>Instructions for Claiming Physical Units:</span>
               </p>
               <ul className="list-disc pl-4 space-y-1 font-medium text-[11.5px] text-blue-900 dark:text-slate-300 leading-relaxed">
                 <li>Present this <strong>Tracking Number</strong> together with your valid <strong>School ID / Office ID</strong> at the AVR Counter to release the unit(s).</li>

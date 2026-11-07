@@ -1,16 +1,17 @@
-import { X, AlertTriangle, LogOut, Archive, Ban, CheckCircle2, CircleCheck, ShieldCheck } from "lucide-react";
+import { useEffect } from "react";
+import { X, AlertTriangle, LogOut, Archive, Ban, CheckCircle2, CircleCheck, ShieldCheck, Trash2 } from "lucide-react";
 
 
 const ICONS = {
-  archive:  { icon: Archive,       bg: "bg-amber-50 dark:bg-amber-500/15",   border: "border-amber-200 dark:border-amber-500/30",  color: "text-amber-600 dark:text-amber-400",   btn: "bg-amber-600 hover:bg-amber-700 text-white" },
+  archive:  { icon: Archive,       bg: "bg-amber-50 dark:bg-amber-500/15",   border: "border-amber-200 dark:border-amber-500/30",  color: "text-amber-700 dark:text-amber-400",   btn: "bg-amber-700 hover:bg-amber-800 text-white" },
   logout:   { icon: LogOut,        bg: "bg-rose-50 dark:bg-rose-500/15",     border: "border-rose-200 dark:border-rose-500/30",    color: "text-rose-600 dark:text-rose-400",     btn: "bg-rose-600 hover:bg-rose-700 text-white"     },
   disable:  { icon: Ban,           bg: "bg-rose-50 dark:bg-rose-500/15",     border: "border-rose-200 dark:border-rose-500/30",    color: "text-rose-600 dark:text-rose-400",     btn: "bg-rose-600 hover:bg-rose-700 text-white"     },
-  delete:   { icon: Ban,           bg: "bg-rose-50 dark:bg-rose-500/15",     border: "border-rose-200 dark:border-rose-500/30",    color: "text-rose-600 dark:text-rose-400",     btn: "bg-rose-600 hover:bg-rose-700 text-white"     },
+  delete:   { icon: Trash2,           bg: "bg-rose-50 dark:bg-rose-500/15",     border: "border-rose-200 dark:border-rose-500/30",    color: "text-rose-600 dark:text-rose-400",     btn: "bg-rose-600 hover:bg-rose-700 text-white"     },
   danger:   { icon: AlertTriangle, bg: "bg-rose-50 dark:bg-rose-500/15",     border: "border-rose-200 dark:border-rose-500/30",    color: "text-rose-600 dark:text-rose-400",     btn: "bg-rose-600 hover:bg-rose-700 text-white"     },
   save:     { icon: CheckCircle2,  bg: "bg-blue-50 dark:bg-blue-500/15",    border: "border-blue-200 dark:border-blue-500/30",   color: "text-blue-600 dark:text-blue-400",    btn: "bg-blue-600 hover:bg-blue-700 text-white"   },
   primary:  { icon: CheckCircle2,  bg: "bg-blue-50 dark:bg-blue-500/15",    border: "border-blue-200 dark:border-blue-500/30",   color: "text-blue-600 dark:text-blue-400",    btn: "bg-blue-600 hover:bg-blue-700 text-white"   },
-  warning:  { icon: AlertTriangle, bg: "bg-amber-50 dark:bg-amber-500/15",   border: "border-amber-200 dark:border-amber-500/30",  color: "text-amber-600 dark:text-amber-400",   btn: "bg-amber-600 hover:bg-amber-700 text-white" },
-  shield:   { icon: ShieldCheck,   bg: "bg-amber-50 dark:bg-amber-500/15",   border: "border-amber-200 dark:border-amber-500/30",  color: "text-amber-600 dark:text-amber-400",   btn: "bg-amber-600 hover:bg-amber-700 text-white" },
+  warning:  { icon: AlertTriangle, bg: "bg-amber-50 dark:bg-amber-500/15",   border: "border-amber-200 dark:border-amber-500/30",  color: "text-amber-700 dark:text-amber-400",   btn: "bg-amber-700 hover:bg-amber-800 text-white" },
+  shield:   { icon: ShieldCheck,   bg: "bg-amber-50 dark:bg-amber-500/15",   border: "border-amber-200 dark:border-amber-500/30",  color: "text-amber-700 dark:text-amber-400",   btn: "bg-amber-700 hover:bg-amber-800 text-white" },
   enable:   { icon: CircleCheck,   bg: "bg-emerald-50 dark:bg-emerald-500/15", border: "border-emerald-200 dark:border-emerald-500/30", color: "text-emerald-600 dark:text-emerald-400", btn: "bg-emerald-600 hover:bg-emerald-700 text-white" },
   confirm:  { icon: CheckCircle2,  bg: "bg-emerald-50 dark:bg-emerald-500/15", border: "border-emerald-200 dark:border-emerald-500/30", color: "text-emerald-600 dark:text-emerald-400", btn: "bg-emerald-600 hover:bg-emerald-700 text-white" },
 };
@@ -33,6 +34,14 @@ export default function ConfirmModal({
   loading = false,
   children,
 }) {
+  // Escape closes the dialog (unless an action is running)
+  useEffect(() => {
+    if (!open || loading) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") onClose?.(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, loading, onClose]);
+
   if (!open) return null;
 
   const actualConfirmLabel = confirmLabel || confirmText || "Confirm";
@@ -41,10 +50,10 @@ export default function ConfirmModal({
   const { icon: Icon, bg, border, color, btn } = ICONS[variant] || ICONS.warning;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+    <div className="modal-overlay fixed inset-0 z-[9999] flex items-center justify-center p-4" role="alertdialog" aria-modal="true" data-own-escape>
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity"
+        className="absolute inset-0 bg-slate-950/50 backdrop-blur-xs transition-opacity"
         onClick={!loading ? onClose : undefined}
       />
 
@@ -67,11 +76,11 @@ export default function ConfirmModal({
 
         {/* Heading & Content */}
         <div className="text-center">
-          <h2 className="text-base font-bold text-foreground tracking-tight mb-1.5">{title}</h2>
+          <h2 className="modal-title text-base font-bold text-foreground tracking-tight mb-1.5">{title}</h2>
 
           {/* Message */}
           {message && (
-            <p className="text-xs text-muted-foreground font-medium leading-relaxed">{message}</p>
+            <p className="text-sm text-muted-foreground leading-relaxed">{message}</p>
           )}
 
           {children && (
@@ -87,7 +96,7 @@ export default function ConfirmModal({
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="flex-1 py-2.5 min-h-[44px] border border-border text-foreground text-xs font-semibold rounded-lg hover:bg-muted transition-colors cursor-pointer disabled:opacity-50"
+            className="flex-1 py-2.5 min-h-[44px] border border-border text-foreground text-sm font-semibold rounded-lg hover:bg-muted transition-colors cursor-pointer disabled:opacity-50"
           >
             {actualCancelLabel}
           </button>
@@ -95,7 +104,7 @@ export default function ConfirmModal({
             type="button"
             onClick={onConfirm}
             disabled={loading}
-            className={`flex-1 py-2.5 min-h-[44px] ${btn} text-xs font-semibold rounded-lg transition-all cursor-pointer shadow-xs disabled:opacity-60 flex items-center justify-center gap-1.5`}
+            className={`flex-1 py-2.5 min-h-[44px] ${btn} text-sm font-semibold rounded-lg transition-colors cursor-pointer disabled:opacity-60 flex items-center justify-center gap-1.5`}
           >
             {loading ? (
               <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">

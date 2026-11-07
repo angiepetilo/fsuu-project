@@ -1,4 +1,4 @@
-import { GraduationCap, Users, User, ArrowRight } from "lucide-react";
+import { GraduationCap, Users, User, ArrowRight, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function Step1Identity({
@@ -44,7 +44,7 @@ export function Step1Identity({
               : "border-slate-200/80 dark:border-slate-800 shadow-2xs hover:border-amber-300 dark:hover:border-amber-500 hover:shadow-md"
           }`}
         >
-          <div className="w-14 h-14 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shrink-0">
+          <div className="w-14 h-14 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shrink-0">
             <Users size={30} />
           </div>
           <h3 className="font-extrabold text-slate-900 dark:text-white text-base mb-1">Faculty</h3>
@@ -76,9 +76,10 @@ export function Step1Identity({
         {!isPortal ? (
           <a
             href="/"
-            className="px-4 sm:px-6 py-3 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 text-slate-700 dark:text-slate-200 font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer no-underline shrink-0"
+            className="px-4 sm:px-6 h-11 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 text-slate-700 dark:text-slate-200 font-semibold text-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer no-underline shrink-0"
           >
-            <span>← Back to Homepage</span>
+            <ArrowLeft size={16} />
+            <span>Back to Homepage</span>
           </a>
         ) : (
           <span className="text-xs font-semibold text-slate-500 dark:text-[#CBD5E1]">
@@ -89,7 +90,7 @@ export function Step1Identity({
         <Button
           disabled={!currentIdentity}
           onClick={() => currentIdentity && onNext && onNext()}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-5 sm:px-8 py-3 sm:py-3.5 rounded-full font-extrabold text-xs flex items-center justify-center gap-2 shadow-md shadow-blue-600/20 disabled:opacity-50 transition-all cursor-pointer"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-5 sm:px-8 h-11 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50 transition-all cursor-pointer"
         >
           <span className="sm:hidden">Next Step</span>
           <span className="hidden sm:inline">Next: Select Venue</span>

@@ -177,22 +177,6 @@ export default function EquipmentRelease() {
 
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto pb-12">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-5">
-        <div>
-          <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-wider mb-1">
-            <PackageCheck size={16} />
-            <span>Student Assistant Operational Desk</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
-            Equipment Release
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Verify reservation reference, inspect units with physical checklist, and dispatch equipment.
-          </p>
-        </div>
-      </div>
-
       {/* Search & Verification Bar */}
       <div className="bg-card border border-border rounded-2xl p-5 shadow-xs">
         <form onSubmit={handleSearchVerify} className="flex flex-col sm:flex-row gap-3">
@@ -380,7 +364,7 @@ export default function EquipmentRelease() {
                           </div>
                         </div>
                         <span className={`text-xs font-medium ${isChecked ? "text-emerald-400 font-bold" : "text-muted-foreground"}`}>
-                          {isChecked ? "Inspected ✓" : "Pending check"}
+                          {isChecked ? "Inspected" : "Pending check"}
                         </span>
                       </div>
                     );

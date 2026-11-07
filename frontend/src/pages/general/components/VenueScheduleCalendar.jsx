@@ -322,30 +322,30 @@ export default function VenueScheduleCalendar({
                 {/* Bottom Row: Only show badges for Exceptions, Multi-Day Range, or Selected state */}
                 <div className="flex items-center justify-center h-4 w-full">
                   {isPrimaryActive ? (
-                    <span className="text-[9px] font-bold uppercase tracking-wider text-blue-100">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-100">
                       {isRangeStart && endDate ? "Start" : isRangeEnd ? "End" : "Selected"}
                     </span>
                   ) : isInRange ? (
-                    <span className="text-[9px] font-bold text-blue-700 dark:text-blue-300 uppercase">
+                    <span className="text-[10px] font-bold text-blue-700 dark:text-blue-300 uppercase">
                       Range
                     </span>
                   ) : isClosed ? (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-rose-100/90 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300 text-[9px] font-bold leading-none">
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-rose-100/90 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300 text-[10px] font-bold leading-none">
                       <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
                       <span className="hidden md:inline">Closed</span>
                     </span>
                   ) : isMaintenance ? (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100/90 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 text-[9px] font-bold leading-none">
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100/90 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 text-[10px] font-bold leading-none">
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
                       <span className="hidden md:inline">Maint</span>
                     </span>
                   ) : isOngoing ? (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-indigo-100/90 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 text-[9px] font-bold leading-none">
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-indigo-100/90 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold leading-none">
                       <span className="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
                       <span className="hidden md:inline">On-Going</span>
                     </span>
                   ) : isBooked ? (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-100/90 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 text-[9px] font-bold leading-none">
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-100/90 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 text-[10px] font-bold leading-none">
                       <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
                       <span className="hidden md:inline">
                         {activeCount > 1
@@ -356,7 +356,7 @@ export default function VenueScheduleCalendar({
                       </span>
                     </span>
                   ) : isToday ? (
-                    <span className="text-[9px] font-bold text-blue-600 dark:text-blue-400">
+                    <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400">
                       Today
                     </span>
                   ) : null}

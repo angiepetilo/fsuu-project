@@ -53,7 +53,7 @@ export default function HistoryTable({
             <thead>
               <tr className="bg-white border-b border-slate-200">
                 {["#", "Track Number", "Type", "Requestor", "Department", "Facility / Item", "Incident Category", "Details & Barcodes", "Date", "Action"].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
+                  <th key={h} className="px-4 py-3 text-left text-[11px] font-mono font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">
                     {h}
                   </th>
                 ))}
@@ -81,7 +81,7 @@ export default function HistoryTable({
 
                   const badgeStyles = {
                     rose: "bg-rose-100 text-rose-700 border-rose-200",
-                    amber: "bg-amber-100 text-amber-800 border-amber-200",
+                    amber: "bg-amber-50 text-amber-800 border-amber-200",
                     purple: "bg-purple-100 text-purple-700 border-purple-200",
                     orange: "bg-orange-100 text-orange-800 border-orange-200",
                   }[color] || "bg-rose-100 text-rose-700 border-rose-200";
@@ -95,7 +95,7 @@ export default function HistoryTable({
                         {refCode}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                        <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider ${
                           isVenue ? "bg-indigo-50 text-indigo-700 border border-indigo-200" : "bg-cyan-50 text-cyan-700 border border-cyan-200"
                         }`}>
                           {isVenue ? "Venue" : "Equipment"}
@@ -171,7 +171,7 @@ export default function HistoryTable({
               const color = inc.category_color || "rose";
               const badgeStyles = {
                 rose: "bg-rose-100 text-rose-700 border-rose-200",
-                amber: "bg-amber-100 text-amber-800 border-amber-200",
+                amber: "bg-amber-50 text-amber-800 border-amber-200",
                 purple: "bg-purple-100 text-purple-700 border-purple-200",
                 orange: "bg-orange-100 text-orange-800 border-orange-200",
               }[color] || "bg-rose-100 text-rose-700 border-rose-200";
@@ -180,7 +180,7 @@ export default function HistoryTable({
                 <div key={`mob-inc-${inc.id || idx}`} className="p-4 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <span className="font-mono text-xs font-extrabold text-blue-600">{refCode}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${badgeStyles}`}>
+                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-black border ${badgeStyles}`}>
                       {inc.incident_label || "Incident"}
                     </span>
                   </div>
@@ -272,7 +272,7 @@ export default function HistoryTable({
             <thead>
               <tr className="bg-white border-b border-slate-200">
                 {["#", "Track Number", "Requestor", "Department", "Venue", "Date", "Time", "Outcome", "Action"].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
+                  <th key={h} className="px-4 py-3 text-left text-[11px] font-mono font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">
                     {h}
                   </th>
                 ))}
@@ -351,11 +351,11 @@ export default function HistoryTable({
                           </span>
                         ) : isLate ? (
                           <div className="flex flex-col">
-                            <span className="font-mono text-xs font-bold text-amber-600 uppercase" title={b.notes || b.inspection_notes}>
+                            <span className="font-mono text-xs font-bold text-amber-700 uppercase" title={b.notes || b.inspection_notes}>
                               ● Late Return
                             </span>
                             {formatReturnTime(b) && (
-                              <span className="text-[10.5px] font-mono font-bold text-amber-700">
+                              <span className="text-[11px] font-mono font-bold text-amber-700">
                                 Ret: {formatReturnTime(b)}
                               </span>
                             )}
@@ -451,36 +451,36 @@ export default function HistoryTable({
                     <span className="font-mono font-extrabold text-xs text-slate-900">{refCode}</span>
                     <div className="flex flex-col items-end gap-0.5">
                       {isRejected && b.is_auto_rejected ? (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
                           Rejected (automatic)
                         </span>
                       ) : isRejected ? (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
                           Rejected
                         </span>
                       ) : isCancelled ? (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-700 border border-slate-200">
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-slate-100 text-slate-700 border border-slate-200">
                           Cancelled
                         </span>
                       ) : isSolved ? (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200">
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200">
                           Solved
                         </span>
                       ) : isBreach ? (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
                           Violation
                         </span>
                       ) : isLate ? (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-800 border border-amber-200">
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-amber-50 text-amber-800 border border-amber-200">
                           Late Return
                         </span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
                           Satisfactory
                         </span>
                       )}
                       {isLate && formatReturnTime(b) && (
-                        <span className="text-[10px] font-mono font-bold text-amber-700">
+                        <span className="text-[11px] font-mono font-bold text-amber-700">
                           Ret: {formatReturnTime(b)}
                         </span>
                       )}
@@ -499,7 +499,7 @@ export default function HistoryTable({
                   )}
 
                   <p className="text-xs font-mono text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                    📅 {usageDate} | ⏰ {timeRange}
+                    {usageDate} · {timeRange}
                   </p>
 
                   <div className="flex items-center gap-2 pt-1">
@@ -577,7 +577,7 @@ export default function HistoryTable({
             <thead>
               <tr className="bg-white border-b border-slate-200">
                 {["#", "Track Number", "Requestor", "Department", "Equipment", "Quantity", "Date", "Time", "Outcome", "Action"].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
+                  <th key={h} className="px-4 py-3 text-left text-[11px] font-mono font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">
                     {h}
                   </th>
                 ))}
@@ -664,7 +664,7 @@ export default function HistoryTable({
                           </span>
                         ) : isLate ? (
                           <div className="flex flex-col">
-                            <span className="font-mono text-xs font-bold text-amber-600 uppercase">
+                            <span className="font-mono text-xs font-bold text-amber-700 uppercase">
                               ● Late Returned
                             </span>
                             {formatReturnTime(b) && (
@@ -780,36 +780,36 @@ export default function HistoryTable({
                     <span className="font-mono font-extrabold text-xs text-slate-900">{refCode}</span>
                     <div className="flex flex-col items-end gap-0.5">
                       {isRejected ? (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
                           Rejected
                         </span>
                       ) : isCancelled ? (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-700 border border-slate-200">
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-slate-100 text-slate-700 border border-slate-200">
                           Cancelled
                         </span>
                       ) : isSolved ? (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200">
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200">
                           Solved
                         </span>
                       ) : isDamaged ? (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
                           Damaged
                         </span>
                       ) : isLost ? (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
                           Lost
                         </span>
                       ) : isLate ? (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-800 border border-amber-200">
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-amber-50 text-amber-800 border border-amber-200">
                           Late Returned
                         </span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
                           Good
                         </span>
                       )}
                       {isLate && formatReturnTime(b) && (
-                        <span className="text-[10px] font-mono font-bold text-amber-700">
+                        <span className="text-[11px] font-mono font-bold text-amber-700">
                           Ret: {formatReturnTime(b)}
                         </span>
                       )}
@@ -822,7 +822,7 @@ export default function HistoryTable({
                   </div>
 
                   <p className="text-xs font-mono text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                    📅 {usageDate} | ⏰ {timeRange}
+                    {usageDate} · {timeRange}
                   </p>
 
                   <div className="flex items-center gap-2 pt-1">

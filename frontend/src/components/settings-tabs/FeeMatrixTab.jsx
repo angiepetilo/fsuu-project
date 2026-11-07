@@ -428,7 +428,7 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
                             >
                               {item.enabled ? <Ban size={12} /> : <CheckCircle2 size={12} />}
                             </button>
-                            <span className={`text-[10px] font-bold ${item.enabled ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400 dark:text-slate-500"}`}>
+                            <span className={`text-[11px] font-bold ${item.enabled ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400 dark:text-slate-500"}`}>
                               {item.enabled ? "Active" : "Disabled"}
                             </span>
                           </div>
@@ -561,7 +561,7 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
 
               {/* 2-Column Fee Table */}
               <div className="border border-slate-300 rounded-lg overflow-hidden">
-                <table className="w-full text-xs border-collapse">
+                <table className="doc-table w-full text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-100 text-slate-800 border-b border-slate-300">
                       <th className="p-3 text-left font-bold border-r border-slate-300 w-3/5">

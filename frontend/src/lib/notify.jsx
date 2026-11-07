@@ -16,8 +16,8 @@ function PlainToast({ id, title, description, type = "default" }) {
       icon:   <XCircle size={16} className="text-rose-500 shrink-0 mt-0.5" />,
     },
     warning: {
-      accent: "bg-amber-400",
-      icon:   <AlertTriangle size={16} className="text-amber-500 shrink-0 mt-0.5" />,
+      accent: "bg-amber-500",
+      icon:   <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />,
     },
     info: {
       accent: "bg-blue-500",
@@ -39,7 +39,7 @@ function PlainToast({ id, title, description, type = "default" }) {
     <div 
       tabIndex={-1}
       onClick={() => id && sonnerToast.dismiss(id)}
-      className="pointer-events-auto cursor-pointer flex items-stretch overflow-hidden rounded-2xl bg-white shadow-2xl border border-slate-200/90 min-w-[320px] max-w-[440px] font-sans select-none hover:shadow-3xl hover:border-slate-300 transition-all ring-1 ring-black/5"
+      className="pointer-events-auto cursor-pointer flex items-stretch overflow-hidden rounded-xl bg-white shadow-lg border border-slate-200 w-[min(400px,calc(100vw-2rem))] font-sans select-none hover:border-slate-300 transition-colors"
       title="Click to dismiss"
     >
       {/* Left accent stripe */}
@@ -49,11 +49,11 @@ function PlainToast({ id, title, description, type = "default" }) {
       <div className="flex items-start gap-3 px-4 py-3.5 flex-1 min-w-0">
         {icon}
         <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-bold text-slate-900 leading-snug">
+          <p className="text-sm font-semibold text-slate-900 leading-snug">
             {title}
           </p>
           {description && (
-            <p className="text-[12px] text-slate-600 leading-relaxed mt-1 break-words">
+            <p className="text-[13px] text-slate-600 leading-relaxed mt-0.5 break-words">
               {description}
             </p>
           )}
@@ -85,56 +85,27 @@ const parseArgs = (title, description, fallbackTitle) => {
   return { title, description };
 };
 
-const BASE_DURATION = 3500;
+// Errors and warnings stay longer so people can read what went wrong (click to dismiss earlier)
+const DURATIONS = { success: 3500, info: 4000, warning: 6000, error: 7000 };
+
+/**
+ * Shows one toast. The same message (type + title + description) reuses one id,
+ * so repeated calls refresh the existing toast instead of stacking duplicates.
+ */
+function show(type, title, description, fallbackTitle) {
+  const parsed = parseArgs(title, description, fallbackTitle);
+  const key = `${type}|${parsed.title ?? ""}|${parsed.description ?? ""}`;
+  return sonnerToast.custom(
+    (id) => <PlainToast id={id} title={parsed.title} description={parsed.description} type={type} />,
+    { id: key, duration: DURATIONS[type] }
+  );
+}
 
 export const notify = {
-  success: (title, description) => {
-    const parsed = parseArgs(title, description, "Success");
-    let tId;
-    tId = sonnerToast.custom((id) => (
-      <PlainToast id={id || tId} title={parsed.title} description={parsed.description} type="success" />
-    ), { duration: BASE_DURATION });
-    setTimeout(() => {
-      if (tId) sonnerToast.dismiss(tId);
-    }, BASE_DURATION + 100);
-    return tId;
-  },
-
-  error: (title, description) => {
-    const parsed = parseArgs(title, description, "Error");
-    let tId;
-    tId = sonnerToast.custom((id) => (
-      <PlainToast id={id || tId} title={parsed.title} description={parsed.description} type="error" />
-    ), { duration: 4000 });
-    setTimeout(() => {
-      if (tId) sonnerToast.dismiss(tId);
-    }, 4100);
-    return tId;
-  },
-
-  warning: (title, description) => {
-    const parsed = parseArgs(title, description, "Notice");
-    let tId;
-    tId = sonnerToast.custom((id) => (
-      <PlainToast id={id || tId} title={parsed.title} description={parsed.description} type="warning" />
-    ), { duration: 3500 });
-    setTimeout(() => {
-      if (tId) sonnerToast.dismiss(tId);
-    }, 3600);
-    return tId;
-  },
-
-  info: (title, description) => {
-    const parsed = parseArgs(title, description, "Information");
-    let tId;
-    tId = sonnerToast.custom((id) => (
-      <PlainToast id={id || tId} title={parsed.title} description={parsed.description} type="info" />
-    ), { duration: BASE_DURATION });
-    setTimeout(() => {
-      if (tId) sonnerToast.dismiss(tId);
-    }, BASE_DURATION + 100);
-    return tId;
-  },
+  success: (title, description) => show("success", title, description, "Success"),
+  error: (title, description) => show("error", title, description, "Error"),
+  warning: (title, description) => show("warning", title, description, "Notice"),
+  info: (title, description) => show("info", title, description, "Information"),
 
   dismiss: (id) => sonnerToast.dismiss(id),
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { CheckCircle2, AlertTriangle, ShieldCheck, FileCheck, Loader2, Plus, X, Edit, Trash2 } from "lucide-react";
+import { ShieldCheck, FileCheck, Loader2, Plus, X, Edit, Trash2, Pencil } from "lucide-react";
 import InspectionPhotoUploader from "@/components/ui/InspectionPhotoUploader";
 import { getOverdueMinutes, formatOverdueDuration } from "@/lib/dateTimeUtils";
 import api from "@/lib/axios";
@@ -218,7 +218,7 @@ export default function VenuePostInspectionForm({
                 onClick={() => setShowAddCustom(!showAddCustom)}
                 className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1 cursor-pointer transition-colors"
               >
-                {showAddCustom ? <X size={12} /> : <Edit size={12} />}
+                {showAddCustom ? <X size={12} /> : <Pencil size={12} />}
                 <span>{showAddCustom ? "Save Editing" : "Edit Category"}</span>
               </button>
             )}

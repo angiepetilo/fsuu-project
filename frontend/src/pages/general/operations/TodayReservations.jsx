@@ -96,21 +96,8 @@ export default function TodayReservations() {
 
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto pb-12">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-5">
-        <div>
-          <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-wider mb-1">
-            <CalendarCheck size={16} />
-            <span>Workspace Operations</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
-            Today's Reservations
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Real-time schedule of campus venues and equipment handovers for today.
-          </p>
-        </div>
-
+      {/* Quick links (page title and description are already in the top bar) */}
+      <div className="flex items-center justify-end gap-4">
         <div className="flex items-center gap-2">
           <Link to="/general/equipment-release">
             <Button size="sm" className="gap-2 font-semibold">
@@ -201,7 +188,7 @@ export default function TodayReservations() {
               >
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10.5px] font-bold uppercase tracking-wider bg-muted text-muted-foreground">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider bg-muted text-muted-foreground">
                       {isVenue ? <Building2 size={12} className="text-blue-400" /> : <PackageOpen size={12} className="text-emerald-400" />}
                       <span>{isVenue ? "Venue Booking" : "Equipment"}</span>
                     </span>
