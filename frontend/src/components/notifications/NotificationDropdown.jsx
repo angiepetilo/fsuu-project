@@ -9,6 +9,58 @@ const STORAGE_KEY = "fsuu_archived_notifications";
 const INCIDENT_TARGETS = ["damaged_unit", "lost_unit", "policy_violation", "late_return"];
 const getRecordId = (n) => n.record_id ?? n.booking_id ?? n.borrowing_id ?? n.equipment_borrowing_id ?? n.equipment_borrow_id ?? n.venue_booking_id ?? (INCIDENT_TARGETS.includes(n.target_type) ? null : n.target_id);
 
+// Human duration formatter for late return minutes
+const formatLateMinutes = (mins) => {
+  const m = Number(mins);
+  if (!m || isNaN(m) || m <= 0) return "";
+  if (m < 60) return `${m}m late`;
+  const hrs = Math.floor(m / 60);
+  const rem = m % 60;
+  if (hrs < 24) {
+    return rem > 0 ? `${hrs}h ${rem}m late` : `${hrs}h late`;
+  }
+  const days = Math.floor(hrs / 24);
+  const remHrs = hrs % 24;
+  return remHrs > 0 ? `${days}d ${remHrs}h late` : `${days}d late`;
+};
+
+// Clean robotic wording, machine math, and redundant tails
+const cleanNotificationMessage = (n) => {
+  let msg = String(n.message || "").trim();
+  if (!msg) return "";
+
+  // 1. Replace raw machine math like "returned 134 min late" or "1439 min late"
+  msg = msg.replace(/returned\s+(\d+)\s*min(?:s)?\s*late/gi, (_, rawMins) => {
+    const formatted = formatLateMinutes(rawMins);
+    return formatted ? `Returned ${formatted}` : "Returned late";
+  });
+  msg = msg.replace(/(\d+)\s*min(?:s)?\s*late/gi, (_, rawMins) => {
+    return formatLateMinutes(rawMins) || `${rawMins}m late`;
+  });
+
+  // 2. Remove redundant "for TRK-XXXX by Person Name (Office)" if already rendered in chips
+  if (n.ref) {
+    const escapedRef = n.ref.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    msg = msg.replace(new RegExp(`\\s*(?:for|on)\\s+${escapedRef}(?:\\s+by\\s+[^()]+(?:\\([^)]*\\))?)?`, 'gi'), '');
+    msg = msg.replace(new RegExp(`\\s*\\(${escapedRef}\\)`, 'gi'), '');
+  }
+
+  // 3. Clean repetitive "violation: Late Equipment Return" if headline is already late return / violation
+  msg = msg.replace(/;\s*violation:\s*/gi, ' • ');
+  msg = msg.replace(/violation:\s*/gi, '');
+
+  // 4. Clean double semicolons or leading/trailing separators
+  msg = msg.replace(/;\s*/g, ' • ').replace(/^[•\s;]+|[•\s;]+$/g, '').trim();
+
+  return msg;
+};
+
+// Clean human timestamp formatting (e.g. "Nov 07, 08:21 AM" -> "Nov 7, 8:21 AM")
+const formatHumanTime = (timeStr) => {
+  if (!timeStr) return "";
+  return String(timeStr).replace(/,?\s*0(\d):/g, " $1:").replace(/\b0(\d)\b/g, "$1");
+};
+
 const getNotificationColorConfig = (n) => {
   const incType = String(n.incident_type || n.target_type || n.type || "").toLowerCase();
   const notifType = String(n.type || "").toLowerCase();
@@ -24,10 +76,10 @@ const getNotificationColorConfig = (n) => {
     msg.includes("check-in inspection is pending")
   ) {
     return {
-      border: "border-l-4 border-l-amber-500",
+      border: "border-l-2 border-l-amber-500",
       bgUnread: "bg-amber-50/40 hover:bg-amber-50/70 dark:bg-amber-950/20 dark:hover:bg-amber-950/35",
-      badgeBg: "bg-amber-50 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800 font-extrabold",
-      badgeText: "NEEDS INSPECTION",
+      badgeBg: "bg-amber-50 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800",
+      badgeText: "Inspection",
       iconBg: "bg-amber-50 dark:bg-amber-950/70 text-amber-700 dark:text-amber-400",
       dot: "bg-amber-600 dark:bg-amber-500",
       Icon: Clock,
@@ -43,10 +95,10 @@ const getNotificationColorConfig = (n) => {
     msg.includes("urgent")
   ) {
     return {
-      border: "border-l-4 border-l-orange-500",
+      border: "border-l-2 border-l-orange-500",
       bgUnread: "bg-orange-50/50 hover:bg-orange-50/80 dark:bg-orange-950/20 dark:hover:bg-orange-950/35",
-      badgeBg: "bg-orange-100 dark:bg-orange-950/70 text-orange-900 dark:text-orange-300 border-orange-300 dark:border-orange-800 font-black",
-      badgeText: "UNASSIGNED UNITS",
+      badgeBg: "bg-orange-100 dark:bg-orange-950/70 text-orange-900 dark:text-orange-300 border-orange-300 dark:border-orange-800",
+      badgeText: "Unassigned",
       iconBg: "bg-orange-100 dark:bg-orange-950/70 text-orange-700 dark:text-orange-400",
       dot: "bg-orange-600 dark:bg-orange-500",
       Icon: AlertTriangle,
@@ -56,10 +108,10 @@ const getNotificationColorConfig = (n) => {
   // 3. Damaged Physical Unit / Damage Incident
   if (incType.includes("damage") || notifType.includes("damage") || title.includes("damage") || msg.includes("damaged")) {
     return {
-      border: "border-l-4 border-l-rose-500",
+      border: "border-l-2 border-l-rose-500",
       bgUnread: "bg-rose-50/40 hover:bg-rose-50/70 dark:bg-rose-950/20 dark:hover:bg-rose-950/35",
       badgeBg: "bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800",
-      badgeText: "DAMAGED",
+      badgeText: "Damaged",
       iconBg: "bg-rose-100 dark:bg-rose-950/70 text-rose-600 dark:text-rose-400",
       dot: "bg-rose-600 dark:bg-rose-500",
       Icon: AlertTriangle,
@@ -69,10 +121,10 @@ const getNotificationColorConfig = (n) => {
   // 4. Lost Physical Unit / Missing
   if (incType.includes("lost") || notifType.includes("lost") || title.includes("lost") || msg.includes("lost") || title.includes("missing")) {
     return {
-      border: "border-l-4 border-l-amber-500",
+      border: "border-l-2 border-l-amber-500",
       bgUnread: "bg-amber-50/40 hover:bg-amber-50/70 dark:bg-amber-950/20 dark:hover:bg-amber-950/35",
       badgeBg: "bg-amber-50 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800",
-      badgeText: "LOST",
+      badgeText: "Lost",
       iconBg: "bg-amber-50 dark:bg-amber-950/70 text-amber-700 dark:text-amber-400",
       dot: "bg-amber-600 dark:bg-amber-500",
       Icon: AlertCircle,
@@ -82,10 +134,10 @@ const getNotificationColorConfig = (n) => {
   // 5. Policy Violation / Facility Rule Breach
   if (incType.includes("violation") || notifType.includes("violation") || title.includes("violation") || msg.includes("violation") || title.includes("breach")) {
     return {
-      border: "border-l-4 border-l-purple-500",
+      border: "border-l-2 border-l-purple-500",
       bgUnread: "bg-purple-50/40 hover:bg-purple-50/70 dark:bg-purple-950/20 dark:hover:bg-purple-950/35",
       badgeBg: "bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800",
-      badgeText: "VIOLATION",
+      badgeText: "Violation",
       iconBg: "bg-purple-100 dark:bg-purple-950/70 text-purple-600 dark:text-purple-400",
       dot: "bg-purple-600 dark:bg-purple-500",
       Icon: ShieldAlert,
@@ -95,10 +147,10 @@ const getNotificationColorConfig = (n) => {
   // 6. Overdue / Late Return
   if (incType.includes("late") || title.includes("late") || msg.includes("late") || title.includes("overdue") || msg.includes("overdue")) {
     return {
-      border: "border-l-4 border-l-orange-500",
+      border: "border-l-2 border-l-orange-500",
       bgUnread: "bg-orange-50/40 hover:bg-orange-50/70 dark:bg-orange-950/20 dark:hover:bg-orange-950/35",
       badgeBg: "bg-orange-100 dark:bg-orange-950/70 text-orange-800 dark:text-orange-300 border-orange-200 dark:border-orange-800",
-      badgeText: incType.includes("late_return") ? "LATE RETURN" : "OVERDUE",
+      badgeText: incType.includes("late_return") ? "Late Return" : "Overdue",
       iconBg: "bg-orange-100 dark:bg-orange-950/70 text-orange-600 dark:text-orange-400",
       dot: "bg-orange-600 dark:bg-orange-500",
       Icon: Clock,
@@ -108,10 +160,10 @@ const getNotificationColorConfig = (n) => {
   // 7. Student Assistant Category Request
   if (notifType === "student_assistant_request" || title.includes("category request") || incType.includes("request")) {
     return {
-      border: "border-l-4 border-l-indigo-500",
+      border: "border-l-2 border-l-indigo-500",
       bgUnread: "bg-indigo-50/40 hover:bg-indigo-50/70 dark:bg-indigo-950/20 dark:hover:bg-indigo-950/35",
       badgeBg: "bg-indigo-100 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800",
-      badgeText: "REQUEST",
+      badgeText: "Request",
       iconBg: "bg-indigo-100 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400",
       dot: "bg-indigo-600 dark:bg-indigo-500",
       Icon: Bell,
@@ -121,10 +173,10 @@ const getNotificationColorConfig = (n) => {
   // 8. New Pending Venue Booking or Equipment Borrowing
   if (notifType.includes("pending") || title.includes("new venue booking") || title.includes("new equipment borrow") || title.includes("pending")) {
     return {
-      border: "border-l-4 border-l-blue-500",
+      border: "border-l-2 border-l-blue-500",
       bgUnread: "bg-blue-50/30 hover:bg-blue-50/60 dark:bg-blue-950/20 dark:hover:bg-blue-950/35",
       badgeBg: "bg-blue-100 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800",
-      badgeText: "PENDING",
+      badgeText: "Pending",
       iconBg: "bg-blue-100 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400",
       dot: "bg-blue-600 dark:bg-blue-500",
       Icon: Bell,
@@ -136,10 +188,10 @@ const getNotificationColorConfig = (n) => {
   const isTrulyCompleted = (title.includes("completed") || msg.includes("completed successfully")) && !msg.includes("not been") && !msg.includes("has not");
   if (isTrulyApproved || isTrulyCompleted) {
     return {
-      border: "border-l-4 border-l-emerald-500",
+      border: "border-l-2 border-l-emerald-500",
       bgUnread: "bg-emerald-50/40 hover:bg-emerald-50/70 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/35",
       badgeBg: "bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
-      badgeText: isTrulyCompleted ? "COMPLETED" : "APPROVED",
+      badgeText: isTrulyCompleted ? "Completed" : "Approved",
       iconBg: "bg-emerald-100 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400",
       dot: "bg-emerald-600 dark:bg-emerald-500",
       Icon: CheckCircle2,
@@ -149,10 +201,10 @@ const getNotificationColorConfig = (n) => {
   // 10. Rejected / Cancelled
   if (title.includes("reject") || msg.includes("reject") || title.includes("cancel") || msg.includes("cancel")) {
     return {
-      border: "border-l-4 border-l-rose-500",
+      border: "border-l-2 border-l-rose-500",
       bgUnread: "bg-rose-50/40 hover:bg-rose-50/70 dark:bg-rose-950/20 dark:hover:bg-rose-950/35",
       badgeBg: "bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800",
-      badgeText: "REJECTED",
+      badgeText: "Rejected",
       iconBg: "bg-rose-100 dark:bg-rose-950/70 text-rose-600 dark:text-rose-400",
       dot: "bg-rose-600 dark:bg-rose-500",
       Icon: XCircle,
@@ -161,10 +213,10 @@ const getNotificationColorConfig = (n) => {
 
   // Default: Notice / Info
   return {
-    border: "border-l-4 border-l-blue-500",
+    border: "border-l-2 border-l-blue-500",
     bgUnread: "bg-blue-50/30 hover:bg-blue-50/60 dark:bg-blue-950/20 dark:hover:bg-blue-950/35",
     badgeBg: "bg-blue-100 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800",
-    badgeText: "NOTICE",
+    badgeText: "Notice",
     iconBg: "bg-blue-100 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400",
     dot: "bg-blue-600 dark:bg-blue-500",
     Icon: Bell,
@@ -470,6 +522,15 @@ export default function NotificationDropdown({
                 const isRead = readNotifIds.has(n.id) || Boolean(n.is_read);
                 const cfg = getNotificationColorConfig(n);
                 const IconComponent = cfg.Icon;
+                const cleanedMsg = cleanNotificationMessage(n);
+                const formattedTime = formatHumanTime(n.time);
+
+                // Determine if person's name is already part of the message to avoid duplicate display
+                const personName = n.person_name ? String(n.person_name).trim() : "";
+                const isPersonInMsg = personName && (
+                  String(n.title || "").toLowerCase().includes(personName.toLowerCase()) ||
+                  cleanedMsg.toLowerCase().includes(personName.toLowerCase())
+                );
 
                 return (
                   <div
@@ -484,24 +545,28 @@ export default function NotificationDropdown({
                     {/* Color-coded Icon Box */}
                     <div className="pt-0.5 shrink-0">
                       <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${cfg.iconBg} shadow-2xs`}>
-                        <IconComponent size={16} />
+                        <IconComponent size={15} />
                       </div>
                     </div>
 
-                    {/* Message Content */}
-                    <div className="flex-1 min-w-0 pr-1">
-                      <div className="flex items-center justify-between gap-1.5">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border shrink-0 ${cfg.badgeBg}`}>
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      {/* Top Row: Status Tag + Title on Left, Time + Unread Dot on Right */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold tracking-tight border shrink-0 ${cfg.badgeBg}`}>
                             {cfg.badgeText}
                           </span>
-                          <h5 className={`text-xs leading-snug truncate ${!isRead ? "font-extrabold text-slate-900 dark:text-white" : "font-semibold text-slate-800 dark:text-slate-200"}`}>
-                            {n.title}
-                          </h5>
+                          {n.title && (
+                            <h5 className={`text-xs truncate ${!isRead ? "font-bold text-slate-900 dark:text-white" : "font-medium text-slate-700 dark:text-slate-300"}`} title={n.title}>
+                              {n.title}
+                            </h5>
+                          )}
                         </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
+
+                        <div className="flex items-center gap-1.5 shrink-0 ml-auto">
                           <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 whitespace-nowrap">
-                            {n.time}
+                            {formattedTime}
                           </span>
                           {activeTab === "inbox" && !isRead && (
                             <span className={`w-2 h-2 rounded-full block ${cfg.dot}`} />
@@ -509,19 +574,27 @@ export default function NotificationDropdown({
                         </div>
                       </div>
 
-                      <p className="text-xs text-slate-600 dark:text-slate-400 font-normal mt-1 leading-relaxed line-clamp-2">
-                        {n.message}
-                      </p>
+                      {/* Message Body (Cleaned from machine math and redundant suffixes) */}
+                      {cleanedMsg && (
+                        <p className="text-xs text-slate-600 dark:text-slate-400 font-normal mt-1 leading-relaxed line-clamp-2">
+                          {cleanedMsg}
+                        </p>
+                      )}
 
-                      <div className="flex flex-wrap items-center gap-2 mt-1.5 text-[11px]">
-                        {n.ref && <span className="font-mono text-blue-600 dark:text-blue-400 font-bold">{n.ref}</span>}
-                        {n.person_name && (
-                          <span className="text-slate-500 dark:text-slate-400 font-medium">
-                            • {n.person_name}
+                      {/* Metadata Footer: Clean Pills without duplicate text */}
+                      <div className="flex flex-wrap items-center gap-1.5 mt-2 text-[11px]">
+                        {n.ref && (
+                          <span className="font-mono text-[10.5px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-1.5 py-0.5 rounded">
+                            {n.ref}
+                          </span>
+                        )}
+                        {!isPersonInMsg && personName && (
+                          <span className="text-slate-500 dark:text-slate-400 font-medium text-[11px]">
+                            {n.ref ? "•" : ""} {personName}
                           </span>
                         )}
                         {activeTab === "archive" && (
-                          <span className="text-amber-700 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded-md border border-amber-200/60 dark:border-amber-800/60">
+                          <span className="text-amber-700 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded-md border border-amber-200/60 dark:border-amber-800/60 text-[10px]">
                             Auto-purges in {getDaysRemainingInArchive(n.id)}d
                           </span>
                         )}
@@ -529,13 +602,13 @@ export default function NotificationDropdown({
                     </div>
 
                     {/* Actions on Hover */}
-                    <div className="shrink-0 flex items-center gap-1.5 pt-0.5">
+                    <div className="shrink-0 flex items-center gap-1 pt-0.5">
                       {activeTab === "inbox" ? (
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             type="button"
                             onClick={(e) => handleDirectView(e, n)}
-                            className="px-2 py-1 text-[11px] font-extrabold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/60 rounded-md transition-colors cursor-pointer"
+                            className="px-2 py-1 text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/60 rounded-md transition-colors cursor-pointer"
                             title="Directly view and locate record"
                           >
                             View
@@ -547,7 +620,7 @@ export default function NotificationDropdown({
                                 e.stopPropagation();
                                 if (markAsRead) markAsRead(n.id);
                               }}
-                              className="px-2 py-1 text-[11px] font-extrabold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
+                              className="px-2 py-1 text-[11px] font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
                             >
                               Read
                             </button>
@@ -555,28 +628,19 @@ export default function NotificationDropdown({
                           <button
                             type="button"
                             onClick={(e) => handleSingleArchive(e, n)}
-                            className="px-2 py-1 text-[11px] font-extrabold text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
+                            className="px-2 py-1 text-[11px] font-bold text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
                           >
                             Archive
                           </button>
                         </div>
                       ) : (
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={(e) => handleDirectView(e, n)}
-                            className="px-2 py-1 text-[11px] font-black text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
-                          >
-                            View
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => handleRestore(e, n)}
-                            className="px-2.5 py-1 text-[11px] font-black text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/60 rounded-md transition-colors cursor-pointer"
-                          >
-                            Restore
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => handleRestore(e, n)}
+                          className="px-2 py-1 text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/60 rounded-md transition-colors cursor-pointer opacity-0 group-hover:opacity-100"
+                        >
+                          Restore
+                        </button>
                       )}
                     </div>
                   </div>

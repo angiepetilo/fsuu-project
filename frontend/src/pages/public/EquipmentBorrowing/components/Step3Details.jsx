@@ -1178,44 +1178,6 @@ export default function Step3Details({
         </div>
 
         <div className="flex flex-col gap-1.5 sm:col-span-1">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-900 dark:text-white">
-              Place of Use Location
-            </span>
-            <div className="inline-flex p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-[11px] font-bold">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsOutside(false);
-                  if (placeOfUse && placeOfUse.startsWith("Outside: ")) {
-                    setPlaceOfUse("");
-                  }
-                }}
-                className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer ${!isOutside
-                  ? "bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-2xs font-extrabold"
-                  : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-                  }`}
-              >
-                Inside Campus
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsOutside(true);
-                  if (!placeOfUse || !placeOfUse.startsWith("Outside: ")) {
-                    setPlaceOfUse("");
-                  }
-                }}
-                className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer ${isOutside
-                  ? "bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-2xs font-extrabold"
-                  : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-                  }`}
-              >
-                Outside Campus
-              </button>
-            </div>
-          </div>
-
           {!isOutside ? (
             <div ref={placeDropdownRef} className="relative space-y-1.5">
               <FloatingInput
@@ -1323,16 +1285,60 @@ export default function Step3Details({
               )}
             </div>
           ) : (
-            <div className="space-y-1">
+            <div>
               <FloatingInput
                 label="Outside Campus Address / Venue"
                 required
                 value={typeof placeOfUse === "string" && placeOfUse.startsWith("Outside: ") ? placeOfUse.replace(/^Outside:\s*/, "") : (placeOfUse || "")}
                 onChange={(e) => setPlaceOfUse(e.target.value ? `Outside: ${e.target.value}` : "")}
                 placeholder="e.g. St. Joseph Cathedral, Butuan City"
-                helperText="* Specify outside destination or institution. Off-campus use is subject to gate clearance & approval."
               />
             </div>
+          )}
+
+          {/* Place of Use Location Switcher (placed below input so it aligns horizontally with Department on the left) */}
+          <div className="flex items-center justify-between pt-0.5">
+            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+              Place of Use Location
+            </span>
+            <div className="inline-flex p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-[11px] font-bold">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOutside(false);
+                  if (placeOfUse && placeOfUse.startsWith("Outside: ")) {
+                    setPlaceOfUse("");
+                  }
+                }}
+                className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer ${!isOutside
+                  ? "bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-2xs font-extrabold"
+                  : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+                  }`}
+              >
+                Inside Campus
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOutside(true);
+                  if (!placeOfUse || !placeOfUse.startsWith("Outside: ")) {
+                    setPlaceOfUse("");
+                  }
+                }}
+                className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer ${isOutside
+                  ? "bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-2xs font-extrabold"
+                  : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+                  }`}
+              >
+                Outside Campus
+              </button>
+            </div>
+          </div>
+
+          {isOutside && (
+            <p className="text-[10.5px] text-slate-400">
+              * Specify outside destination or institution. Off-campus use is subject to gate clearance & approval.
+            </p>
           )}
         </div>
 

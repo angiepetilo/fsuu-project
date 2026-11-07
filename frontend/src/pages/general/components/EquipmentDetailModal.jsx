@@ -166,23 +166,23 @@ export default function EquipmentDetailModal({
           const catMatch = (targetCatId && uCatId === targetCatId) ||
             (targetCatName && uCatName === targetCatName.toLowerCase());
           if (!catMatch) return false;
+
+          // Must NOT belong to a different parent equipment
+          if (parentUnitMap) {
+            const p = parentUnitMap.get(String(u.id)) ||
+              (u.barcode ? parentUnitMap.get(String(u.barcode).toLowerCase()) : null) ||
+              (u.serial_number ? parentUnitMap.get(String(u.serial_number).toLowerCase()) : null);
+            if (p && String(p.id) !== String(selectedItem.id)) {
+              return false;
+            }
+          }
+
           if (parentSeq) {
             const uSeq = u.seq_no ? String(u.seq_no).trim().toLowerCase().replace(/^#/, "") : null;
             return uSeq === parentSeq;
           }
-          return true;
+          return false;
         });
-
-        if (!match) {
-          // Fallback: any unit in that category
-          match = (allUnits || []).find((u) => {
-            if (String(u.id) === String(selectedItem.id)) return false;
-            const uCatId = u.equipment_type_id ? String(u.equipment_type_id) : null;
-            const uCatName = String(u.category || "").trim().toLowerCase();
-            return (targetCatId && uCatId === targetCatId) ||
-              (targetCatName && uCatName === targetCatName.toLowerCase());
-          });
-        }
       }
 
       if (match) {
@@ -211,15 +211,15 @@ export default function EquipmentDetailModal({
       // If not physical unit found, return component placeholder from category
       return {
         id: `component-${idx}`,
-        barcode: String(biRaw),
-        serial_number: String(biRaw),
+        barcode: null,
+        serial_number: null,
         name: String(biRaw),
-        brand: "Included Accessory",
-        model: "Standard",
-        seq_no: parentSeq ? `#${parentSeq}` : null,
+        brand: "None",
+        model: "Unassigned",
+        seq_no: null,
         category: String(biRaw),
-        status: "Built-in",
-        condition: "Good",
+        status: "Not Assigned",
+        condition: "None",
         isMatched: false,
       };
     }).filter(Boolean);
@@ -539,8 +539,8 @@ export default function EquipmentDetailModal({
                     </p>
                   </div>
                 </div>
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shrink-0">
-                  {resolvedBuiltInUnits.length} linked
+                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shrink-0">
+                  {resolvedBuiltInUnits.filter(c => c && c.isMatched).length} of {resolvedBuiltInUnits.length} linked
                 </span>
               </div>
 
@@ -559,8 +559,8 @@ export default function EquipmentDetailModal({
                 <div className="space-y-3 max-h-[460px] overflow-y-auto scrollbar-hover pr-1">
                   {resolvedBuiltInUnits.map((comp, idx) => {
                     const componentName = comp.category || comp.name || `Component #${idx + 1}`;
-                    const componentBrand = comp.brand || "PHILIPS";
-                    const componentModel = comp.model || "#001";
+                    const componentBrand = comp.brand || "—";
+                    const componentModel = comp.model || "—";
                     const isPower =
                       componentName.toLowerCase().includes("power") ||
                       componentName.toLowerCase().includes("cord");
@@ -578,7 +578,11 @@ export default function EquipmentDetailModal({
                           className="flex items-center justify-between cursor-pointer select-none"
                         >
                           <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${
+                              comp.isMatched
+                                ? "bg-blue-50 dark:bg-blue-950/60 border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400"
+                                : "bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400"
+                            }`}>
                               {isPower ? <Zap size={14} /> : <Cable size={14} />}
                             </div>
                             <div>
@@ -586,7 +590,14 @@ export default function EquipmentDetailModal({
                                 {componentName}
                               </h5>
                               <span className="text-[11px] text-slate-400 font-medium">
-                                Status: <strong className="text-violet-600 dark:text-violet-400 font-bold">{comp.status || "Built-in"}</strong>
+                                Status:{" "}
+                                <strong className={`font-bold ${
+                                  comp.isMatched
+                                    ? "text-violet-600 dark:text-violet-400"
+                                    : "text-slate-400 dark:text-slate-500 italic"
+                                }`}>
+                                  {comp.isMatched ? (comp.status || "Built-in") : "Not Assigned (Optional)"}
+                                </strong>
                               </span>
                             </div>
                           </div>
@@ -604,30 +615,41 @@ export default function EquipmentDetailModal({
                             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-tight block">
                               Selected Unit
                             </span>
-                            <div className="p-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                {comp.seq_no && (
-                                  <span className="font-mono text-[11px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
-                                    {comp.seq_no}
+                            {comp.isMatched ? (
+                              <>
+                                <div className="p-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    {comp.seq_no && (
+                                      <span className="font-mono text-[11px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                                        {comp.seq_no}
+                                      </span>
+                                    )}
+                                    <span className="font-bold text-xs text-slate-900 dark:text-white">
+                                      {componentBrand}
+                                    </span>
+                                  </div>
+                                  <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 flex items-center gap-1 font-mono">
+                                    <span>{comp.barcode || comp.serial_number || "Linked"}</span>
                                   </span>
-                                )}
-                                <span className="font-bold text-xs text-slate-900 dark:text-white">
-                                  {componentBrand}
+                                </div>
+
+                                <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 px-0.5">
+                                  <span>
+                                    Model: <strong className="text-slate-600 dark:text-slate-300">{componentModel}</strong>
+                                  </span>
+                                  <span>
+                                    Brand: <strong className="text-slate-600 dark:text-slate-300">{componentBrand}</strong>
+                                  </span>
+                                </div>
+                              </>
+                            ) : (
+                              <div className="p-2.5 bg-slate-50/60 dark:bg-slate-800/30 border border-dashed border-slate-200 dark:border-slate-700 rounded-lg flex items-center justify-between text-xs text-slate-400 dark:text-slate-500 italic">
+                                <span>No physical unit linked to this projector</span>
+                                <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 not-italic">
+                                  Optional
                                 </span>
                               </div>
-                              <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 flex items-center gap-1 font-mono">
-                                <span>{comp.barcode || comp.serial_number || "Linked"}</span>
-                              </span>
-                            </div>
-
-                            <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 px-0.5">
-                              <span>
-                                Model: <strong className="text-slate-600 dark:text-slate-300">{componentModel}</strong>
-                              </span>
-                              <span>
-                                Brand: <strong className="text-slate-600 dark:text-slate-300">{componentBrand}</strong>
-                              </span>
-                            </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -639,7 +661,7 @@ export default function EquipmentDetailModal({
               {/* Bottom Info Note */}
               <div className="flex items-center gap-1.5 text-[11px] text-slate-400 pt-1 px-1">
                 <Info size={12} className="shrink-0 text-slate-400" />
-                <span>Each component must have a selected physical unit.</span>
+                <span>Built-in accessories are optional. Click "Update Physical Unit" to attach or replace accessories.</span>
               </div>
             </div>
           </div>
@@ -656,7 +678,15 @@ export default function EquipmentDetailModal({
           </button>
           <button
             type="button"
-            onClick={() => handleOpenEditModal?.(selectedItem)}
+            onClick={() => {
+              const resolvedUnitIds = (resolvedBuiltInUnits || [])
+                .filter(u => u && u.isMatched && u.id && !String(u.id).startsWith("component-"))
+                .map(u => String(u.id));
+              handleOpenEditModal?.({
+                ...selectedItem,
+                built_in_units: resolvedUnitIds.length > 0 ? resolvedUnitIds : selectedItem.built_in_units,
+              });
+            }}
             className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
           >
             <Pencil size={13} />

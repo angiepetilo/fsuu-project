@@ -295,13 +295,27 @@ class NotificationController extends Controller
                     }
                     if ($hasLate) {
                         $mins = (int) ($ins->minutes_late ?? 0);
-                        $msgParts[] = $mins > 0 ? "returned {$mins} min late" : 'returned late';
+                        if ($mins <= 0) {
+                            $msgParts[] = 'Returned late';
+                        } elseif ($mins < 60) {
+                            $msgParts[] = "Returned {$mins}m late";
+                        } else {
+                            $hrs = intdiv($mins, 60);
+                            $rem = $mins % 60;
+                            if ($hrs < 24) {
+                                $msgParts[] = $rem > 0 ? "Returned {$hrs}h {$rem}m late" : "Returned {$hrs}h late";
+                            } else {
+                                $days = intdiv($hrs, 24);
+                                $remHrs = $hrs % 24;
+                                $msgParts[] = $remHrs > 0 ? "Returned {$days}d {$remHrs}h late" : "Returned {$days}d late";
+                            }
+                        }
                     }
                     if ($hasViolation) {
-                        $msgParts[] = 'violation: ' . implode(', ', $violationCategories);
+                        $msgParts[] = implode(', ', $violationCategories);
                     }
 
-                    $combinedSummary = implode('; ', $msgParts) . " for {$refCode} by {$personName} ({$personOffice})";
+                    $combinedSummary = !empty($msgParts) ? implode(' • ', $msgParts) : "Inspection recorded for {$refCode}";
 
                     // Single unified notification per inspection transaction
                     $key = 'general-insp-' . $ins->id;

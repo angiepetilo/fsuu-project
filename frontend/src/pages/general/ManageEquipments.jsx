@@ -551,7 +551,19 @@ export default function ManageEquipments() {
     };
 
     const prevUnits = units;
-    setUnits(prev => [...prev, optimisticUnit]);
+    // Optimistically update child units to Built-in status immediately
+    setUnits(prev => {
+      const updated = prev.map(u => {
+        const uId = String(u.id);
+        const uBarcode = u.barcode ? String(u.barcode).trim().toLowerCase() : "";
+        const uSerial = u.serial_number ? String(u.serial_number).trim().toLowerCase() : "";
+        if (validBuiltIns.some(bId => String(bId) === uId || String(bId).toLowerCase() === uBarcode || String(bId).toLowerCase() === uSerial)) {
+          return { ...u, status: "Built-in", raw_status: "built-in" };
+        }
+        return u;
+      });
+      return [...updated, optimisticUnit];
+    });
     setShowAddModal(false);
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -715,7 +727,36 @@ export default function ManageEquipments() {
       description: editFormData.description,
       _optimistic: true,
     };
-    setUnits(prev => prev.map(u => u.id === editingItem.id ? { ...u, ...optimisticChanges } : u));
+    const prevBuiltIns = Array.isArray(editingItem.built_in_units)
+      ? editingItem.built_in_units.map(ref => (typeof ref === "object" && ref !== null && ref.id) ? String(ref.id) : String(ref))
+      : [];
+    const newBuiltIns = validBuiltIns.map(String);
+
+    const newlyAttached = newBuiltIns.filter(id => !prevBuiltIns.includes(id));
+    const newlyDetached = prevBuiltIns.filter(id => !newBuiltIns.includes(id));
+
+    // Optimistically update parent AND child unit statuses instantly with 0ms latency
+    setUnits(prev => prev.map(u => {
+      const uId = String(u.id);
+      const uBarcode = u.barcode ? String(u.barcode).trim().toLowerCase() : "";
+      const uSerial = u.serial_number ? String(u.serial_number).trim().toLowerCase() : "";
+
+      if (u.id === editingItem.id) {
+        return { ...u, ...optimisticChanges };
+      }
+
+      // If unit was just attached to this parent
+      if (newlyAttached.some(aId => aId === uId || aId.toLowerCase() === uBarcode || aId.toLowerCase() === uSerial)) {
+        return { ...u, status: "Built-in", raw_status: "built-in" };
+      }
+
+      // If unit was just detached from this parent
+      if (newlyDetached.some(dId => dId === uId || dId.toLowerCase() === uBarcode || dId.toLowerCase() === uSerial)) {
+        return { ...u, status: "Available", raw_status: "available" };
+      }
+
+      return u;
+    }));
     setEditingItem(null);
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -1562,6 +1603,78 @@ export default function ManageEquipments() {
         handleOpenEditModal={(item) => {
           setSelectedItem(null);
           setEditingItem(item);
+
+          // Resolve currently linked built-in unit IDs (direct, parentUnitMap, or category fallback)
+          let resolvedBuiltIns = [];
+          if (Array.isArray(item.built_in_units)) {
+            resolvedBuiltIns = item.built_in_units.map(ref => {
+              if (typeof ref === "object" && ref !== null && ref.id) return String(ref.id);
+              return String(ref);
+            }).filter(Boolean);
+          } else if (typeof item.built_in_units === "string" && item.built_in_units.trim() !== "") {
+            try {
+              const parsed = JSON.parse(item.built_in_units);
+              if (Array.isArray(parsed)) {
+                resolvedBuiltIns = parsed.map(ref => (typeof ref === "object" && ref !== null && ref.id) ? String(ref.id) : String(ref)).filter(Boolean);
+              }
+            } catch {}
+          }
+
+          // If no direct IDs or references were stored, check parentUnitMap
+          if (resolvedBuiltIns.length === 0 && parentUnitMap) {
+            const pId = String(item.id);
+            (units || []).forEach((u) => {
+              if (String(u.id) === pId) return;
+              const p = parentUnitMap.get(String(u.id)) ||
+                (u.barcode ? parentUnitMap.get(String(u.barcode).toLowerCase()) : null) ||
+                (u.serial_number ? parentUnitMap.get(String(u.serial_number).toLowerCase()) : null);
+              if (p && String(p.id) === pId) {
+                resolvedBuiltIns.push(String(u.id));
+              }
+            });
+          }
+
+          // If still empty, check category built-in requirements matched by sequence number
+          if (resolvedBuiltIns.length === 0 && item.seq_no) {
+            const parentSeq = String(item.seq_no).trim().toLowerCase().replace(/^#/, "");
+            const pCat = (categories || []).find(c => 
+              (item.equipment_type_id && String(c.id) === String(item.equipment_type_id)) ||
+              (item.category && String(c.eq_name || c.name || "").toLowerCase() === String(item.category).toLowerCase())
+            );
+            let catBuiltIns = pCat?.built_in_names || pCat?.built_in_units;
+            if (typeof catBuiltIns === "string") {
+              try { catBuiltIns = JSON.parse(catBuiltIns); } catch { catBuiltIns = []; }
+            }
+            if (Array.isArray(catBuiltIns)) {
+              catBuiltIns.forEach((cRef) => {
+                if (!cRef) return;
+                const isNum = typeof cRef === "number" || /^\d+$/.test(String(cRef));
+                const targetCat = (categories || []).find(c => {
+                  if (isNum) return String(c.id) === String(cRef);
+                  const cName = (c.eq_name || c.name || "").trim().toLowerCase();
+                  return cName === String(cRef).trim().toLowerCase();
+                });
+                const targetCatId = targetCat ? String(targetCat.id) : (isNum ? String(cRef) : null);
+                const targetCatName = targetCat ? (targetCat.eq_name || targetCat.name) : String(cRef);
+
+                const matchedBySeq = (units || []).find(u => {
+                  if (String(u.id) === String(item.id)) return false;
+                  const uCatId = u.equipment_type_id ? String(u.equipment_type_id) : null;
+                  const uCatName = String(u.category || "").trim().toLowerCase();
+                  const catMatch = (targetCatId && uCatId === targetCatId) || 
+                    (targetCatName && uCatName === targetCatName.toLowerCase());
+                  if (!catMatch) return false;
+                  const uSeq = u.seq_no ? String(u.seq_no).trim().toLowerCase().replace(/^#/, "") : null;
+                  return uSeq === parentSeq;
+                });
+
+                if (matchedBySeq && !resolvedBuiltIns.includes(String(matchedBySeq.id))) {
+                  resolvedBuiltIns.push(String(matchedBySeq.id));
+                }
+              });
+            }
+          }
+
           setEditFormData({
             brand: item.brand || "",
             model: item.model || "",
@@ -1572,7 +1685,7 @@ export default function ManageEquipments() {
             condition: item.condition || "Good",
             date_purchased: item.date_purchased || "",
             lifespan_years: item.lifespan_years || 5,
-            built_in_units: Array.isArray(item.built_in_units) ? item.built_in_units : [],
+            built_in_units: resolvedBuiltIns,
             built_in_models: item.built_in_models || {},
             description: item.description || "",
           });

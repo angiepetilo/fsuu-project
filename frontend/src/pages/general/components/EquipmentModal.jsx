@@ -161,7 +161,7 @@ function BuiltInUnitItemSelector({
           ) : (
             <span className="text-slate-400 dark:text-slate-500 font-normal truncate">
               {availableUnits.length === 0
-                ? `No units in ${cat.name}`
+                ? `No available units in ${cat.name} (Optional)`
                 : `-- Select ${cat.name} (Optional) --`}
             </span>
           )}
@@ -368,7 +368,10 @@ function CategoryBuiltInUnitSelector({
       try { arr = JSON.parse(arr); } catch { arr = [arr]; }
     }
     if (!Array.isArray(arr)) return [];
-    return arr.map((id) => String(id)).filter(Boolean);
+    return arr.map((id) => {
+      if (typeof id === "object" && id !== null && id.id) return String(id.id);
+      return String(id);
+    }).filter(Boolean);
   }, [selectedUnitIds]);
 
   const isUnitInCategory = (unit, cat) => {
@@ -382,8 +385,12 @@ function CategoryBuiltInUnitSelector({
   const handleSelectUnit = (cat, newUnitId) => {
     // Preserve IDs that belong to other categories or unknown
     const otherIds = cleanSelectedIds.filter((id) => {
+      const idStr = String(id).trim().toLowerCase();
       const u = (existingUnits || []).find(
-        (x) => String(x.id) === String(id) || String(x.barcode) === String(id)
+        (x) =>
+          String(x.id).toLowerCase() === idStr ||
+          (x.barcode && String(x.barcode).trim().toLowerCase() === idStr) ||
+          (x.serial_number && String(x.serial_number).trim().toLowerCase() === idStr)
       );
       if (!u) return true;
       return !isUnitInCategory(u, cat);
@@ -401,7 +408,9 @@ function CategoryBuiltInUnitSelector({
         </label>
         {linkedCategories.length > 0 && (
           <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 px-2 py-0.5 rounded-lg shadow-2xs">
-            {linkedCategories.length} {linkedCategories.length === 1 ? "Component Linked" : "Components Linked"}
+            {cleanSelectedIds.length > 0
+              ? `${cleanSelectedIds.length} of ${linkedCategories.length} Linked`
+              : `Optional (${linkedCategories.length} available types)`}
           </span>
         )}
       </div>
@@ -410,18 +419,25 @@ function CategoryBuiltInUnitSelector({
         <div className="space-y-2.5">
           {linkedCategories.map((cat) => {
             const currentSelectedId = cleanSelectedIds.find((id) => {
+              const idStr = String(id).trim().toLowerCase();
               const u = (existingUnits || []).find(
-                (x) => String(x.id) === String(id) || String(x.barcode) === String(id)
+                (x) =>
+                  String(x.id).toLowerCase() === idStr ||
+                  (x.barcode && String(x.barcode).trim().toLowerCase() === idStr) ||
+                  (x.serial_number && String(x.serial_number).trim().toLowerCase() === idStr)
               );
-              return isUnitInCategory(u, cat);
+              return u && isUnitInCategory(u, cat);
             });
 
             const currentUnitObj = currentSelectedId
-              ? (existingUnits || []).find(
-                  (x) =>
-                    String(x.id) === String(currentSelectedId) ||
-                    String(x.barcode) === String(currentSelectedId)
-                )
+              ? (existingUnits || []).find((x) => {
+                  const sId = String(currentSelectedId).trim().toLowerCase();
+                  return (
+                    String(x.id).toLowerCase() === sId ||
+                    (x.barcode && String(x.barcode).trim().toLowerCase() === sId) ||
+                    (x.serial_number && String(x.serial_number).trim().toLowerCase() === sId)
+                  );
+                })
               : null;
 
             const isCurrentUnitDegraded = currentUnitObj && (
@@ -463,29 +479,27 @@ function CategoryBuiltInUnitSelector({
               }
 
               // 4. Must not be already assigned as a built-in to another equipment
-              const isThisCurrent =
-                (currentSelectedId !== undefined && currentSelectedId !== null && String(currentSelectedId).trim() !== "") && (
-                  String(u.id).toLowerCase() === String(currentSelectedId).trim().toLowerCase() ||
-                  (u.barcode && String(u.barcode).trim().toLowerCase() === String(currentSelectedId).trim().toLowerCase()) ||
-                  (u.serial_number && String(u.serial_number).trim().toLowerCase() === String(currentSelectedId).trim().toLowerCase())
-                );
+              const isThisCurrent = currentUnitObj && String(u.id) === String(currentUnitObj.id);
 
               if (!isThisCurrent) {
-                // If unit status is already built-in, it is physically attached to another parent unit
-                if (stat === "built-in" || stat === "built_in") {
-                  return false;
-                }
-
                 const uIdKey = String(u.id).toLowerCase();
                 const uBarcodeKey = u.barcode ? String(u.barcode).trim().toLowerCase() : null;
                 const uSerialKey = u.serial_number ? String(u.serial_number).trim().toLowerCase() : null;
 
-                if (
-                  assignedToOtherParentMap.has(uIdKey) ||
-                  (uBarcodeKey && assignedToOtherParentMap.has(uBarcodeKey)) ||
-                  (uSerialKey && assignedToOtherParentMap.has(uSerialKey))
-                ) {
+                const parentOfUnit = assignedToOtherParentMap.get(uIdKey) ||
+                  (uBarcodeKey && assignedToOtherParentMap.get(uBarcodeKey)) ||
+                  (uSerialKey && assignedToOtherParentMap.get(uSerialKey));
+
+                if (parentOfUnit && (!excludeId || String(parentOfUnit.id) !== String(excludeId))) {
                   return false;
+                }
+
+                if (stat === "built-in" || stat === "built_in") {
+                  if (parentOfUnit && excludeId && String(parentOfUnit.id) === String(excludeId)) {
+                    // Belongs to this parent
+                  } else {
+                    return false;
+                  }
                 }
               }
 
@@ -506,7 +520,7 @@ function CategoryBuiltInUnitSelector({
           })}
 
           <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium pt-0.5">
-            Select the physical equipment unit for each built-in component linked to this category.
+            Built-in accessories are <strong>completely optional per unit</strong>. If this projector includes no accessories or only 1 (e.g., HDMI cable only), leave unneeded components unassigned and register/update directly.
           </p>
         </div>
       ) : (

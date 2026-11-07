@@ -890,7 +890,7 @@ class EquipmentUnitController extends Controller
                 foreach ($removedUnits as $remUnit) {
                     $affectedTypeIds[] = (int)$remUnit->equipment_type_id;
                     $remCond = strtolower(trim($remUnit->condition ?? 'good'));
-                    if (!in_array($remCond, ['damaged', 'lost', 'decommissioned'], true) && $remUnit->status === 'unavailable') {
+                    if (!in_array($remCond, ['damaged', 'lost', 'decommissioned'], true) && in_array($remUnit->status, ['built-in', 'built_in', 'unavailable'], true)) {
                         $remUnit->update(['status' => 'available']);
                     }
                 }

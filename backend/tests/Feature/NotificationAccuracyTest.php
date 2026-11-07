@@ -277,7 +277,7 @@ class NotificationAccuracyTest extends TestCase
         $this->assertSame('Improper Cleanliness or Waste Disposal', $n['violation_details']);
         $this->assertTrue($n['is_late']);
         $this->assertSame(30, $n['minutes_late']);
-        $this->assertStringContainsString('returned 30 min late', $n['message']);
+        $this->assertTrue(str_contains(strtolower($n['message']), '30m late') || str_contains(strtolower($n['message']), '30 min late'));
         $this->assertStringContainsString('Improper Cleanliness', $n['message']);
     }
 }

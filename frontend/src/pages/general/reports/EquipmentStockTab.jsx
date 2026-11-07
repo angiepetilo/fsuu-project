@@ -72,12 +72,14 @@ export default function EquipmentStockTab({
   const mapRawUnitsToStockRows = useCallback((unitData, catList) => {
     const childIdSet = new Set();
     const parentUnitLookup = new Map();
+
+    // Pass 1: Direct parent built_in_units
     unitData.forEach(p => {
       let raw = p.built_in_units;
       if (typeof raw === 'string') {
         try { raw = JSON.parse(raw); } catch { raw = []; }
       }
-      if (Array.isArray(raw)) {
+      if (Array.isArray(raw) && raw.length > 0) {
         raw.forEach(id => {
           if (id) {
             const childKey = (typeof id === 'object' && id !== null && id.id)
@@ -87,6 +89,51 @@ export default function EquipmentStockTab({
             parentUnitLookup.set(childKey, p);
           }
         });
+      } else {
+        // Pass 2: Fallback to Category Built-In Requirements if parent.built_in_units is unpopulated
+        const pCat = (catList || []).find(c =>
+          (p.equipment_type_id && String(c.id) === String(p.equipment_type_id)) ||
+          (p.category && String(c.eq_name || c.name || '').toLowerCase() === String(p.category).toLowerCase())
+        );
+        let catBuilt = pCat?.built_in_names || pCat?.built_in_units;
+        if (typeof catBuilt === 'string') {
+          try { catBuilt = JSON.parse(catBuilt); } catch { catBuilt = []; }
+        }
+        if (Array.isArray(catBuilt) && catBuilt.length > 0) {
+          const pSeq = p.seq_no ? String(p.seq_no).trim().toLowerCase().replace(/^#/, "") : null;
+          catBuilt.forEach(cRef => {
+            if (!cRef) return;
+            const isNum = typeof cRef === 'number' || /^\d+$/.test(String(cRef));
+            const tCat = (catList || []).find(c => isNum ? String(c.id) === String(cRef) : (c.eq_name || c.name || '').toLowerCase() === String(cRef).toLowerCase());
+            const tCatId = tCat ? String(tCat.id) : (isNum ? String(cRef) : null);
+            const mChild = unitData.find(u => {
+              if (String(u.id) === String(p.id)) return false;
+              const matchCat = (tCatId && String(u.equipment_type_id) === tCatId) ||
+                (tCat && String(u.category || '').toLowerCase() === (tCat.eq_name || tCat.name || '').toLowerCase());
+              if (!matchCat) return false;
+              if (pSeq) {
+                const uSeq = u.seq_no ? String(u.seq_no).trim().toLowerCase().replace(/^#/, "") : null;
+                return uSeq === pSeq;
+              }
+              return true;
+            });
+            if (mChild) {
+              const cId = String(mChild.id).toLowerCase();
+              childIdSet.add(cId);
+              parentUnitLookup.set(cId, p);
+              if (mChild.barcode) {
+                const bKey = String(mChild.barcode).trim().toLowerCase();
+                childIdSet.add(bKey);
+                parentUnitLookup.set(bKey, p);
+              }
+              if (mChild.serial_number) {
+                const sKey = String(mChild.serial_number).trim().toLowerCase();
+                childIdSet.add(sKey);
+                parentUnitLookup.set(sKey, p);
+              }
+            }
+          });
+        }
       }
     });
 
@@ -118,15 +165,25 @@ export default function EquipmentStockTab({
 
       let dbStatus = dbStatusRaw;
       if (
-        ['lost', 'damaged', 'under repair', 'worn', 'minor wear'].includes(conditionLabel.toLowerCase()) ||
-        ['damaged', 'maintenance', 'under_maintenance', 'decommissioned', 'unavailable', 'lost'].includes(dbStatusRaw)
+        ['lost', 'decommissioned'].includes(condLower) ||
+        ['lost', 'decommissioned'].includes(dbStatusRaw)
       ) {
-        dbStatus = 'unavailable';
+        dbStatus = 'Lost';
+      } else if (
+        ['damaged', 'under repair', 'worn', 'minor wear'].includes(condLower) ||
+        ['damaged', 'maintenance', 'under_maintenance'].includes(dbStatusRaw)
+      ) {
+        dbStatus = 'Damaged';
       } else if (isChild || dbStatusRaw === 'built-in' || dbStatusRaw === 'built_in') {
         const parentSt = parentUnitObj ? String(parentUnitObj.status || '').toLowerCase() : '';
-        const isParentOut = ['released', 'in_use', 'in-use', 'borrowed', 'checked_out'].includes(parentSt);
-        if (isParentOut || ['released', 'in_use', 'in-use', 'borrowed'].includes(dbStatusRaw)) {
+        const parentCond = parentUnitObj ? String(parentUnitObj.condition || '').toLowerCase() : '';
+        const isParentBroken = ['damaged', 'lost', 'decommissioned', 'under repair'].includes(parentCond) || ['damaged', 'lost', 'decommissioned', 'maintenance', 'under_maintenance'].includes(parentSt);
+        if (isParentBroken) {
+          dbStatus = 'unavailable';
+        } else if (['released', 'in_use', 'in-use', 'borrowed', 'checked_out'].includes(parentSt) || ['released', 'in_use', 'in-use', 'borrowed'].includes(dbStatusRaw)) {
           dbStatus = 'Released';
+        } else if (parentSt === 'reserved' || dbStatusRaw === 'reserved') {
+          dbStatus = 'Reserved';
         } else {
           dbStatus = 'Built-in';
         }
@@ -134,11 +191,13 @@ export default function EquipmentStockTab({
         dbStatus = 'Released';
       } else if (dbStatusRaw === 'reserved') {
         dbStatus = 'Reserved';
+      } else if (dbStatusRaw === 'unavailable') {
+        dbStatus = 'unavailable';
       } else {
         dbStatus = 'Available';
       }
 
-      const eqType = u.equipment_type || u.equipmentType || catList.find(c => String(c.id) === String(u.equipment_type_id));
+      const eqType = u.equipment_type || u.equipmentType || (catList || []).find(c => String(c.id) === String(u.equipment_type_id));
       const catName = eqType?.eq_name || eqType?.name || eqType?.eq_type || 'AV Equipment';
       const brandModel = [u.brand, u.model].filter(Boolean).join(' ');
       const derivedName = brandModel || catName || 'Equipment Unit';
@@ -146,6 +205,7 @@ export default function EquipmentStockTab({
       return {
         id: u.id || idx + 1,
         equipment_type_id: u.equipment_type_id,
+        seq_no: u.seq_no || u.sequence_number || '',
         brand: u.brand || '',
         model: u.model || '',
         serial_number: u.serial_number || u.barcode || bCode,
@@ -157,6 +217,7 @@ export default function EquipmentStockTab({
         status: dbStatus,
         condition: conditionLabel,
         is_child: isChild,
+        parent_unit: parentUnitObj || null,
         is_disabled: !!u.is_disabled,
         available_count: dbStatus === 'Available' ? 1 : 0,
         total_count: 1,
@@ -219,113 +280,7 @@ export default function EquipmentStockTab({
       const unitData = Array.isArray(unitRes.data) ? unitRes.data : [];
 
       setCategories(catList);
-
-      // Identify all child units assigned to parents and map parent references
-      const childIdSet = new Set();
-      const parentUnitLookup = new Map();
-      unitData.forEach(p => {
-        let raw = p.built_in_units;
-        if (typeof raw === 'string') {
-          try { raw = JSON.parse(raw); } catch { raw = []; }
-        }
-        if (Array.isArray(raw)) {
-          raw.forEach(id => {
-            if (id) {
-              const childKey = (typeof id === 'object' && id !== null && id.id)
-                ? String(id.id).trim().toLowerCase()
-                : String(id).trim().toLowerCase();
-              childIdSet.add(childKey);
-              parentUnitLookup.set(childKey, p);
-            }
-          });
-        }
-      });
-
-      const allMappedUnits = unitData.map((u, idx) => {
-        const bCode = String(u.barcode || `BC-EQP-2026-00${idx + 1}`).trim();
-        const dbStatusRaw = (u.status || 'available').toLowerCase();
-        const dbCondition = u.condition || '';
-        const condLower = dbCondition.toLowerCase();
-
-        let conditionLabel;
-        if (condLower === 'good' || condLower === 'good condition') conditionLabel = 'Good';
-        else if (condLower === 'damaged') conditionLabel = 'Damaged';
-        else if (condLower === 'lost') conditionLabel = 'Lost';
-        else if (condLower === 'maintenance' || condLower === 'under_maintenance' || condLower === 'under repair') conditionLabel = 'Under Repair';
-        else if (condLower === 'worn' || condLower === 'minor wear') conditionLabel = 'Minor Wear';
-        else if (dbStatusRaw === 'damaged') conditionLabel = 'Damaged';
-        else if (dbStatusRaw === 'maintenance' || dbStatusRaw === 'under_maintenance') conditionLabel = 'Under Repair';
-        else if (dbStatusRaw === 'decommissioned' || dbStatusRaw === 'lost') conditionLabel = 'Lost';
-        else conditionLabel = 'Good';
-
-        const childKey1 = String(u.id).toLowerCase();
-        const childKey2 = u.barcode ? String(u.barcode).trim().toLowerCase() : null;
-        const childKey3 = u.serial_number ? String(u.serial_number).trim().toLowerCase() : null;
-        const parentUnitObj = parentUnitLookup.get(childKey1) || (childKey2 ? parentUnitLookup.get(childKey2) : null) || (childKey3 ? parentUnitLookup.get(childKey3) : null);
-
-        const isChild = childIdSet.has(childKey1) ||
-          (childKey2 && childIdSet.has(childKey2)) ||
-          (childKey3 && childIdSet.has(childKey3));
-
-        let dbStatus = dbStatusRaw;
-        // Damaged / Lost / Repair takes precedence
-        if (
-          ['lost', 'damaged', 'under repair', 'worn', 'minor wear'].includes(conditionLabel.toLowerCase()) ||
-          ['damaged', 'maintenance', 'under_maintenance', 'decommissioned', 'unavailable', 'lost'].includes(dbStatusRaw)
-        ) {
-          dbStatus = 'unavailable';
-        } else if (isChild || dbStatusRaw === 'built-in' || dbStatusRaw === 'built_in') {
-          const parentSt = parentUnitObj ? String(parentUnitObj.status || '').toLowerCase() : '';
-          const isParentOut = ['released', 'in_use', 'in-use', 'borrowed', 'checked_out'].includes(parentSt);
-          if (isParentOut || ['released', 'in_use', 'in-use', 'borrowed'].includes(dbStatusRaw)) {
-            dbStatus = 'Released';
-          } else {
-            dbStatus = 'Built-in';
-          }
-        } else if (dbStatusRaw === 'released' || dbStatusRaw === 'in-use' || dbStatusRaw === 'released / in-use' || dbStatusRaw === 'release / in - use') {
-          dbStatus = 'Released';
-        } else if (dbStatusRaw === 'reserved') {
-          dbStatus = 'Reserved';
-        } else {
-          dbStatus = 'Available';
-        }
-
-        const eqType = u.equipment_type || u.equipmentType || catList.find(c => String(c.id) === String(u.equipment_type_id));
-        const catName = eqType?.eq_name || eqType?.name || eqType?.eq_type || 'AV Equipment';
-        const brandModel = [u.brand, u.model].filter(Boolean).join(' ');
-        const derivedName = brandModel || catName || 'Equipment Unit';
-
-        return {
-          id: u.id || idx + 1,
-          equipment_type_id: u.equipment_type_id,
-          brand: u.brand || '',
-          model: u.model || '',
-          serial_number: u.serial_number || u.barcode || bCode,
-          barcode: bCode,
-          name: derivedName,
-          category: catName,
-          office_id: eqType?.office_id || u.office_id || null,
-          office_name: eqType?.office?.name || 'AVR Office I',
-          status: dbStatus,
-          condition: conditionLabel,
-          is_child: isChild,
-          is_disabled: !!u.is_disabled,
-          available_count: dbStatus === 'Available' ? 1 : 0,
-          total_count: 1,
-          date_purchased: u.purchased_at ? u.purchased_at.substring(0, 10) : '2026-01-15',
-          lifespan_years: u.eq_lifespan || 5,
-          description: u.description || '',
-          raw_status: dbStatusRaw,
-          raw_condition: dbCondition,
-          built_in_units: Array.isArray(u.built_in_units)
-            ? u.built_in_units
-            : (typeof u.built_in_units === 'string'
-                ? (() => { try { return JSON.parse(u.built_in_units); } catch { return []; } })()
-                : []),
-        };
-      });
-
-      // Parent units with built-in child units are counted as available (they are kit packages ready for use)
+      const allMappedUnits = mapRawUnitsToStockRows(unitData, catList);
       setUnits(allMappedUnits);
     } catch {
       setUnits([]);
@@ -333,7 +288,7 @@ export default function EquipmentStockTab({
     } finally {
       if (!isSilent) setUnitsLoading(false);
     }
-  }, []);
+  }, [mapRawUnitsToStockRows]);
 
 
   const handleSubmitInventoryReport = async () => {
@@ -432,6 +387,8 @@ export default function EquipmentStockTab({
 
   const parentUnitMap = useMemo(() => {
     const map = new Map();
+
+    // Pass 1: Direct parent built_in_units
     units.forEach((parent) => {
       let rawList = parent.built_in_units;
       if (typeof rawList === "string") {
@@ -466,8 +423,84 @@ export default function EquipmentStockTab({
         });
       }
     });
+
+    // Pass 2: Fallback to Category Built-In Requirements if parent.built_in_units is empty or unpopulated
+    units.forEach((parent) => {
+      let rawList = parent.built_in_units;
+      if (typeof rawList === "string") {
+        try { rawList = JSON.parse(rawList); } catch { rawList = []; }
+      }
+      const hasDirectBuiltIns = Array.isArray(rawList) && rawList.length > 0;
+      if (!hasDirectBuiltIns) {
+        const pCat = (categories || []).find(c =>
+          (parent.equipment_type_id && String(c.id) === String(parent.equipment_type_id)) ||
+          (parent.category && String(c.eq_name || c.name || "").toLowerCase() === String(parent.category).toLowerCase())
+        );
+        let catBuiltIns = pCat?.built_in_names || pCat?.built_in_units;
+        if (typeof catBuiltIns === "string") {
+          try { catBuiltIns = JSON.parse(catBuiltIns); } catch { catBuiltIns = []; }
+        }
+        if (Array.isArray(catBuiltIns) && catBuiltIns.length > 0) {
+          const parentSeq = parent.seq_no ? String(parent.seq_no).trim().toLowerCase().replace(/^#/, "") : null;
+          catBuiltIns.forEach((item) => {
+            if (!item) return;
+            const isNum = typeof item === "number" || /^\d+$/.test(String(item));
+            const targetCat = (categories || []).find(c => {
+              if (isNum) return String(c.id) === String(item);
+              const cName = (c.eq_name || c.name || "").trim().toLowerCase();
+              return cName === String(item).trim().toLowerCase();
+            });
+            const targetCatName = targetCat ? (targetCat.eq_name || targetCat.name) : String(item);
+            const targetCatId = targetCat ? String(targetCat.id) : (isNum ? String(item) : null);
+
+            const matchedChild = units.find(u => {
+              if (String(u.id) === String(parent.id)) return false;
+              const uCatId = u.equipment_type_id ? String(u.equipment_type_id) : null;
+              const uCatName = String(u.category || "").trim().toLowerCase();
+              const catMatch = (targetCatId && uCatId === targetCatId) ||
+                (targetCatName && uCatName === targetCatName.toLowerCase());
+              if (!catMatch) return false;
+
+              if (parentSeq) {
+                const uSeq = u.seq_no ? String(u.seq_no).trim().toLowerCase().replace(/^#/, "") : null;
+                return uSeq === parentSeq;
+              }
+              return true;
+            });
+
+            if (matchedChild && !map.has(String(matchedChild.id))) {
+              map.set(String(matchedChild.id), parent);
+              map.set(String(matchedChild.id).toLowerCase(), parent);
+              if (matchedChild.barcode) {
+                map.set(String(matchedChild.barcode).trim(), parent);
+                map.set(String(matchedChild.barcode).trim().toLowerCase(), parent);
+              }
+              if (matchedChild.serial_number) {
+                map.set(String(matchedChild.serial_number).trim(), parent);
+                map.set(String(matchedChild.serial_number).trim().toLowerCase(), parent);
+              }
+            }
+          });
+        }
+      }
+    });
+
     return map;
-  }, [units]);
+  }, [units, categories]);
+
+  const getParentForUnit = useCallback((unitItem) => {
+    if (!unitItem) return null;
+    const uId = String(unitItem.id || "");
+    const uBarcode = unitItem.barcode ? String(unitItem.barcode).trim().toLowerCase() : "";
+    const uSerial = unitItem.serial_number ? String(unitItem.serial_number).trim().toLowerCase() : "";
+
+    return parentUnitMap.get(uId) ||
+      parentUnitMap.get(uId.toLowerCase()) ||
+      (uBarcode ? (parentUnitMap.get(uBarcode) || parentUnitMap.get(String(unitItem.barcode).trim())) : null) ||
+      (uSerial ? (parentUnitMap.get(uSerial) || parentUnitMap.get(String(unitItem.serial_number).trim())) : null) ||
+      unitItem.parent_unit ||
+      null;
+  }, [parentUnitMap]);
 
   const computeCategoryStats = useCallback((item) => {
     const categoryName = item.eq_name || item.name || item.category || item.eq_type || "General";
@@ -503,10 +536,7 @@ export default function EquipmentStockTab({
         }
 
         // 2. Built-in child check
-        const parent = parentUnitMap.get(String(u.id)) ||
-          parentUnitMap.get(String(u.id).toLowerCase()) ||
-          (u.serial_number && (parentUnitMap.get(String(u.serial_number).trim()) || parentUnitMap.get(String(u.serial_number).trim().toLowerCase()))) ||
-          (u.barcode && (parentUnitMap.get(String(u.barcode).trim()) || parentUnitMap.get(String(u.barcode).trim().toLowerCase())));
+        const parent = getParentForUnit(u);
 
         const isChild = Boolean(u.is_child) ||
           st === 'built-in' ||
@@ -617,7 +647,7 @@ export default function EquipmentStockTab({
       currentDamaged,
       currentLost,
     };
-  }, [units, parentUnitMap]);
+  }, [units, getParentForUnit]);
 
   const resolveBundledUnits = useCallback((item) => {
     let rawList = item.built_in_units;
@@ -665,6 +695,9 @@ export default function EquipmentStockTab({
         const target = activeStatus.toLowerCase();
         if (target === "available") {
           matchStatus = statusLower === "available" && !["damaged", "under repair", "lost"].includes(condLower);
+        } else if (target === "built-in" || target === "built_in") {
+          const isChildUnit = Boolean(item.is_child) || statusLower === "built-in" || statusLower === "built_in" || Boolean(getParentForUnit(item));
+          matchStatus = isChildUnit && !["damaged", "under repair", "lost"].includes(condLower);
         } else if (target === "released") {
           matchStatus = ["released", "in_use", "in-use", "borrowed"].includes(statusLower);
         } else if (target === "reserved") {
@@ -684,7 +717,7 @@ export default function EquipmentStockTab({
 
       return matchCategory && matchSearch && matchStatus;
     });
-  }, [units, selectedOfficeId, officeScope, activeCategory, activeStatus, searchQuery]);
+  }, [units, selectedOfficeId, officeScope, activeCategory, activeStatus, searchQuery, getParentForUnit]);
 
   useEffect(() => {
     setUnitPage(1);
@@ -979,6 +1012,7 @@ export default function EquipmentStockTab({
               options={[
                 { value: "all", label: "All Statuses" },
                 { value: "available", label: "Available" },
+                { value: "built-in", label: "Built-in" },
                 { value: "released", label: "Released / In-Use" },
                 { value: "reserved", label: "Reserved" },
                 { value: "damaged", label: "Damaged" },
@@ -1055,37 +1089,69 @@ export default function EquipmentStockTab({
                         </td>
                         <td className="px-4 py-3.5 text-xs text-slate-600 dark:text-slate-300 max-w-[180px]">
                           {(() => {
-                            const parent = parentUnitMap.get(String(item.id)) ||
-                              (item.barcode ? parentUnitMap.get(String(item.barcode)) : null) ||
-                              (item.serial_number ? parentUnitMap.get(String(item.serial_number)) : null);
-                            return parent
-                              ? <span className="font-semibold text-slate-700 dark:text-slate-200 truncate block" title={parent.name}>{parent.name}</span>
-                              : <span className="text-slate-300 dark:text-slate-600">—</span>;
+                            const parent = getParentForUnit(item);
+                            if (parent) {
+                              const parentSeq = parent.seq_no ? String(parent.seq_no).trim() : null;
+                              return (
+                                <div className="truncate block" title={`${parent.name} ${parentSeq ? `(${parentSeq})` : ''}`}>
+                                  <span className="font-semibold text-slate-700 dark:text-slate-200">{parent.name}</span>
+                                  {parentSeq && (
+                                    <span className="ml-1 text-[10.5px] font-mono font-bold text-blue-600 dark:text-blue-400">
+                                      ({parentSeq})
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            }
+                            const st = String(item.status || '').toLowerCase();
+                            const rawSt = String(item.raw_status || '').toLowerCase();
+                            if (item.is_child || st === 'built-in' || st === 'built_in' || rawSt === 'built-in') {
+                              return (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-violet-600 dark:text-violet-400">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-violet-500"></span>
+                                  Built-in Package
+                                </span>
+                              );
+                            }
+                            return <span className="text-slate-300 dark:text-slate-600">—</span>;
                           })()}
                         </td>
                         <td className="px-4 py-3.5 whitespace-nowrap">
                           {(() => {
                             const st = String(item.status || 'Available').toLowerCase();
+                            const rawSt = String(item.raw_status || '').toLowerCase();
                             const cond = String(item.condition || item.raw_condition || '').toLowerCase();
-                            const parent = parentUnitMap.get(String(item.id)) ||
-                              (item.barcode ? parentUnitMap.get(String(item.barcode)) : null) ||
-                              (item.serial_number ? parentUnitMap.get(String(item.serial_number)) : null);
-                            const isBuiltIn = Boolean(item.is_child) || st === 'built-in' || st === 'built_in' || Boolean(parent);
+                            const parent = getParentForUnit(item);
+                            const isBuiltIn = Boolean(item.is_child) || st === 'built-in' || st === 'built_in' || rawSt === 'built-in' || Boolean(parent);
 
-                            if (['lost', 'decommissioned'].includes(cond) || st === 'lost' || st === 'decommissioned') {
+                            if (['lost', 'decommissioned'].includes(cond) || st === 'lost' || rawSt === 'lost') {
                               return <span className="text-[11px] font-bold text-rose-500 dark:text-rose-400">Lost</span>;
                             }
-                            if (['damaged', 'under repair', 'worn', 'minor wear'].includes(cond) || ['damaged', 'maintenance', 'under_maintenance'].includes(st)) {
+                            if (['damaged', 'under repair', 'worn', 'minor wear'].includes(cond) || ['damaged', 'maintenance', 'under_maintenance'].includes(st) || ['damaged', 'maintenance'].includes(rawSt)) {
                               return <span className="text-[11px] font-bold text-rose-500 dark:text-rose-400">Damaged</span>;
                             }
 
-                            // If unit is a built-in child whose parent is damaged or lost:
-                            if (isBuiltIn && parent) {
-                              const pCond = String(parent.condition || parent.raw_condition || '').toLowerCase();
-                              const pSt = String(parent.status || parent.raw_status || '').toLowerCase();
-                              const isParentBroken = ['damaged', 'lost', 'decommissioned', 'under repair'].includes(pCond) || ['damaged', 'lost', 'decommissioned', 'maintenance', 'under_maintenance'].includes(pSt);
-                              if (isParentBroken || st === 'unavailable') {
-                                return <span className="text-[11px] font-bold text-amber-500 dark:text-amber-400" title="Parent kit damaged">Unavailable</span>;
+                            if (isBuiltIn) {
+                              if (parent) {
+                                const pCond = String(parent.condition || parent.raw_condition || '').toLowerCase();
+                                const pSt = String(parent.status || parent.raw_status || '').toLowerCase();
+                                const isParentBroken = ['damaged', 'lost', 'decommissioned', 'under repair'].includes(pCond) || ['damaged', 'lost', 'decommissioned', 'maintenance', 'under_maintenance'].includes(pSt);
+                                if (isParentBroken) {
+                                  return <span className="text-[11px] font-bold text-amber-500 dark:text-amber-400" title="Parent kit damaged">Unavailable</span>;
+                                }
+                                const isParentOut = ['released', 'in_use', 'in-use', 'borrowed', 'checked_out'].includes(pSt);
+                                if (isParentOut || ['released', 'in_use', 'in-use', 'borrowed'].includes(st)) {
+                                  return <span className="text-[11px] font-bold text-blue-500 dark:text-blue-400">Released</span>;
+                                }
+                                if (pSt === 'reserved' || st === 'reserved') {
+                                  return <span className="text-[11px] font-bold text-indigo-500 dark:text-indigo-400">Reserved</span>;
+                                }
+                              }
+                              if (['released', 'in_use', 'in-use', 'borrowed'].includes(st)) {
+                                return <span className="text-[11px] font-bold text-blue-500 dark:text-blue-400">Released</span>;
+                              }
+                              if (st === 'reserved') {
+                                return <span className="text-[11px] font-bold text-indigo-500 dark:text-indigo-400">Reserved</span>;
                               }
                               return <span className="text-[11px] font-bold text-violet-500 dark:text-violet-400">Built-in</span>;
                             }
@@ -1197,6 +1263,9 @@ export default function EquipmentStockTab({
       <EquipmentDetailModal
         selectedItem={selectedItem}
         setSelectedItem={setSelectedItem}
+        allUnits={units}
+        categories={categories}
+        parentUnitMap={parentUnitMap}
       />
     </div>
   );
