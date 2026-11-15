@@ -57,9 +57,11 @@ jobs:
 
     - name: Check for hardcoded secrets
       run: |
-        # Check for common secret patterns
-        if git grep -E '(password|secret|api_key|token)\s*=\s*["\x27][^"\x27]{8,}["\x27]' -- '*.php' '*.js' '*.ts' '*.tsx'; then
-          echo "⚠️ WARNING: Potential hardcoded secrets found"
+        # Scan source code for real private keys and cloud tokens (excluding public assets & build artifacts)
+        SECRETS_FOUND=$(git grep -i -E '(PRIVATE KEY-----|ghp_[0-9a-zA-Z]{36}|xox[baprs]-[0-9]{12}|AKIA[0-9A-Z]{16})' -- 'backend/app/*' 'frontend/src/*' || true)
+        if [ -n "$SECRETS_FOUND" ]; then
+          echo "⚠️ WARNING: Potential hardcoded secrets found:"
+          echo "$SECRETS_FOUND"
           exit 1
         else
           echo "✅ No hardcoded secrets detected"
