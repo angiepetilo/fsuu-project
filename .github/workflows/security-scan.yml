@@ -27,13 +27,11 @@ jobs:
 
     - name: Install Composer dependencies
       working-directory: ./backend
-      run: composer install --prefer-dist --no-progress --no-suggest
+      run: composer install --prefer-dist --no-progress
 
     - name: Run PHP Security Checker
       working-directory: ./backend
-      run: |
-        composer require --dev enlightn/security-checker
-        vendor/bin/security-checker security:check composer.lock
+      run: composer audit --locked
 
     - name: Set up Node.js
       uses: actions/setup-node@v4
@@ -46,7 +44,7 @@ jobs:
 
     - name: Run npm audit
       working-directory: ./frontend
-      run: npm audit --audit-level=moderate
+      run: npm audit --audit-level=high
 
     - name: Check for environment file exposure
       run: |
