@@ -292,7 +292,7 @@ export default function UserFormModal({
               <input
                 type="email"
                 required
-                placeholder="e.g. juan.delacruz@urios.edu.ph"
+                placeholder="Enter user email address"
                 value={form.email_address}
                 onChange={(e) => setForm((f) => ({ ...f, email_address: e.target.value }))}
                 onBlur={checkEmailActive}

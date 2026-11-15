@@ -1,0 +1,98 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run security scan every Monday at 9 AM UTC
+    - cron: '0 9 * * 1'
+
+jobs:
+  security-scan:
+    name: Security Vulnerability Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up PHP 8.3
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.3'
+        extensions: mbstring, xml, pdo_mysql
+        coverage: none
+
+    - name: Install Composer dependencies
+      working-directory: ./backend
+      run: composer install --prefer-dist --no-progress --no-suggest
+
+    - name: Run PHP Security Checker
+      working-directory: ./backend
+      run: |
+        composer require --dev enlightn/security-checker
+        vendor/bin/security-checker security:check composer.lock
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install npm dependencies
+      working-directory: ./frontend
+      run: npm ci
+
+    - name: Run npm audit
+      working-directory: ./frontend
+      run: npm audit --audit-level=moderate
+
+    - name: Check for environment file exposure
+      run: |
+        if git ls-files | grep -E '\.env$|\.env\.production$|\.env\.local$'; then
+          echo "❌ ERROR: Environment files found in git!"
+          exit 1
+        else
+          echo "✅ No environment files in git"
+        fi
+
+    - name: Check for hardcoded secrets
+      run: |
+        # Check for common secret patterns
+        if git grep -E '(password|secret|api_key|token)\s*=\s*["\x27][^"\x27]{8,}["\x27]' -- '*.php' '*.js' '*.ts' '*.tsx'; then
+          echo "⚠️ WARNING: Potential hardcoded secrets found"
+          exit 1
+        else
+          echo "✅ No hardcoded secrets detected"
+        fi
+
+    - name: Laravel Security Scan
+      working-directory: ./backend
+      run: |
+        # Check for debug mode in production files
+        if grep -r "APP_DEBUG=true" config/ || grep -r "APP_DEBUG=true" .env.example; then
+          echo "⚠️ WARNING: Debug mode enabled in config"
+        fi
+        
+        # Check for missing security middleware
+        if ! grep -q "SecurityHeadersMiddleware" bootstrap/app.php; then
+          echo "⚠️ WARNING: SecurityHeadersMiddleware not registered"
+        fi
+
+    - name: OWASP Dependency Check (Optional - time intensive)
+      if: github.event_name == 'schedule'
+      uses: dependency-check/Dependency-Check_Action@main
+      with:
+        project: 'FSUU-Booking-System'
+        path: '.'
+        format: 'HTML'
+
+    - name: Upload security reports
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: security-reports
+        path: |
+          backend/composer.lock
+          frontend/package-lock.json

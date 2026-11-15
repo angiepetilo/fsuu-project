@@ -425,7 +425,7 @@ export default function ProfileConfigTab({ showMsg }) {
                   disabled={!isEditing}
                   value={profileData.email}
                   onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
-                  placeholder="e.g. admin@urios.edu.ph or name@gmail.com"
+                  placeholder="Enter email address"
                   className={`w-full p-2.5 border rounded-lg font-mono font-medium text-xs transition-colors ${
                     isEditing
                       ? "bg-white border-slate-300 text-slate-900 focus:outline-none focus:border-blue-600"

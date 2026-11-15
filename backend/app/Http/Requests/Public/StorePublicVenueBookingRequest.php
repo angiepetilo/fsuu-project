@@ -48,6 +48,7 @@ class StorePublicVenueBookingRequest extends FormRequest
             'endorsement_files.*' => ['nullable'],
             'is_pin_verified' => ['nullable'],
             'pin_code' => ['nullable', 'string'],
+            'is_portal' => ['nullable'],
         ];
     }
 

@@ -40,6 +40,7 @@ export default function Step3Details({
   isEmailVerified = false,
   setIsEmailVerified,
   pinRules,
+  isPortal = false,
   onBack,
   isOutsideCampus = false,
   setIsOutsideCampus: setIsOutsideCampusProp,
@@ -228,10 +229,33 @@ export default function Step3Details({
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
       setEmailCheckStatus("invalid");
-      setEmailCheckMessage("Please enter a valid email format (e.g. name@gmail.com or name@urios.edu.ph).");
+      setEmailCheckMessage(
+        isPortal
+          ? "Please enter a valid email format (e.g. name@urios.edu.ph or name@gmail.com)."
+          : "Please enter a valid university email format (e.g. name@urios.edu.ph)."
+      );
       setEmailSuggestion("");
       return;
     }
+
+    const domain = (trimmed.split('@')[1] || '').toLowerCase();
+    const isInstitutional = ['urios.edu.ph', 'fsuu.edu.ph'].includes(domain);
+    const isGmail = ['gmail.com', 'googlemail.com'].includes(domain);
+
+    if (!isPortal && !isInstitutional) {
+      setEmailCheckStatus("invalid");
+      setEmailCheckMessage("Public reservations strictly require an official university email (@urios.edu.ph).");
+      setEmailSuggestion("");
+      return;
+    }
+
+    if (isPortal && !isInstitutional && !isGmail) {
+      setEmailCheckStatus("invalid");
+      setEmailCheckMessage("Portal reservations only accept official university emails (@urios.edu.ph) or personal Gmail (@gmail.com).");
+      setEmailSuggestion("");
+      return;
+    }
+
     if (typeof overrideVal !== "string" && trimmed === lastCheckedEmail && emailCheckStatus !== "idle") {
       return;
     }
@@ -240,7 +264,7 @@ export default function Step3Details({
     setEmailCheckMessage("Checking email deliverability & temporary domain list...");
     setEmailSuggestion("");
     try {
-      const res = await api.post("/public/verify-email-active", { email: trimmed });
+      const res = await api.post("/public/verify-email-active", { email: trimmed, is_portal: !!isPortal });
       if (res.data?.valid) {
         setEmailCheckStatus("valid");
         setEmailCheckMessage(res.data.message || "Email address is active and deliverable.");
@@ -354,7 +378,7 @@ export default function Step3Details({
           setEmailCheckStatus("checking");
           setEmailCheckMessage("Checking email deliverability & temporary domain list...");
           try {
-            const verifyRes = await api.post("/public/verify-email-active", { email: trimmed });
+            const verifyRes = await api.post("/public/verify-email-active", { email: trimmed, is_portal: !!isPortal });
             if (verifyRes.data?.valid) {
               setEmailCheckStatus("valid");
               setEmailCheckMessage(verifyRes.data.message || "Email address is active and deliverable.");
@@ -384,6 +408,7 @@ export default function Step3Details({
         }
 
         payload.email = trimmed;
+        payload.is_portal = !!isPortal;
       }
 
       const res = await api.post("/public/send-otp", payload);
@@ -723,8 +748,8 @@ export default function Step3Details({
             onBlur={handleEmailBlur}
             readOnly={requireVerification && isEmailVerified && otpChannel === "email"}
             leftIcon={<Mail size={16} />}
-            placeholder="email address"
-            error={emailCheckStatus === "invalid" ? emailCheckMessage : undefined}
+            placeholder="Enter email address"
+            error={emailCheckStatus === "invalid"}
             containerClassName={
               requireVerification && isEmailVerified && otpChannel === "email"
                 ? "bg-emerald-50/40 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-700"
@@ -832,8 +857,10 @@ export default function Step3Details({
                 </div>
               )}
               {emailCheckStatus === "idle" && !email && (
-                <p className="text-[10.5px] text-slate-400">
-                  Enter your email address and click outside the box to run deliverability check.
+                <p className="text-[10.5px] text-slate-400 dark:text-slate-500">
+                  {isPortal
+                    ? "Official university email (@urios.edu.ph) or personal Gmail (@gmail.com) accepted."
+                    : "Official university email (@urios.edu.ph) strictly required."}
                 </p>
               )}
             </div>

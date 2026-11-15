@@ -852,7 +852,7 @@ export default function TrackBooking() {
                         setResubmitEmail(e.target.value);
                         setResubmitError("");
                       }}
-                      placeholder="e.g. yourname@urios.edu.ph"
+                      placeholder="Enter registered email address"
                       className="w-full p-2.5 bg-card border border-border rounded-lg text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                     />
                   </div>
@@ -1186,7 +1186,7 @@ export default function TrackBooking() {
                     </label>
                     <input
                       type="email"
-                      placeholder="e.g. yourname@urios.edu.ph"
+                      placeholder="Enter registered email address"
                       value={cancelEmail}
                       onChange={(e) => {
                         setCancelEmail(e.target.value);

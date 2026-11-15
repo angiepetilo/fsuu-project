@@ -78,6 +78,7 @@ class StorePublicEquipmentBorrowingRequest extends FormRequest
             'items.*.quantity_requested' => ['nullable', 'integer', 'min:1', 'max:1'],
             'equipment_items' => ['nullable'],
             'endorsement_file' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,webp,docx', 'max:10240'],
+            'is_portal' => ['nullable'],
         ];
     }
 

@@ -8,6 +8,13 @@ use Illuminate\Contracts\Validation\ValidationRule;
 
 class ActiveDeliverableEmail implements ValidationRule
 {
+    protected ?bool $isPortal = null;
+
+    public function __construct(?bool $isPortal = null)
+    {
+        $this->isPortal = $isPortal;
+    }
+
     /**
      * Run the validation rule.
      *
@@ -18,7 +25,13 @@ class ActiveDeliverableEmail implements ValidationRule
         $email = trim((string) $value);
 
         $service = app(AbstractEmailValidationService::class);
-        $result = $service->validate($email);
+        $isPortal = $this->isPortal ?? (
+            request()->boolean('is_portal') ||
+            request()->input('context') === 'portal' ||
+            auth('sanctum')->check()
+        );
+
+        $result = $service->validate($email, $isPortal);
 
         if (!$result['valid']) {
             $fail($result['message'] ?: "The :attribute must be an active, deliverable, non-disposable email address.");

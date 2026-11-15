@@ -426,7 +426,27 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
       setEmailCheckStatus("invalid");
-      setEmailCheckMessage("Please enter a valid email format (e.g. name@gmail.com or name@urios.edu.ph).");
+      setEmailCheckMessage(
+        isPortal
+          ? "Please enter a valid email format (e.g. name@urios.edu.ph or name@gmail.com)."
+          : "Please enter a valid university email format (e.g. name@urios.edu.ph)."
+      );
+      return;
+    }
+
+    const domain = (cleanEmail.split('@')[1] || '').toLowerCase();
+    const isInstitutional = ['urios.edu.ph', 'fsuu.edu.ph'].includes(domain);
+    const isGmail = ['gmail.com', 'googlemail.com'].includes(domain);
+
+    if (!isPortal && !isInstitutional) {
+      setEmailCheckStatus("invalid");
+      setEmailCheckMessage("Public reservations strictly require an official university email (@urios.edu.ph).");
+      return;
+    }
+
+    if (isPortal && !isInstitutional && !isGmail) {
+      setEmailCheckStatus("invalid");
+      setEmailCheckMessage("Portal reservations only accept official university emails (@urios.edu.ph) or personal Gmail (@gmail.com).");
       return;
     }
 
@@ -435,7 +455,7 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
       setEmailCheckStatus("checking");
       setEmailCheckMessage("Checking email deliverability & temporary domain list...");
       try {
-        const res = await api.post("/public/verify-email-active", { email: cleanEmail });
+        const res = await api.post("/public/verify-email-active", { email: cleanEmail, is_portal: !!isPortal });
         if (!res.data?.valid) {
           setEmailCheckStatus("invalid");
           setEmailCheckMessage(res.data?.message || "This email address is not deliverable or has been flagged as fake/disposable.");
@@ -549,6 +569,7 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
       };
 
       const formData = new FormData();
+      formData.append('is_portal', isPortal ? '1' : '0');
       Object.keys(payload).forEach((key) => {
         if (payload[key] !== undefined && payload[key] !== null) {
           formData.append(key, payload[key]);
@@ -740,6 +761,7 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
             isEmailVerified={isEmailVerified}
             setIsEmailVerified={setIsEmailVerified}
             pinRules={pinRules}
+            isPortal={isPortal}
             onBack={() => setActiveStep(2)}
           />
         )}

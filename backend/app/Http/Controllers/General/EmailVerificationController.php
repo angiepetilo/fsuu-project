@@ -28,8 +28,12 @@ class EmailVerificationController extends Controller
             ], 422);
         }
 
-        $result = $validatorService->validate($email);
-        \Illuminate\Support\Facades\Log::info("Email verification check: [{$email}] -> " . ($result['valid'] ? 'PASS' : 'FAIL') . " (" . ($result['source'] ?? '') . ") - " . ($result['message'] ?? ''));
+        $isPortal = $request->boolean('is_portal') ||
+                    $request->input('context') === 'portal' ||
+                    $request->user('sanctum') !== null;
+
+        $result = $validatorService->validate($email, $isPortal);
+        \Illuminate\Support\Facades\Log::info("Email verification check: [{$email}] (portal=" . ($isPortal ? '1' : '0') . ") -> " . ($result['valid'] ? 'PASS' : 'FAIL') . " (" . ($result['source'] ?? '') . ") - " . ($result['message'] ?? ''));
 
         $status = $result['valid'] ? 200 : 422;
 

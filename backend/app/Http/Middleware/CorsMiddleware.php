@@ -34,7 +34,8 @@ class CorsMiddleware
             }
         }
 
-        $allowOriginHeader = $isAllowed ? $origin : ($origin ? '' : '*');
+        // Never use wildcard with credentials - security best practice
+        $allowOriginHeader = $isAllowed ? $origin : '';
         $allowCredentials = $isAllowed;
 
         // Handle preflight OPTIONS requests immediately

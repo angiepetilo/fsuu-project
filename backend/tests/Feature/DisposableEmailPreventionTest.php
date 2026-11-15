@@ -106,14 +106,12 @@ class DisposableEmailPreventionTest extends TestCase
         $gibberishEmails = [
             'asdadadsa@gmail.com',
             'asdfghjkl@gmail.com',
-            'qwertyuiop@yahoo.com',
-            'zxcvbnm@outlook.com',
             'aaaaaa@gmail.com',
             'dfghjkl@gmail.com',
         ];
 
         foreach ($gibberishEmails as $email) {
-            $response = $this->postJson('/api/public/verify-email-active', ['email' => $email]);
+            $response = $this->postJson('/api/public/verify-email-active', ['email' => $email, 'is_portal' => true]);
 
             $response->assertStatus(422)
                 ->assertJson([
@@ -124,6 +122,68 @@ class DisposableEmailPreventionTest extends TestCase
 
             $this->assertStringContainsString('randomized or fake', $response->json('message'));
         }
+    }
+
+    /**
+     * Test that public reservations strictly reject personal Gmail and require @urios.edu.ph.
+     */
+    public function test_public_reservations_reject_personal_gmail_and_require_urios_email(): void
+    {
+        $nonUniversityEmails = [
+            'john.doe@gmail.com',
+            'jane.doe@yahoo.com',
+            'test.user@outlook.com',
+        ];
+
+        foreach ($nonUniversityEmails as $email) {
+            $response = $this->postJson('/api/public/verify-email-active', ['email' => $email, 'is_portal' => false]);
+
+            $response->assertStatus(422)
+                ->assertJson([
+                    'valid'  => false,
+                    'source' => 'domain_restriction',
+                ]);
+
+            $this->assertStringContainsString('Public reservations strictly require an official university email', $response->json('message'));
+        }
+    }
+
+    /**
+     * Test that portal reservations allow both @urios.edu.ph and personal Gmail (@gmail.com).
+     */
+    public function test_portal_reservations_allow_both_urios_email_and_personal_gmail(): void
+    {
+        \Illuminate\Support\Facades\Http::fake([
+            'https://*abstractapi.com/*' => \Illuminate\Support\Facades\Http::response([
+                'deliverability' => 'DELIVERABLE',
+                'is_disposable_email' => ['value' => false],
+                'is_smtp_valid' => ['value' => true],
+                'is_mx_found' => ['value' => true],
+                'quality_score' => 0.95,
+            ], 200),
+        ]);
+
+        // 1. Institutional email passes in portal
+        $resInstitutional = $this->postJson('/api/public/verify-email-active', [
+            'email'     => 'faculty.member@urios.edu.ph',
+            'is_portal' => true,
+        ]);
+        $resInstitutional->assertStatus(200)->assertJson(['valid' => true, 'source' => 'institutional']);
+
+        // 2. Reputable non-gibberish Gmail passes in portal
+        $resGmail = $this->postJson('/api/public/verify-email-active', [
+            'email'     => 'juan.delacruz@gmail.com',
+            'is_portal' => true,
+        ]);
+        $resGmail->assertStatus(200)->assertJson(['valid' => true]);
+
+        // 3. Other third-party non-Gmail domains (e.g. Yahoo) are still rejected in portal
+        $resYahoo = $this->postJson('/api/public/verify-email-active', [
+            'email'     => 'juan.delacruz@yahoo.com',
+            'is_portal' => true,
+        ]);
+        $resYahoo->assertStatus(422)->assertJson(['valid' => false, 'source' => 'domain_restriction']);
+        $this->assertStringContainsString('Portal reservations only accept official university emails', $resYahoo->json('message'));
     }
 
     /**

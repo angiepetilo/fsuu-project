@@ -210,7 +210,7 @@ class AbstractEmailValidationService
      * 4. DNS MX lookup pre-check
      * 5. Abstract API deep validation (SMTP deliverability, fake/randomized mailbox detection, typo autocorrect)
      */
-    public function validate(string $email): array
+    public function validate(string $email, bool $isPortal = false): array
     {
         $email = trim(strtolower($email));
 
@@ -247,6 +247,59 @@ class AbstractEmailValidationService
         $user = strtolower(trim($parts[0]));
         $domain = strtolower(trim($parts[1]));
         $isInstitutional = in_array($domain, ['urios.edu.ph', 'fsuu.edu.ph'], true);
+        $isGmail = in_array($domain, ['gmail.com', 'googlemail.com'], true);
+        $isTestDomain = $domain === 'localhost' || str_ends_with($domain, '.test') || str_ends_with($domain, '.local') || str_ends_with($domain, '.example');
+
+        // 2. 75,000+ Disposable domain check — always flag temporary/throwaway email providers immediately
+        $isDomainDisposable = self::isDisposableDomain($domain);
+        if ($isDomainDisposable) {
+            return [
+                'valid'          => false,
+                'email'          => $email,
+                'domain'         => $domain,
+                'deliverability' => 'UNDELIVERABLE',
+                'is_disposable'  => true,
+                'autocorrect'    => null,
+                'quality_score'  => 0.0,
+                'message'        => 'Disposable or temporary email addresses (like temp-mail) are not accepted. Please use an active official university email or personal Gmail.',
+                'source'         => 'disposable_blacklist_75k'
+            ];
+        }
+
+        // 3. Domain Policy Enforcement
+        // Public booking form ($isPortal == false): strictly requires official university email (@urios.edu.ph, @fsuu.edu.ph).
+        // Signed-in portal form ($isPortal == true): allows official university email OR personal Gmail (@gmail.com).
+        if (!$isTestDomain) {
+            if (!$isPortal) {
+                if (!$isInstitutional) {
+                    return [
+                        'valid'          => false,
+                        'email'          => $email,
+                        'domain'         => $domain,
+                        'deliverability' => 'UNDELIVERABLE',
+                        'is_disposable'  => false,
+                        'autocorrect'    => null,
+                        'quality_score'  => 0.0,
+                        'message'        => 'Public reservations strictly require an official university email (@urios.edu.ph).',
+                        'source'         => 'domain_restriction'
+                    ];
+                }
+            } else {
+                if (!$isInstitutional && !$isGmail) {
+                    return [
+                        'valid'          => false,
+                        'email'          => $email,
+                        'domain'         => $domain,
+                        'deliverability' => 'UNDELIVERABLE',
+                        'is_disposable'  => false,
+                        'autocorrect'    => null,
+                        'quality_score'  => 0.0,
+                        'message'        => 'Portal reservations only accept official university emails (@urios.edu.ph) or personal Gmail (@gmail.com).',
+                        'source'         => 'domain_restriction'
+                    ];
+                }
+            }
+        }
 
         // Institutional email policy: Reject emails containing numbers (e.g. 202100452@urios.edu.ph)
         if ($isInstitutional) {
@@ -274,24 +327,6 @@ class AbstractEmailValidationService
                 'quality_score'  => 1.0,
                 'message'        => "Official institutional email verified (@{$domain}).",
                 'source'         => 'institutional'
-            ];
-        }
-
-        // 3. 75,000+ Disposable domain check — runs BEFORE gibberish detection so that
-        //    known throwaway domains (e.g. guerrillamail.com, mailinator.com) always
-        //    return is_disposable=true even when the local part looks like gibberish.
-        $isDomainDisposable = self::isDisposableDomain($domain);
-        if ($isDomainDisposable) {
-            return [
-                'valid'          => false,
-                'email'          => $email,
-                'domain'         => $domain,
-                'deliverability' => 'UNDELIVERABLE',
-                'is_disposable'  => true,
-                'autocorrect'    => null,
-                'quality_score'  => 0.0,
-                'message'        => 'Disposable or temporary email addresses (like temp-mail) are not accepted. Please use an active personal email.',
-                'source'         => 'disposable_blacklist_75k'
             ];
         }
 
@@ -548,7 +583,7 @@ class AbstractEmailValidationService
                     'is_disposable'  => false,
                     'autocorrect'    => $autocorrect,
                     'quality_score'  => $qualityScore,
-                    'message'        => $isInstitutional ? "Official institutional email verified (@{$domain})." : "Email address is active and deliverable.",
+                    'message'        => $isInstitutional ? "Official institutional email verified (@{$domain})." : ($isGmail ? "Personal Gmail address verified and deliverable." : "Email address is active and deliverable."),
                     'source'         => 'abstract_api'
                 ];
                 Cache::put($cacheKey, $result, 86400 * 14);
@@ -576,7 +611,7 @@ class AbstractEmailValidationService
                     'is_disposable'  => false,
                     'autocorrect'    => null,
                     'quality_score'  => 0.85,
-                    'message'        => $isInstitutional ? "Official institutional email verified (@{$domain})." : "Email domain @{$domain} is active and deliverable.",
+                    'message'        => $isInstitutional ? "Official institutional email verified (@{$domain})." : ($isGmail ? "Personal Gmail domain @{$domain} is active and deliverable." : "Email domain @{$domain} is active and deliverable."),
                     'source'         => $isInstitutional ? 'institutional' : 'dns_fallback'
                 ];
             }

@@ -484,7 +484,7 @@ export default function SystemSettingsTab() {
               <Mail size={13} className="absolute left-3 top-3 text-slate-400" />
               <input
                 type="email"
-                placeholder="support.booking@fsuu.edu.ph"
+                placeholder="Enter support email"
                 value={settings.contact_email || ""}
                 onChange={(e) => handleChange("contact_email", e.target.value)}
                 className={`${inputCls(isFieldModified("contact_email"))} pl-8`}
@@ -581,7 +581,7 @@ export default function SystemSettingsTab() {
               <Mail size={13} className="absolute left-3 top-3 text-slate-400" />
               <input
                 type="text"
-                placeholder="your@email.com"
+                placeholder="Enter SMTP username"
                 value={settings.smtp_username || ""}
                 onChange={(e) => handleChange("smtp_username", e.target.value)}
                 className={`${inputCls(isFieldModified("smtp_username"))} pl-8`}
@@ -629,7 +629,7 @@ export default function SystemSettingsTab() {
               <Mail size={13} className="absolute left-3 top-3 text-slate-400" />
               <input
                 type="email"
-                placeholder="noreply@fsuu.edu.ph"
+                placeholder="Enter sender email address"
                 value={settings.mail_from_address || ""}
                 onChange={(e) => handleChange("mail_from_address", e.target.value)}
                 className={`${inputCls(isFieldModified("mail_from_address"))} pl-8`}
